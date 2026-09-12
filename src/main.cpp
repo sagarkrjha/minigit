@@ -4,6 +4,7 @@
 
 #include "commands/init.h"
 #include "commands/hash_object.h"
+#include "commands/cat_file.h"
 #include "commands/add.h"
 #include "commands/write_tree.h"
 #include "commands/commit.h"
@@ -60,6 +61,16 @@ int main(int argc, char const *argv[])
         }
 
         hash_object(argv[file_arg], write);
+    }
+    else if (command == "cat-file")
+    {
+        // minigit cat-file (-t | -s | -p) <object>
+        if (argc < 4)
+        {
+            std::cerr << "usage: minigit cat-file (-t | -s | -p) <object>\n";
+            return 1;
+        }
+        cat_file(argv[2], argv[3]);
     }
     else if (command == "write-tree")
     {

@@ -22,6 +22,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.9 `minigit checkout`](#29-minigit-checkout)
   - [2.10 `minigit hash-object`](#210-minigit-hash-object)
   - [2.11 `minigit write-tree`](#211-minigit-write-tree)
+  - [2.12 `minigit cat-file`](#212-minigit-cat-file)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -58,7 +59,7 @@ Borrowing from standard Git architecture, MiniGit separates commands into two co
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
    - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
-   - `hash-object`, `write-tree`.
+   - `hash-object`, `write-tree`, `cat-file`.
 
 ### 1.2 Content-Addressable Storage (CAS) Engine
 
@@ -434,6 +435,88 @@ $ minigit write-tree
 
 ---
 
+### 2.12 `minigit cat-file`
+
+#### Synopsis
+```bash
+minigit cat-file (-t | -s | -p) <object-sha>
+```
+
+#### Purpose
+Plumbing command for inspecting any object stored in the object database. It is the read-side counterpart to `hash-object` and `write-tree`, providing direct access to stored blob, tree, and commit data without going through higher-level porcelain commands.
+
+#### Flags
+| Flag | Meaning |
+| :--- | :--- |
+| `-t` | Print the **type** of the object (`blob`, `tree`, or `commit`). |
+| `-s` | Print the **size** in bytes of the object body (i.e. the payload after the null-byte header delimiter). |
+| `-p` | **Pretty-print** the object body in a human-readable format appropriate for the object type. |
+
+Exactly one flag must be specified along with a valid 64-character SHA-256 hex string.
+
+#### Behavioral Details
+1. Constructs the object path from the SHA: `.minigit/objects/<first-2-hex-chars>/<remaining-62-hex-chars>`.
+2. Reads the raw bytes from disk (as stored by `ObjectDatabase::write`).
+3. Parses the envelope header (`<type> <size>\0<body>`) to extract type, size, and body.
+4. Dispatches based on flag:
+   - **`-t`:** Extracts and prints the type token from the header.
+   - **`-s`:** Extracts and prints the decimal size field from the header.
+   - **`-p`:** Delegates to a type-specific pretty-printer:
+     - **Blob:** Writes the raw body bytes directly to stdout.
+     - **Tree:** Calls `parse_tree()` and formats each entry as `<mode> <type> <sha>    <name>`.
+     - **Commit:** Calls `parse_commit()` and formats as `tree`/`parent`/`author`/`committer` headers followed by a blank line and the commit message.
+
+#### Output Format — Pretty-Print by Type
+
+**Blob:**
+```text
+<raw file content, byte-for-byte>
+```
+
+**Tree:**
+```text
+100644 blob 487b32f9bf2dd4f923b77382025e6834164b85c18a204620f4c3de436894c77c    hello.txt
+100644 blob 9b2d8f1430fca6834b6807d4bdf882800d0eb8b63e8a719c8d50b28e678bf43e    app.conf
+```
+
+**Commit:**
+```text
+tree e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+parent 7e9a12cf4603951239c4f4244f7d4bb21a71997d9178ad9902636a04a6ee1039
+author MiniGit User <user@minigit> 1773322800
+committer MiniGit User <user@minigit> 1773322800
+
+Initial commit with configuration and hello
+```
+
+#### Example
+```bash
+$ SHA=$(minigit hash-object -w notes.txt)
+
+$ minigit cat-file -t $SHA
+blob
+
+$ minigit cat-file -s $SHA
+42
+
+$ minigit cat-file -p $SHA
+Meeting notes for the project kickoff...
+
+# Inspect a tree or commit found via log
+$ COMMIT=$(cat .minigit/refs/heads/main)
+$ minigit cat-file -t $COMMIT
+commit
+
+$ minigit cat-file -p $COMMIT
+tree bf1d2a71cd66ce7408912bf96e4c655466158621b9c1bf1de5e90013f6bb943e
+author MiniGit User <user@minigit> 1789218576
+committer MiniGit User <user@minigit> 1789218576
+
+initial commit
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -605,6 +688,7 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Object Header** | `<type> <size>\0<content>` | `<type> <size>\0<content>` |
 | **Object Compression** | Uncompressed loose objects | zlib deflate compression |
 | **Packfiles (`.pack`)** | Roadmap | Full support (delta compression) |
+| **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, and many more |
 | **Index Serialization** | Human-readable `<path> <sha256>` | Binary DIRC structure with stat cache |
 | **Diff Engine** | LCS DP Matrix | Eugene Myers $O(ND)$ Difference Algorithm |
 | **Symbolic HEAD Ref** | Supported (`ref: refs/heads/...`) | Supported (`ref: refs/heads/...`) |

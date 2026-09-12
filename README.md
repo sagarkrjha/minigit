@@ -61,7 +61,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **LCS Diff Engine:** Standard unified diff (`---` / `+++` / `@@ -x,y +x,y @@`) for both unstaged changes and staged changes (`--cached` / `--staged`).
 - **Branch Management:** List, create, and safely delete branches with `minigit branch`.
 - **Safe Branch Switching:** Dedicated `minigit switch` (including `-c` creation flag) and full working tree restoration via `minigit checkout`.
-- **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`) and tree generation (`minigit write-tree`) for scriptability.
+- **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`), tree generation (`minigit write-tree`), and object inspection (`minigit cat-file -t/-s/-p`) for scriptability.
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -124,6 +124,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
+| `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
 
 ---
 
@@ -398,6 +399,34 @@ minigit hash-object -w hello.txt
 minigit write-tree
 ```
 
+#### Inspect stored objects with `cat-file`
+
+Use `minigit cat-file` to read any object from the object store by its SHA-256:
+
+```bash
+SHA=$(minigit hash-object -w hello.txt)
+
+# Print the object type
+minigit cat-file -t $SHA
+# blob
+
+# Print the body size (bytes)
+minigit cat-file -s $SHA
+# 16
+
+# Pretty-print the object content
+minigit cat-file -p $SHA
+# Hello, MiniGit!
+```
+
+Works on all three object types:
+
+| Flag | blob | tree | commit |
+| :--- | :--- | :--- | :--- |
+| `-t` | `blob` | `tree` | `commit` |
+| `-s` | byte count of file content | byte count of entry list | byte count of commit body |
+| `-p` | raw file bytes | `<mode> <type> <sha>    <name>` per entry | formatted headers + blank line + message |
+
 ---
 
 ## Internal Repository Layout
@@ -446,6 +475,7 @@ minigit/
 │   ├── commands/               # User-facing commands
 │   │   ├── init.{h,cpp}        # Repository initialization
 │   │   ├── hash_object.{h,cpp} # File hashing and blob storage
+│   │   ├── cat_file.{h,cpp}    # Object inspection (type, size, pretty-print)
 │   │   ├── add.{h,cpp}         # Staging area population
 │   │   ├── write_tree.{h,cpp}  # Index-to-tree serialization
 │   │   ├── commit.{h,cpp}      # Commit creation and ref advancement

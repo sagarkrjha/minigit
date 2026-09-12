@@ -18,6 +18,7 @@ add_executable(
     # commands
     src/commands/init.cpp
     src/commands/hash_object.cpp
+    src/commands/cat_file.cpp
     src/commands/add.cpp
     src/commands/write_tree.cpp
     src/commands/commit.cpp
