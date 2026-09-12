@@ -1,0 +1,508 @@
+# MiniGit — Git-Compatible Version Control System in C++20
+
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
+[![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C.svg?style=flat-square&logo=cmake)](https://cmake.org/)
+[![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%2B-721412.svg?style=flat-square&logo=openssl)](https://www.openssl.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#building-and-installation)
+[![Architecture](https://img.shields.io/badge/Architecture-Content--Addressable%20Storage-success.svg?style=flat-square)](#storage-architecture)
+
+**MiniGit** is a lightweight, educational, yet architecturally authentic version control system built from scratch in modern **C++20**. Designed as a clean-room behavioral recreation of Git internals, it implements content-addressable object storage, DAG-based commit histories, a two-phase staging index, dynamic programming diff calculation, and full branch management.
+
+> 📖 For a deep dive into every command, internal data structures, and algorithmic details, see [FEATURES.md](FEATURES.md).
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Storage Architecture](#storage-architecture)
+- [Command Reference](#command-reference)
+- [Building and Installation](#building-and-installation)
+  - [Prerequisites](#prerequisites)
+  - [Build on Windows (PowerShell / MSVC / Ninja)](#build-on-windows-powershell--msvc--ninja)
+  - [Build on Linux / macOS](#build-on-linux--macos)
+- [Usage Walkthrough](#usage-walkthrough)
+  - [1. Initialize a Repository](#1-initialize-a-repository)
+  - [2. Inspect Status](#2-inspect-status)
+  - [3. Stage and Commit Changes](#3-stage-and-commit-changes)
+  - [4. View History](#4-view-history)
+  - [5. Compute Differences](#5-compute-differences)
+  - [6. Branching and Switching](#6-branching-and-switching)
+  - [7. Detached HEAD and Historic Checkout](#7-detached-head-and-historic-checkout)
+  - [8. Low-Level Plumbing Commands](#8-low-level-plumbing-commands)
+- [Internal Repository Layout](#internal-repository-layout)
+- [Codebase Structure](#codebase-structure)
+- [MiniGit vs Standard Git](#minigit-vs-standard-git)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+---
+
+## Overview
+
+Canonical Git is often perceived as complex due to decades of accumulated C code, packfile optimizations, and protocol extensions. **MiniGit** strips away legacy baggage while retaining Git's foundational Computer Science elegance:
+
+1. **Content-Addressable Storage (CAS):** Everything is stored as an immutable object addressed by its cryptographic hash (SHA-256 via OpenSSL).
+2. **Directed Acyclic Graph (DAG):** Commits form an immutable history graph linked through parent hashes.
+3. **Index (Staging Area):** An explicit cache decouples working tree edits from commit creation.
+4. **Unified Diff Engine:** Computes line-level edit sequences using Longest Common Subsequence (LCS) dynamic programming.
+5. **Branching & HEAD Pointers:** Lightweight pointer-based branches with symbolic and detached reference support.
+
+---
+
+## Key Features
+
+- **Repository Lifecycle:** Create and reinitialize `.minigit` repositories with automatic directory tree and reference initialization.
+- **Two-Phase Staging:** Stage granular file changes via `minigit add` and inspect the staged index before committing.
+- **Atomic Commits:** Capture tree snapshots, author metadata, Unix timestamps, and commit parentage with `minigit commit`.
+- **Revision History:** Linear and ancestor commit history traversal with `minigit log`.
+- **Three-Tree Status Inspection:** Real-time state classification (staged, modified, deleted, untracked) between Working Tree, Index, and HEAD via `minigit status`.
+- **LCS Diff Engine:** Standard unified diff (`---` / `+++` / `@@ -x,y +x,y @@`) for both unstaged changes and staged changes (`--cached` / `--staged`).
+- **Branch Management:** List, create, and safely delete branches with `minigit branch`.
+- **Safe Branch Switching:** Dedicated `minigit switch` (including `-c` creation flag) and full working tree restoration via `minigit checkout`.
+- **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`) and tree generation (`minigit write-tree`) for scriptability.
+- **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
+
+---
+
+## Storage Architecture
+
+MiniGit models your project using three primary object types stored under `.minigit/objects/`:
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                      COMMIT OBJECT                     │
+│  tree: e3b0c44298fc...                                 │
+│  parent: 8f4b2a1c90...                                 │
+│  author: MiniGit User <user@minigit> 1773322800        │
+│  message: Add feature                                  │
+└───────────────────────────┬────────────────────────────┘
+                            │ points to
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                       TREE OBJECT                      │
+│  100644 src/main.cpp 4a5e1e5823...                     │
+│  100644 CMakeLists.txt 9b2d8f1430...                   │
+└───────────────┬────────────────────────┬───────────────┘
+                │ points to              │ points to
+                ▼                        ▼
+      ┌──────────────────┐      ┌──────────────────┐
+      │   BLOB OBJECT    │      │   BLOB OBJECT    │
+      │ (File Content A) │      │ (File Content B) │
+      └──────────────────┘      └──────────────────┘
+```
+
+### The Three States
+
+MiniGit coordinates file states across three distinct layers:
+
+```text
+Working Directory        Staging Area (Index)       Object Database (Commits)
+┌─────────────────┐       ┌─────────────────┐       ┌───────────────────────┐
+│                 │  add  │                 │ commit│                       │
+│  Current Files  ├──────►│ .minigit/index  ├──────►│  .minigit/objects/    │
+│  on Filesystem  │       │ (path -> SHA)   │       │  (Immutable DAG)      │
+│                 │◄──────┴─────────────────┴───────┤                       │
+└─────────────────┘             checkout            └───────────────────────┘
+```
+
+---
+
+## Command Reference
+
+| Command | Category | Description |
+| :--- | :--- | :--- |
+| `minigit init` | Porcelain | Initializes a new repository or reinitializes an existing one. |
+| `minigit status` | Porcelain | Shows working tree, staging area, and untracked file status. |
+| `minigit add <file>...` | Porcelain | Stages one or more files into the index and writes blob objects. |
+| `minigit commit -m <msg> [--author <a>]` | Porcelain | Records staged changes into a new commit object and advances HEAD. |
+| `minigit log` | Porcelain | Displays commit logs following parent commit hashes from HEAD. |
+| `minigit diff [--cached] [<path>...]` | Porcelain | Displays line-level unified diffs (unstaged or staged). |
+| `minigit branch [name] [-d name]` | Porcelain | Lists, creates, or deletes branches. |
+| `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
+| `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
+| `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
+| `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
+
+---
+
+## Building and Installation
+
+### Prerequisites
+
+- **C++ Compiler:** Supporting C++20 standard:
+  - GCC 11+
+  - Clang 13+
+  - MSVC 2019 / 2022 (Visual Studio 16.10+)
+- **Build System:** CMake 3.20 or newer
+- **Cryptographic Library:** OpenSSL (`OpenSSL::Crypto` with SHA-256 support)
+
+---
+
+### Build on Windows (PowerShell / MSVC / Ninja)
+
+#### 1. Clone repository
+```powershell
+git clone https://github.com/your-username/minigit.git
+cd minigit
+```
+
+#### 2. Configure with CMake
+If OpenSSL is installed via vcpkg or system path:
+```powershell
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+```
+*(Or omit `-G "Ninja"` to use the default Visual Studio generator)*
+
+#### 3. Compile
+```powershell
+cmake --build build --config Release
+```
+
+The executable will be located at:
+```powershell
+.\build\minigit.exe
+```
+
+---
+
+### Build on Linux / macOS
+
+#### 1. Install dependencies
+```bash
+# Ubuntu / Debian
+sudo apt-get update && sudo apt-get install -y build-essential cmake libssl-dev
+
+# Fedora
+sudo dnf install -y gcc-c++ cmake openssl-devel
+
+# macOS (Homebrew)
+brew install cmake openssl
+```
+
+#### 2. Build
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+```
+
+The binary will be located at `./build/minigit`.
+
+---
+
+## Usage Walkthrough
+
+### 1. Initialize a Repository
+
+Initialize a new empty repository in the current working directory:
+
+```bash
+minigit init
+```
+*Output:*
+```text
+Initialized empty mini_git repository in C:/path/to/project/.minigit/
+```
+
+Running `minigit init` again safely detects and reports the existing repository:
+```text
+Reinitialized existing mini_git repository in C:/path/to/project/.minigit/
+```
+
+---
+
+### 2. Inspect Status
+
+Create sample files and check repository status:
+
+```bash
+echo "Hello, MiniGit!" > hello.txt
+echo "config=enabled" > app.conf
+minigit status
+```
+*Output:*
+```text
+On branch main
+
+Untracked files:
+	app.conf
+	hello.txt
+```
+
+---
+
+### 3. Stage and Commit Changes
+
+Stage files to the index:
+
+```bash
+minigit add hello.txt app.conf
+minigit status
+```
+*Output:*
+```text
+On branch main
+
+Changes to be committed:
+	new file:   app.conf
+	new file:   hello.txt
+```
+
+Create a commit with a custom message and author:
+
+```bash
+minigit commit -m "Initial commit with configuration and hello" --author "Alice <alice@example.com>"
+```
+*Output:*
+```text
+[(root-commit) 5b2f8a1] Initial commit with configuration and hello
+```
+
+---
+
+### 4. View History
+
+View commit logs:
+
+```bash
+minigit log
+```
+*Output:*
+```text
+commit 5b2f8a18342dc2145b20756e4c7ba987e9e6a0d0d4638708c3525287f3942007
+Author: Alice <alice@example.com>
+Date:   1773322800
+
+    Initial commit with configuration and hello
+```
+
+---
+
+### 5. Compute Differences
+
+#### Inspect Unstaged Modifications
+Modify a tracked file without staging:
+
+```bash
+echo "Hello, World and MiniGit!" > hello.txt
+minigit diff
+```
+*Output:*
+```diff
+diff --minigit a/hello.txt b/hello.txt
+--- a/hello.txt
++++ b/hello.txt
+@@ -1,1 +1,1 @@
+-Hello, MiniGit!
++Hello, World and MiniGit!
+```
+
+#### Inspect Staged Changes
+Stage the change and inspect differences relative to `HEAD`:
+
+```bash
+minigit add hello.txt
+minigit diff --cached
+```
+
+---
+
+### 6. Branching and Switching
+
+#### List Branches
+```bash
+minigit branch
+```
+*Output:*
+```text
+* main
+```
+
+#### Create and Switch to a New Branch
+```bash
+minigit switch -c feature/login
+```
+*Output:*
+```text
+Created branch 'feature/login' at 5b2f8a1
+Switched to branch 'feature/login'
+```
+
+#### Create a Commit on the Branch
+```bash
+echo "auth_token=secret" >> app.conf
+minigit add app.conf
+minigit commit -m "Add auth configuration"
+```
+
+#### Switch Back to Main
+```bash
+minigit switch main
+```
+*Output:*
+```text
+Switched to branch 'main'
+```
+*The working tree is automatically updated to the state of `main`!*
+
+#### Delete a Branch
+```bash
+minigit branch -d feature/login
+```
+
+---
+
+### 7. Detached HEAD and Historic Checkout
+
+Time-travel to any commit SHA or branch directly:
+
+```bash
+minigit checkout 5b2f8a18342dc2145b20756e4c7ba987e9e6a0d0d4638708c3525287f3942007
+```
+*Output:*
+```text
+HEAD is now at 5b2f8a1 Initial commit with configuration and hello
+```
+
+Inspect status while in detached state:
+```bash
+minigit status
+```
+*Output:*
+```text
+On branch HEAD (detached)
+
+nothing to commit, working tree clean
+```
+
+Return to a branch:
+```bash
+minigit switch main
+```
+
+---
+
+### 8. Low-Level Plumbing Commands
+
+Inspect how MiniGit serializes objects under the hood:
+
+```bash
+# Hash a file and print its SHA-256 without writing
+minigit hash-object hello.txt
+
+# Hash a file and write it to .minigit/objects
+minigit hash-object -w hello.txt
+
+# Snapshot the current staging area into a tree object directly
+minigit write-tree
+```
+
+---
+
+## Internal Repository Layout
+
+When `minigit init` is executed, it creates the `.minigit` directory structure:
+
+```text
+.minigit/
+├── HEAD               # Symbolic ref (ref: refs/heads/main) or commit SHA
+├── config             # Repository configuration file
+├── index              # Staging area: flat map of path -> SHA-256 entries
+├── objects/           # Content-addressable object store
+│   ├── 5b/
+│   │   └── 2f8a18342dc2145b...   # Blob / Tree / Commit object payloads
+│   └── ...
+└── refs/
+    ├── heads/         # Branch pointers (e.g., refs/heads/main)
+    └── tags/          # Tag pointers
+```
+
+### On-Disk Object Envelope
+
+All objects in `.minigit/objects/` are formatted with an envelope header:
+
+```text
+<type> <byte_size>\0<content>
+```
+
+- **Blob:** `blob <size>\0<file-bytes>`
+- **Tree:** `tree <size>\0<mode> <filename> <sha256>\n...`
+- **Commit:** `commit <size>\0tree <sha>\nparent <sha>\nauthor <author> <timestamp>\ncommitter <author> <timestamp>\n\n<message>`
+
+Objects are sharded using the first 2 characters of their 64-character hex SHA-256 hash as the subdirectory name and the remaining 62 characters as the filename.
+
+---
+
+## Codebase Structure
+
+```text
+minigit/
+├── CMakeLists.txt              # CMake build configuration
+├── README.md                   # Project overview and user guide
+├── FEATURES.md                 # In-depth architectural and feature specification
+├── src/
+│   ├── main.cpp                # CLI entry point and argument dispatcher
+│   ├── commands/               # User-facing commands
+│   │   ├── init.{h,cpp}        # Repository initialization
+│   │   ├── hash_object.{h,cpp} # File hashing and blob storage
+│   │   ├── add.{h,cpp}         # Staging area population
+│   │   ├── write_tree.{h,cpp}  # Index-to-tree serialization
+│   │   ├── commit.{h,cpp}      # Commit creation and ref advancement
+│   │   ├── log.{h,cpp}         # Commit graph history traversal
+│   │   ├── status.{h,cpp}      # Multi-tree delta calculation
+│   │   ├── diff.{h,cpp}        # Diff CLI command integration
+│   │   ├── branch.{h,cpp}      # Branch listing, creation, and deletion
+│   │   ├── checkout.{h,cpp}    # Working directory restoration
+│   │   └── switch_branch.{h,cpp}# Modern branch switching interface
+│   ├── objects/                # Domain models
+│   │   ├── blob.{h,cpp}        # Blob object representation
+│   │   ├── tree.{h,cpp}        # Tree object representation
+│   │   ├── commit.{h,cpp}      # Commit object representation
+│   │   ├── object_database.{h,cpp} # Sharded on-disk CAS store
+│   │   └── object_parser.{h,cpp}   # Raw byte parsing into domain structs
+│   ├── index/                  # Staging area
+│   │   └── index.{h,cpp}       # In-memory and on-disk index manager
+│   ├── diff/                   # Diff algorithm
+│   │   └── diff.{h,cpp}        # LCS dynamic programming diff algorithm
+│   ├── hashing/                # Cryptography
+│   │   └── sha256.{h,cpp}      # OpenSSL SHA-256 wrapper
+│   ├── repository/             # Repository environment
+│   │   └── repository.{h,cpp}  # Directory discovery and structure management
+│   └── filesystem/             # Cross-platform utilities
+│       └── file.{h,cpp}        # File reading and binary I/O helpers
+```
+
+---
+
+## MiniGit vs Standard Git
+
+| Dimension | MiniGit | Standard Git |
+| :--- | :--- | :--- |
+| **Language** | C++20 | C, Shell, Perl |
+| **Cryptographic Hash** | SHA-256 (64 hex characters) | SHA-1 (default) / SHA-256 (experimental) |
+| **Index Format** | Clean text line format (`<path> <sha256>`) | Binary DIRC (format v2/v3/v4) |
+| **Tree Storage** | Text-based sorted entries | Binary mode/path/SHA entries |
+| **Diff Engine** | Dynamic programming LCS (`O(M * N)`) | Myers diff algorithm (`O(N * D)`) |
+| **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
+| **Submodules & Remotes**| Planned | Full support |
+| **Compression** | Plaintext object payloads | zlib-deflated loose objects & Packfiles |
+
+---
+
+## Roadmap
+
+Planned milestones for future MiniGit development:
+
+- [ ] **Phase 1: Ignore Rules:** Support `.minigitignore` pattern matching and recursive folder skipping.
+- [ ] **Phase 2: Tagging:** Annotated and lightweight tags (`minigit tag`).
+- [ ] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+- [ ] **Phase 4: History Rewriting:** `minigit reset` (soft, mixed, hard) and `minigit revert`.
+- [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.
+- [ ] **Phase 6: Networking & Remotes:** Basic HTTP / local remote transport protocol (`fetch`, `push`, `clone`).
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENCE](LICENCE) file for details.
