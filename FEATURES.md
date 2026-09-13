@@ -1122,13 +1122,15 @@ The following features are scheduled for subsequent versions:
 
 ```mermaid
 flowchart LR
-    A["v0.4.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore,<br/>Three-Way Merge, Reset, Revert"] --> B["v0.4.1<br/>Stash & Working State"]
-    B --> C["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
+    A["v0.4.0\nCAS, DAG, Index, Diff,\nBranching, Tags, Ignore,\nThree-Way Merge, Reset, Revert"] --> B["v0.4.1\nStash & Working State"]
+    B --> C["v0.5.0 (Current)\nzlib Compression"]
+    C --> D["v0.6.0\nRemotes Protocol"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
 2. ~~**Tag References (`refs/tags/`):** Lightweight and annotated tags.~~ ✅ **Implemented in v0.2.0**
 3. ~~**Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.~~ ✅ **Implemented in v0.3.0**
 4. ~~**History Rewriting & Undo (`reset`, `revert`):** Rollback index/working tree and history-safe commit inversion.~~ ✅ **Implemented in v0.4.0**
-5. **Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.
-6. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.
+5. ~~**Stash (`minigit stash`):** Save and restore uncommitted working-directory state without a commit.~~ ✅ **Implemented in v0.4.1**
+6. ~~**Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.~~ ✅ **Implemented in v0.5.0**
+7. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.
