@@ -32,7 +32,8 @@
   - [7. Detached HEAD and Historic Checkout](#7-detached-head-and-historic-checkout)
   - [8. Tagging Releases](#8-tagging-releases)
   - [9. History Rewriting with Reset](#9-history-rewriting-with-reset)
-  - [10. Low-Level Plumbing Commands](#10-low-level-plumbing-commands)
+  - [10. Branch Merging and Conflict Resolution](#10-branch-merging-and-conflict-resolution)
+  - [11. Low-Level Plumbing Commands](#11-low-level-plumbing-commands)
 - [Internal Repository Layout](#internal-repository-layout)
 - [Codebase Structure](#codebase-structure)
 - [MiniGit vs Standard Git](#minigit-vs-standard-git)
@@ -67,6 +68,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Ignore Rules:** `.minigitignore` file with glob pattern matching (wildcards, directory patterns, negation with `!`) to exclude files from `status` and `add`.
 - **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
 - **History Rewriting:** `minigit reset` with `--soft` (move HEAD only), `--mixed` (move HEAD + reset index, default), and `--hard` (move HEAD + reset index + restore working tree).
+- **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation via DAG traversal, fast-forward detection, line-level three-way merging, conflict marker insertion (`<<<<<<<`, `=======`, `>>>>>>>`), and multi-parent merge commits via `minigit merge`.
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -129,6 +131,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
+| `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -428,7 +431,45 @@ minigit reset --hard <commit-sha>
 
 ---
 
-### 10. Low-Level Plumbing Commands
+### 10. Branch Merging and Conflict Resolution
+
+Merge another branch into your current branch using `minigit merge`:
+
+```bash
+# Clean merge or fast-forward:
+minigit merge feature/parser
+```
+*Output:*
+```text
+Merge made by the 'recursive' strategy.
+[5d24932] Merge branch 'feature/parser' into main
+```
+
+If conflicting changes exist in the same file region:
+```bash
+minigit merge feature/ui
+```
+*Output:*
+```text
+CONFLICT (content): Merge conflict in app.cpp
+
+Automatic merge failed; fix conflicts and then commit the result.
+```
+
+The conflicted files are written with Git-standard conflict markers:
+```text
+<<<<<<< main
+cout << "Version 2.0" << endl;
+=======
+cout << "Version 2.0-beta" << endl;
+>>>>>>> feature/ui
+```
+
+Resolve conflicts manually, stage the resolved files with `minigit add`, and finalize with `minigit commit`.
+
+---
+
+### 11. Low-Level Plumbing Commands
 
 Inspect how MiniGit serializes objects under the hood:
 
@@ -530,7 +571,8 @@ minigit/
 │   │   ├── checkout.{h,cpp}    # Working directory restoration
 │   │   ├── switch_branch.{h,cpp}# Modern branch switching interface
 │   │   ├── reset.{h,cpp}        # History rewriting: soft, mixed, and hard resets
-│   │   └── tag.{h,cpp}         # Tag listing, creation (lightweight & annotated), deletion
+│   │   ├── tag.{h,cpp}          # Tag listing, creation (lightweight & annotated), deletion
+│   │   └── merge.{h,cpp}        # Three-way branch merging and conflict resolution
 │   ├── objects/                # Domain models
 │   │   ├── blob.{h,cpp}        # Blob object representation
 │   │   ├── tree.{h,cpp}        # Tree object representation
@@ -543,6 +585,8 @@ minigit/
 │   │   └── ignore.{h,cpp}      # .minigitignore parser and glob matcher
 │   ├── diff/                   # Diff algorithm
 │   │   └── diff.{h,cpp}        # LCS dynamic programming diff algorithm
+│   ├── merge/                  # Merge engine
+│   │   └── merge_engine.{h,cpp}# Three-way line merge and LCA DAG traversal
 │   ├── hashing/                # Cryptography
 │   │   └── sha256.{h,cpp}      # OpenSSL SHA-256 wrapper
 │   ├── repository/             # Repository environment
@@ -574,7 +618,7 @@ Planned milestones for future MiniGit development:
 
 - [x] **Phase 1: Ignore Rules:** `.minigitignore` glob pattern matching — excludes files from `status` and `add` with support for wildcards, directory patterns (`build/`), and negation (`!pattern`).
 - [x] **Phase 2: Tagging:** Lightweight and annotated tags (`minigit tag`) stored under `refs/tags/`; annotated tags are first-class objects in the object database.
-- [ ] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+- [x] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
 - [x] **Phase 4 (Partial): History Rewriting:** `minigit reset` (`--soft`, `--mixed`, `--hard`) implemented; `minigit revert` planned.
 - [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.
 - [ ] **Phase 6: Networking & Remotes:** Basic HTTP / local remote transport protocol (`fetch`, `push`, `clone`).

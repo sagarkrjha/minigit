@@ -26,6 +26,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.13 `minigit tag`](#213-minigit-tag)
   - [2.14 `.minigitignore`](#214-minigitignore)
   - [2.15 `minigit reset`](#215-minigit-reset)
+  - [2.16 `minigit merge`](#216-minigit-merge)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -60,7 +61,7 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
    - `hash-object`, `write-tree`, `cat-file`.
 
@@ -698,6 +699,73 @@ HEAD is now at 5b2f8a1 Initial commit with configuration and hello
 
 ---
 
+### 2.16 `minigit merge`
+
+#### Synopsis
+```bash
+minigit merge <branch> [--author <author>]
+```
+
+#### Purpose
+Performs a three-way merge of `<branch>` into the currently checked-out branch. If the current branch is an ancestor of `<branch>`, performs a fast-forward merge. Otherwise, locates the Lowest Common Ancestor (LCA) merge base across the commit DAG and performs line-level three-way merging. If conflicting edits are encountered, conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) are inserted into the files for manual resolution. On a clean merge, an automated merge commit with two parents is created.
+
+#### Flags & Options
+- `<branch>`: *(Required)* Name of the target branch to merge into current HEAD.
+- `--author <author>`: *(Optional)* Author identity for the merge commit. Defaults to `MiniGit User <user@minigit>`.
+
+#### Behavioral Details
+1. **Repository Discovery & Preconditions:**
+   - Validates that the repository exists and HEAD contains at least one commit.
+   - Verifies that `<branch>` exists under `.minigit/refs/heads/<branch>` and has at least one commit.
+   - If current HEAD SHA equals target branch SHA, exits immediately with `Already up to date.`.
+2. **Merge Base (LCA) Computation:**
+   - Traverses the commit DAG backward using a two-phase Breadth-First Search (BFS) / reachability paint algorithm (`find_merge_base`).
+   - Identifies the shallowest common ancestor commit SHA between `HEAD` and `<branch>`.
+3. **Fast-Forward Detection:**
+   - If `merge_base == HEAD_sha`: HEAD is a direct ancestor of `<branch>`. Fast-forwards by advancing the current branch ref directly to `<branch>` SHA, restoring files in the working tree, updating `.minigit/index`, and outputting `Fast-forward`.
+   - If `merge_base == branch_sha`: Current HEAD already contains all history from `<branch>`. Reports `Already up to date.` and exits.
+4. **Three-Way File Merging (`three_way_merge`):**
+   - Retrieves the tree snapshots for `base`, `ours` (current branch), and `theirs` (`<branch>`).
+   - Computes the union of all file paths across the three trees.
+   - For each path:
+     - If both sides match identically, the file is retained.
+     - If added or modified only by one side relative to `base`, accepts the modified side.
+     - If deleted by one side and unmodified by the other, accepts deletion.
+     - If modified by both sides: splits contents into lines and aligns them against `base` using LCS edit sequences (`lcs_diff`).
+     - If changes are disjoint or identical, automatically merges without conflict.
+     - If overlapping lines or contradictory changes exist, inserts Git-compatible conflict markers:
+       ```text
+       <<<<<<< <ours>
+       ... our lines ...
+       =======
+       ... their lines ...
+       >>>>>>> <theirs>
+       ```
+5. **Conflict Handling:**
+   - If any file encounters a conflict, writes the conflict-marked content to disk, updates the index with the conflict blob, emits `CONFLICT (content): Merge conflict in <file>`, and exits with non-zero status code: `Automatic merge failed; fix conflicts and then commit the result.`.
+6. **Merge Commit Creation:**
+   - On a clean merge (no conflicts), writes a new `Tree` object from the merged index entries.
+   - Constructs a `Commit` object with **two parents**: `[our_sha, their_sha]`.
+   - Formats the commit message as `Merge branch '<branch>' into <our_branch>`.
+   - Advances the active branch reference to the new merge commit.
+   - Outputs summary: `Merge made by the 'recursive' strategy.` and `[<short-sha>] <message>`.
+
+#### Example
+```bash
+# On branch main, merge feature/parser
+$ minigit merge feature/parser
+Merge made by the 'recursive' strategy.
+[5d24932] Merge branch 'feature/parser' into main
+
+# In case of conflicts:
+$ minigit merge feature/conflict
+CONFLICT (content): Merge conflict in src/parser.cpp
+
+Automatic merge failed; fix conflicts and then commit the result.
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -885,14 +953,13 @@ The following features are scheduled for subsequent versions:
 
 ```mermaid
 flowchart LR
-    A["v0.2.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore"] --> B["v0.3.0<br/>Three-Way Merging<br/>& Conflict Resolution"]
-    B --> C["v0.4.0<br/>History Rewriting<br/>(reset, revert, stash)"]
-    C --> D["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
+    A["v0.3.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore,<br/>Three-Way Merge, Reset"] --> B["v0.4.0<br/>History Rewriting<br/>(revert, stash)"]
+    B --> C["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
 2. ~~**Tag References (`refs/tags/`):** Lightweight and annotated tags.~~ ✅ **Implemented in v0.2.0**
-3. **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.
-4. ~~**Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.~~ ✅ **Implemented**
+3. ~~**Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.~~ ✅ **Implemented in v0.3.0**
+4. ~~**Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.~~ ✅ **Implemented in v0.2.1**
 5. **Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.
 6. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.
