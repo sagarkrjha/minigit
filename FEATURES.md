@@ -28,6 +28,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.15 `minigit reset`](#215-minigit-reset)
   - [2.16 `minigit merge`](#216-minigit-merge)
   - [2.17 `minigit revert`](#217-minigit-revert)
+  - [2.18 `minigit stash`](#218-minigit-stash)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -62,7 +63,7 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`, `stash`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
    - `hash-object`, `write-tree`, `cat-file`.
 
@@ -823,6 +824,113 @@ Author: MiniGit User <user@minigit>
 Date:   1789294717
 
     Revert "add line4 and change line1"
+```
+
+---
+
+### 2.18 `minigit stash`
+
+#### Synopsis
+```bash
+minigit stash [push]
+minigit stash list
+minigit stash pop   [stash@{N}]
+minigit stash drop  [stash@{N}]
+minigit stash show  [stash@{N}]
+```
+
+#### Purpose
+Temporarily shelves all uncommitted changes from both the working directory and the staging index, allowing the developer to switch context (e.g., check out a different branch, apply a hotfix) and later restore the shelved state without making a commit.
+
+#### Behavioral Details
+
+**`push` (default subcommand)**
+1. Resolves the current HEAD commit. Aborts if no commits exist yet.
+2. Recursively scans the working directory (honouring `.minigitignore`, skipping `.minigit`), computes a `Blob` SHA-256 for every encountered file, and compares it against the HEAD tree.
+3. If no file differs from HEAD, prints `No local changes to save` and exits cleanly.
+4. Stores all blobs in the CAS object database (idempotent no-op for already-present objects).
+5. Assembles a `Tree` object from the working-directory snapshot and persists it.
+6. Creates a stash `Commit` object with:
+   - `tree`: the working-directory snapshot tree
+   - `parent`: `{HEAD commit SHA}` (single parent)
+   - `author`: `MiniGit User <user@minigit>`
+   - `message`: `WIP on <branch>: <sha7> <head-message>`
+7. **Prepends** the new stash commit SHA to `.minigit/stash` (index 0 = most recent).
+8. Resets the index to exactly match the HEAD tree (equivalent to `reset --mixed`).
+9. Restores all working-directory files tracked by HEAD to their committed content (equivalent to `reset --hard`).
+10. Prints: `Saved working directory and index state <message>`
+
+**`list`**
+- Reads `.minigit/stash` line by line.
+- For each SHA, parses the stash commit's `message` field.
+- Prints each entry numbered from 0 (most recent):
+  ```
+  stash@{0}: WIP on main: abc1234 Add feature
+  stash@{1}: WIP on main: def5678 Fix bug
+  ```
+- Prints nothing if the stash is empty (same behaviour as `git stash list`).
+
+**`pop [stash@{N}]`** *(default: `stash@{0}`)*
+1. Parses N from `stash@{N}`.
+2. Reads entry N from `.minigit/stash`; errors if the index is out of bounds.
+3. Parses the stash commit's tree from the object database.
+4. Writes every file in the stash tree to the working directory (creating directories as needed).
+5. Resets the index to exactly match the stash tree.
+6. Removes entry N from `.minigit/stash`.
+7. Prints: `Dropped stash@{N} (<sha7>)`
+
+**`drop [stash@{N}]`** *(default: `stash@{0}`)*
+1. Reads entry N from `.minigit/stash`; errors if out of bounds.
+2. Removes that entry from the stash list **without** touching the working directory or index.
+3. Prints: `Dropped stash@{N} (<sha7>)`
+
+**`show [stash@{N}]`** *(default: `stash@{0}`)*
+- Reads the stash commit's tree.
+- Prints a file summary: `<mode> <sha7> <name>` for each tree entry, one per line.
+
+#### Storage Layout
+```text
+.minigit/
+  stash                        ← plain text; one stash-commit SHA per line (most-recent first)
+  objects/<2-char-prefix>/<62-char-suffix>  ← stash tree + commit stored as CAS objects
+```
+
+#### Stash Commit Object Structure
+```text
+commit <size>\0
+tree   <tree-sha>
+parent <head-sha>
+author MiniGit User <user@minigit> <unix-timestamp>
+
+WIP on <branch>: <sha7> <head-message>
+```
+
+#### Example
+```bash
+# Make some changes
+$ echo "work in progress" >> src/main.cpp
+
+# Stash them
+$ minigit stash
+Saved working directory and index state WIP on main: 62732d2 docs: document 'revert' command
+
+# Confirm clean state
+$ minigit status
+On branch main
+
+nothing to commit, working tree clean
+
+# List the stash
+$ minigit stash list
+stash@{0}: WIP on main: 62732d2 docs: document 'revert' command
+
+# Show what was stashed
+$ minigit stash show
+100644 a3f8c12 src/main.cpp
+
+# Restore the stash
+$ minigit stash pop
+Dropped stash@{0} (abc1234)
 ```
 
 ---

@@ -18,6 +18,7 @@
 #include "commands/tag.h"
 #include "commands/merge.h"
 #include "commands/revert.h"
+#include "commands/stash.h"
 
 int main(int argc, char const *argv[])
 {
@@ -297,6 +298,21 @@ int main(int argc, char const *argv[])
         }
 
         revert_command(revert_target, revert_author);
+    }
+    else if (command == "stash")
+    {
+        // minigit stash [push]            → save working state, restore HEAD
+        // minigit stash list              → list all stash entries
+        // minigit stash pop  [stash@{N}]  → apply + drop Nth entry
+        // minigit stash drop [stash@{N}]  → discard Nth entry
+        // minigit stash show [stash@{N}]  → show files in Nth entry
+        std::string sub = "push";           // default subcommand
+        std::string ref = "stash@{0}";      // default stash reference
+
+        if (argc >= 3) sub = argv[2];
+        if (argc >= 4) ref = argv[3];
+
+        stash_command(sub, ref);
     }
     else
     {
