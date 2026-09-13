@@ -1,5 +1,7 @@
 #include "object_database.h"
 
+#include "../compression/zlib_compress.h"
+
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -28,6 +30,9 @@ void ObjectDatabase::write(
 
     std::filesystem::create_directories(directory);
 
+    // Compress the object envelope before persisting to disk.
+    const std::string compressed = zlib_compress(data);
+
     std::ofstream out(file_path, std::ios::binary);
     if (!out)
     {
@@ -35,7 +40,7 @@ void ObjectDatabase::write(
             "Could not write object: " + file_path.string());
     }
 
-    out.write(data.data(), static_cast<std::streamsize>(data.size()));
+    out.write(compressed.data(), static_cast<std::streamsize>(compressed.size()));
 }
 
 std::string ObjectDatabase::read(const std::string &id) const
@@ -48,7 +53,20 @@ std::string ObjectDatabase::read(const std::string &id) const
     if (!in)
         throw std::runtime_error("object not found: " + id);
 
-    return std::string(
+    const std::string raw{
         std::istreambuf_iterator<char>(in),
-        std::istreambuf_iterator<char>());
+        std::istreambuf_iterator<char>{}};
+
+    // Decompress the stored data.  If decompression fails the object was
+    // written by an older version of MiniGit (uncompressed), so fall back
+    // to returning the raw bytes directly — ensuring backward compatibility
+    // with repositories created before v0.5.0.
+    try
+    {
+        return zlib_decompress(raw);
+    }
+    catch (const std::runtime_error&)
+    {
+        return raw;
+    }
 }
