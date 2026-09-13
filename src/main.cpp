@@ -14,6 +14,7 @@
 #include "commands/branch.h"
 #include "commands/checkout.h"
 #include "commands/switch_branch.h"
+#include "commands/tag.h"
 
 int main(int argc, char const *argv[])
 {
@@ -184,6 +185,41 @@ int main(int argc, char const *argv[])
         }
 
         switch_command(branch, create);
+    }
+    else if (command == "tag")
+    {
+        // minigit tag                         → list all tags
+        // minigit tag <name>                  → lightweight tag at HEAD
+        // minigit tag -a <name> -m <message>  → annotated tag
+        // minigit tag -d <name>               → delete tag
+        bool annotated = false;
+        bool del = false;
+        std::string tag_name;
+        std::string tag_msg;
+
+        for (int i = 2; i < argc; ++i)
+        {
+            const std::string arg = argv[i];
+            if (arg == "-a")
+            {
+                annotated = true;
+            }
+            else if (arg == "-m" && i + 1 < argc)
+            {
+                tag_msg = argv[++i];
+            }
+            else if (arg == "-d" && i + 1 < argc)
+            {
+                del = true;
+                tag_name = argv[++i];
+            }
+            else if (arg[0] != '-')
+            {
+                tag_name = arg;
+            }
+        }
+
+        tag_command(tag_name, annotated, tag_msg, del);
     }
     else
     {

@@ -1,6 +1,7 @@
 #include "status.h"
 
 #include "../hashing/sha256.h"
+#include "../ignore/ignore.h"
 #include "../index/index.h"
 #include "../objects/blob.h"
 #include "../objects/object_database.h"
@@ -35,12 +36,15 @@ static std::string hash_file(const fs::path &path)
 
 
 // Recursively collect all regular files under `root`, relative to `root`.
-// Skips the .minigit directory.
-static std::set<std::string> working_tree_files(const fs::path &root)
+// Skips the .minigit directory and any path matched by ignore_rules.
+// .minigitignore itself is also excluded from untracked output (it is never
+// shown as untracked, but is still visible if it's already tracked).
+static std::set<std::string> working_tree_files(const fs::path& root,
+                                                const IgnoreRules& ignore_rules)
 {
     std::set<std::string> result;
 
-    for (const auto &entry : fs::recursive_directory_iterator(root))
+    for (const auto& entry : fs::recursive_directory_iterator(root))
     {
         if (!entry.is_regular_file())
             continue;
@@ -48,8 +52,16 @@ static std::set<std::string> working_tree_files(const fs::path &root)
         const auto rel = fs::relative(entry.path(), root);
         const std::string rel_str = rel.generic_string();
 
-        // Skip .minigit and hidden dot-directories.
-        if (rel_str.starts_with(".minigit"))
+        // Skip .minigit internals and any real .git directory.
+        if (rel_str.starts_with(".minigit") || rel_str.starts_with(".git"))
+            continue;
+
+        // Never show .minigitignore as untracked (it is a config file).
+        if (rel_str == ".minigitignore")
+            continue;
+
+        // Skip files matched by .minigitignore rules.
+        if (ignore_rules.is_ignored(rel_str))
             continue;
 
         result.insert(rel_str);
@@ -70,9 +82,10 @@ void status()
     }();
 
     Index index(repo.git_dir() / "index");
-    const auto &staged = index.entries(); // path -> blob_id
+    const auto& staged = index.entries(); // path -> blob_id
 
-    const auto wt_files = working_tree_files(repo.root());
+    const IgnoreRules ignore_rules = IgnoreRules::load(repo.root());
+    const auto wt_files = working_tree_files(repo.root(), ignore_rules);
 
     // -----------------------------------------------------------------------
     // Changes staged for commit (index vs nothing — first commit scenario).

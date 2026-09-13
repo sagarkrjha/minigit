@@ -1,6 +1,7 @@
 #include "add.h"
 
 #include "../filesystem/file.h"
+#include "../ignore/ignore.h"
 #include "../index/index.h"
 #include "../objects/blob.h"
 #include "../objects/object_database.h"
@@ -25,9 +26,11 @@ void add_files(const std::vector<std::string> &paths)
     ObjectDatabase db(repo.git_dir() / "objects");
     Index index(repo.git_dir() / "index");
 
+    const IgnoreRules ignore_rules = IgnoreRules::load(repo.root());
+
     bool had_error = false;
 
-    for (const auto &raw_path : paths)
+    for (const auto& raw_path : paths)
     {
         const std::filesystem::path abs_path =
             std::filesystem::weakly_canonical(cwd / raw_path);
@@ -44,13 +47,25 @@ void add_files(const std::vector<std::string> &paths)
             continue;
         }
 
+        // Check ignore rules.
+        // If the file is already in the index the user is explicitly re-staging
+        // it, so we allow it through (mirrors git's behaviour).
+        const std::string rel_str = rel_path.generic_string();
+        const bool already_staged = index.entries().count(rel_str) > 0;
+        if (!already_staged && ignore_rules.is_ignored(rel_str))
+        {
+            std::cerr << "warning: ignoring '" << rel_str
+                      << "' (matched by .minigitignore)\n";
+            continue;
+        }
+
         // Read file contents.
         std::string content;
         try
         {
             content = read_file(abs_path);
         }
-        catch (const std::exception &e)
+        catch (const std::exception& e)
         {
             std::cerr << "error: pathspec '" << raw_path
                       << "' did not match any files\n";
@@ -64,7 +79,7 @@ void add_files(const std::vector<std::string> &paths)
         {
             db.write(blob.id(), blob.serialized());
         }
-        catch (const std::exception &e)
+        catch (const std::exception& e)
         {
             std::cerr << "error: " << e.what() << '\n';
             had_error = true;

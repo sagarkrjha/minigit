@@ -28,6 +28,7 @@ add_executable(
     src/commands/branch.cpp
     src/commands/checkout.cpp
     src/commands/switch_branch.cpp
+    src/commands/tag.cpp
 
     # domain objects
     src/objects/blob.cpp
@@ -42,6 +43,7 @@ add_executable(
     src/hashing/sha256.cpp
     src/filesystem/file.cpp
     src/diff/diff.cpp
+    src/ignore/ignore.cpp
 )
 
 target_link_libraries(

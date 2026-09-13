@@ -62,6 +62,8 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Branch Management:** List, create, and safely delete branches with `minigit branch`.
 - **Safe Branch Switching:** Dedicated `minigit switch` (including `-c` creation flag) and full working tree restoration via `minigit checkout`.
 - **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`), tree generation (`minigit write-tree`), and object inspection (`minigit cat-file -t/-s/-p`) for scriptability.
+- **Ignore Rules:** `.minigitignore` file with glob pattern matching (wildcards, directory patterns, negation with `!`) to exclude files from `status` and `add`.
+- **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -122,6 +124,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit branch [name] [-d name]` | Porcelain | Lists, creates, or deletes branches. |
 | `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
+| `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -484,7 +487,8 @@ minigit/
 │   │   ├── diff.{h,cpp}        # Diff CLI command integration
 │   │   ├── branch.{h,cpp}      # Branch listing, creation, and deletion
 │   │   ├── checkout.{h,cpp}    # Working directory restoration
-│   │   └── switch_branch.{h,cpp}# Modern branch switching interface
+│   │   ├── switch_branch.{h,cpp}# Modern branch switching interface
+│   │   └── tag.{h,cpp}         # Tag listing, creation (lightweight & annotated), deletion
 │   ├── objects/                # Domain models
 │   │   ├── blob.{h,cpp}        # Blob object representation
 │   │   ├── tree.{h,cpp}        # Tree object representation
@@ -493,6 +497,8 @@ minigit/
 │   │   └── object_parser.{h,cpp}   # Raw byte parsing into domain structs
 │   ├── index/                  # Staging area
 │   │   └── index.{h,cpp}       # In-memory and on-disk index manager
+│   ├── ignore/                 # Ignore rule engine
+│   │   └── ignore.{h,cpp}      # .minigitignore parser and glob matcher
 │   ├── diff/                   # Diff algorithm
 │   │   └── diff.{h,cpp}        # LCS dynamic programming diff algorithm
 │   ├── hashing/                # Cryptography
@@ -524,8 +530,8 @@ minigit/
 
 Planned milestones for future MiniGit development:
 
-- [ ] **Phase 1: Ignore Rules:** Support `.minigitignore` pattern matching and recursive folder skipping.
-- [ ] **Phase 2: Tagging:** Annotated and lightweight tags (`minigit tag`).
+- [x] **Phase 1: Ignore Rules:** `.minigitignore` glob pattern matching — excludes files from `status` and `add` with support for wildcards, directory patterns (`build/`), and negation (`!pattern`).
+- [x] **Phase 2: Tagging:** Lightweight and annotated tags (`minigit tag`) stored under `refs/tags/`; annotated tags are first-class objects in the object database.
 - [ ] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
 - [ ] **Phase 4: History Rewriting:** `minigit reset` (soft, mixed, hard) and `minigit revert`.
 - [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.

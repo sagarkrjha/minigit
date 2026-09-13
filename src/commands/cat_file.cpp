@@ -71,6 +71,20 @@ static void print_commit(const std::string& raw)
     std::cout << c.message << '\n';
 }
 
+// Pretty-print an annotated tag: re-emit the body headers as-is.
+// Tag body format:
+//   object <commit-sha>
+//   type commit
+//   tag <name>
+//   tagger <tagger> <timestamp>
+//
+//   <message>
+static void print_tag(const std::string& raw)
+{
+    const std::string body = strip_object_header(raw);
+    std::cout << body;
+}
+
 // ---------------------------------------------------------------------------
 // cat_file
 // ---------------------------------------------------------------------------
@@ -109,6 +123,8 @@ void cat_file(const std::string& mode, const std::string& object_id)
             print_tree(raw);
         else if (type == "commit")
             print_commit(raw);
+        else if (type == "tag")
+            print_tag(raw);
         else
             std::cerr << "cat-file: unknown object type '" << type << "'\n";
     }

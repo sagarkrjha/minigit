@@ -23,6 +23,8 @@ This document provides a comprehensive, production-grade technical specification
   - [2.10 `minigit hash-object`](#210-minigit-hash-object)
   - [2.11 `minigit write-tree`](#211-minigit-write-tree)
   - [2.12 `minigit cat-file`](#212-minigit-cat-file)
+  - [2.13 `minigit tag`](#213-minigit-tag)
+  - [2.14 `.minigitignore`](#214-minigitignore)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -517,6 +519,128 @@ initial commit
 
 ---
 
+### 2.13 `minigit tag`
+
+#### Synopsis
+```bash
+# List all tags
+minigit tag
+
+# Create a lightweight tag at HEAD
+minigit tag <name>
+
+# Create an annotated tag at HEAD
+minigit tag -a <name> -m <message>
+
+# Delete a tag
+minigit tag -d <name>
+```
+
+#### Purpose
+Tag references mark specific commits as named milestones. MiniGit supports two tag types matching canonical Git semantics:
+
+- **Lightweight tags** — a named pointer file in `refs/tags/` containing a commit SHA, identical in structure to branch refs.
+- **Annotated tags** — a first-class object stored in the object database, carrying tagger identity, timestamp, and an annotation message. The `refs/tags/` file points to the tag object SHA, not directly to the commit.
+
+#### Flags
+| Flag | Meaning |
+| :--- | :--- |
+| *(none)* | List all tags sorted lexicographically. |
+| `<name>` | Create a lightweight tag at HEAD. |
+| `-a <name> -m <message>` | Create an annotated tag object and store it. |
+| `-d <name>` | Delete the tag reference. |
+
+#### Annotated Tag Object Format
+```text
+tag <body-size>\0object <commit-sha>
+type commit
+tag <name>
+tagger <tagger-name-and-email> <unix-timestamp>
+
+<annotation-message>
+```
+The SHA-256 of the full envelope is stored as the tag-object ID; `refs/tags/<name>` points to this ID. `cat-file -t` reports `tag`; `cat-file -p` pretty-prints the body.
+
+#### Behavioral Details
+1. **List:** Reads all files under `.minigit/refs/tags/`, sorts lexicographically, and prints one tag name per line.
+2. **Lightweight create:** Resolves HEAD commit SHA, writes it to `.minigit/refs/tags/<name>`. Fails if the tag already exists or HEAD has no commits.
+3. **Annotated create:** Builds a tag body string, prepends the `tag <size>\0` envelope, computes SHA-256, writes to `ObjectDatabase`, and stores the tag-object SHA in `refs/tags/<name>`.
+4. **Delete:** Removes `.minigit/refs/tags/<name>`. Errors if not found.
+
+#### Example
+```bash
+$ minigit tag v1.0
+$ minigit tag -a v1.0-release -m "Stable release"
+$ minigit tag
+v1.0
+v1.0-release
+
+$ minigit cat-file -t $(cat .minigit/refs/tags/v1.0-release)
+tag
+
+$ minigit cat-file -p $(cat .minigit/refs/tags/v1.0-release)
+object 36358f8b0b23497bdf2c3daa925c2c51cd5329a36822e2a2ac8d50d2facee6f7
+type commit
+tag v1.0-release
+tagger MiniGit User <user@minigit> 1773322800
+
+Stable release
+
+$ minigit tag -d v1.0
+Deleted tag v1.0
+```
+
+---
+
+### 2.14 `.minigitignore`
+
+#### Synopsis
+Place a `.minigitignore` file in the repository root (next to `.minigit/`). MiniGit reads it automatically during `status` and `add`.
+
+#### Purpose
+Prevents certain files from appearing in `status` untracked output and blocks `add` from staging them. Mirrors the semantics of `.gitignore` for the supported subset of patterns.
+
+#### Pattern Syntax
+| Syntax | Meaning |
+| :--- | :--- |
+| `*.ext` | Ignores all files with that extension (basename match). |
+| `dirname/` | Ignores the named directory and all its contents. |
+| `path/to/file` | Ignores a specific rooted path (pattern contains `/`). |
+| `!pattern` | Un-ignores (negates) a previously matched path. |
+| `# comment` | Line is ignored. |
+| *(blank line)* | Skipped. |
+
+#### Matching Rules
+1. **Non-rooted patterns** (no `/` in pattern, no trailing `/`): matched against the **filename** (basename) of each path. Also propagated to match children if the pattern matches a directory component.
+2. **Directory patterns** (trailing `/`): matched against each ancestor directory component of the path, ignoring all contained files.
+3. **Rooted patterns** (contains `/` after stripping leading `!`): matched against the **full relative path** from the repository root.
+4. **Negation** (`!`): if a rule's pattern matches but the rule is negated, the file's ignored state is flipped back to "not ignored". Rules are processed in order; the last match wins.
+5. Glob characters:
+   - `*` — matches any sequence of characters that does **not** include `/`.
+   - `?` — matches exactly one character that is **not** `/`.
+
+#### Integration Points
+- **`minigit status`:** `working_tree_files()` skips any path for which `IgnoreRules::is_ignored()` returns `true`. `.minigitignore` itself is also silently excluded from the untracked list (it is a configuration file, not project content).
+- **`minigit add`:** Before staging, if `is_ignored()` returns `true` and the file is not already in the index, emits `warning: ignoring '<path>' (matched by .minigitignore)` and skips. Files already tracked in the index bypass the ignore check (consistent with git behavior).
+
+#### Example `.minigitignore`
+```text
+# Build artifacts
+build/
+*.o
+*.exe
+
+# Logs (except crash logs)
+*.log
+!crash.log
+
+# IDE metadata
+.vscode/
+.cache/
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -704,14 +828,13 @@ The following features are scheduled for subsequent versions:
 
 ```mermaid
 flowchart LR
-    A["v0.1.0 (Current)<br/>Core CAS, DAG, Index,<br/>Diff, Branching"] --> B["v0.2.0<br/>Ignore Rules (.minigitignore)<br/>& Tagging (refs/tags)"]
-    B --> C["v0.3.0<br/>Three-Way Merging<br/>& Conflict Resolution"]
-    C --> D["v0.4.0<br/>History Rewriting<br/>(reset, revert, stash)"]
-    D --> E["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
+    A["v0.2.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore"] --> B["v0.3.0<br/>Three-Way Merging<br/>& Conflict Resolution"]
+    B --> C["v0.4.0<br/>History Rewriting<br/>(reset, revert, stash)"]
+    C --> D["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
 ```
 
-1. **`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.
-2. **Tag References (`refs/tags/`):** Lightweight and annotated tags.
+1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
+2. ~~**Tag References (`refs/tags/`):** Lightweight and annotated tags.~~ ✅ **Implemented in v0.2.0**
 3. **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.
 4. **Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.
 5. **Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.
