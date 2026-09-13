@@ -30,7 +30,9 @@
   - [5. Compute Differences](#5-compute-differences)
   - [6. Branching and Switching](#6-branching-and-switching)
   - [7. Detached HEAD and Historic Checkout](#7-detached-head-and-historic-checkout)
-  - [8. Low-Level Plumbing Commands](#8-low-level-plumbing-commands)
+  - [8. Tagging Releases](#8-tagging-releases)
+  - [9. History Rewriting with Reset](#9-history-rewriting-with-reset)
+  - [10. Low-Level Plumbing Commands](#10-low-level-plumbing-commands)
 - [Internal Repository Layout](#internal-repository-layout)
 - [Codebase Structure](#codebase-structure)
 - [MiniGit vs Standard Git](#minigit-vs-standard-git)
@@ -64,6 +66,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`), tree generation (`minigit write-tree`), and object inspection (`minigit cat-file -t/-s/-p`) for scriptability.
 - **Ignore Rules:** `.minigitignore` file with glob pattern matching (wildcards, directory patterns, negation with `!`) to exclude files from `status` and `add`.
 - **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
+- **History Rewriting:** `minigit reset` with `--soft` (move HEAD only), `--mixed` (move HEAD + reset index, default), and `--hard` (move HEAD + reset index + restore working tree).
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -125,6 +128,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
+| `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -387,7 +391,44 @@ minigit switch main
 
 ---
 
-### 8. Low-Level Plumbing Commands
+### 8. Tagging Releases
+
+Create lightweight or annotated tags for milestones:
+
+```bash
+# Lightweight tag pointing to HEAD commit
+minigit tag v1.0.0
+
+# Annotated tag with full metadata and message
+minigit tag -a v1.0.1 -m "Release version 1.0.1"
+
+# List all tags
+minigit tag
+
+# Delete a tag
+minigit tag -d v1.0.0
+```
+
+---
+
+### 9. History Rewriting with Reset
+
+Undo or adjust commits with three levels of depth:
+
+```bash
+# Soft reset: move branch pointer back; staged changes preserved in index
+minigit reset --soft <commit-sha>
+
+# Mixed reset (default): move pointer and reset staging area; working files preserved
+minigit reset <commit-sha>
+
+# Hard reset: move pointer, reset staging area, and revert working files
+minigit reset --hard <commit-sha>
+```
+
+---
+
+### 10. Low-Level Plumbing Commands
 
 Inspect how MiniGit serializes objects under the hood:
 
@@ -488,6 +529,7 @@ minigit/
 │   │   ├── branch.{h,cpp}      # Branch listing, creation, and deletion
 │   │   ├── checkout.{h,cpp}    # Working directory restoration
 │   │   ├── switch_branch.{h,cpp}# Modern branch switching interface
+│   │   ├── reset.{h,cpp}        # History rewriting: soft, mixed, and hard resets
 │   │   └── tag.{h,cpp}         # Tag listing, creation (lightweight & annotated), deletion
 │   ├── objects/                # Domain models
 │   │   ├── blob.{h,cpp}        # Blob object representation
@@ -533,7 +575,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 1: Ignore Rules:** `.minigitignore` glob pattern matching — excludes files from `status` and `add` with support for wildcards, directory patterns (`build/`), and negation (`!pattern`).
 - [x] **Phase 2: Tagging:** Lightweight and annotated tags (`minigit tag`) stored under `refs/tags/`; annotated tags are first-class objects in the object database.
 - [ ] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
-- [ ] **Phase 4: History Rewriting:** `minigit reset` (soft, mixed, hard) and `minigit revert`.
+- [x] **Phase 4 (Partial): History Rewriting:** `minigit reset` (`--soft`, `--mixed`, `--hard`) implemented; `minigit revert` planned.
 - [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.
 - [ ] **Phase 6: Networking & Remotes:** Basic HTTP / local remote transport protocol (`fetch`, `push`, `clone`).
 

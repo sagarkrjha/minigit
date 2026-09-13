@@ -25,6 +25,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.12 `minigit cat-file`](#212-minigit-cat-file)
   - [2.13 `minigit tag`](#213-minigit-tag)
   - [2.14 `.minigitignore`](#214-minigitignore)
+  - [2.15 `minigit reset`](#215-minigit-reset)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -59,7 +60,7 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
    - `hash-object`, `write-tree`, `cat-file`.
 
@@ -641,6 +642,62 @@ build/
 
 ---
 
+### 2.15 `minigit reset`
+
+#### Synopsis
+```bash
+# Mixed reset (default): move HEAD and reset index
+minigit reset <commit-or-branch>
+minigit reset --mixed <commit-or-branch>
+
+# Soft reset: move HEAD only
+minigit reset --soft <commit-or-branch>
+
+# Hard reset: move HEAD, reset index, and restore working tree
+minigit reset --hard <commit-or-branch>
+```
+
+#### Purpose
+Rolls back the current branch head (or detached HEAD) to a target commit or branch, with three distinct levels of impact on the staging area (index) and the working tree:
+
+- **`--soft`**: Updates only the reference pointed to by `HEAD` (or `HEAD` itself if detached). The staging area (index) and working directory remain completely untouched. Changes from undone commits appear as staged changes (`Changes to be committed`).
+- **`--mixed` (default)**: Updates the reference pointed to by `HEAD` and resets the staging area (`.minigit/index`) to match the target commit's tree snapshot. The working tree files remain untouched. Changes appear as unstaged modifications in `status` and `diff`.
+- **`--hard`**: Updates the reference pointed to by `HEAD`, resets the staging area, and overwrites all tracked working tree files to match the exact contents of the target commit. **Warning:** Any uncommitted modifications to tracked files are permanently discarded.
+
+#### Flags
+| Flag | Meaning |
+| :--- | :--- |
+| `--soft` | Moves HEAD/branch pointer only. Index and working tree are preserved. |
+| `--mixed` | *(Default)* Moves HEAD/branch pointer and resets the index to match the target tree. Working tree is preserved. |
+| `--hard` | Moves HEAD/branch pointer, resets the index, and restores working tree files from object storage. |
+
+#### Behavioral Details
+1. **Revision Resolution:** Resolves `<target>` as a branch ref (`refs/heads/<target>`), tag ref (`refs/tags/<target>`), or raw commit SHA. Validates that the target object exists and is a commit.
+2. **Read Tree:** Parses the commit object to retrieve its associated `tree` SHA, then loads all entries from the `Tree` object.
+3. **Reference Update:**
+   - If `HEAD` is a symbolic reference (e.g. `ref: refs/heads/main`), updates `.minigit/refs/heads/main` to the target commit SHA.
+   - If `HEAD` is detached, updates `.minigit/HEAD` directly.
+4. **Index Synchronization (`--mixed` and `--hard`):**
+   - Clears and reconstructs `.minigit/index` with the paths and blob SHAs from the target commit's tree.
+5. **Working Tree Restoration (`--hard` only):**
+   - For every entry in the target tree, retrieves the blob payload from `.minigit/objects/`, strips the header, and writes the contents to disk (creating directories as necessary).
+6. **Reporting:** Prints current commit summary (short SHA + message) and, for `--mixed`, lists the unstaged modifications.
+
+#### Example
+```bash
+# Undo the last commit, keeping all changes staged
+$ minigit reset --soft HEAD~1
+
+# Undo the last commit and unstage changes (default)
+$ minigit reset HEAD~1
+
+# Discard all changes and completely revert working tree to a milestone commit
+$ minigit reset --hard 5b2f8a1
+HEAD is now at 5b2f8a1 Initial commit with configuration and hello
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -836,6 +893,6 @@ flowchart LR
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
 2. ~~**Tag References (`refs/tags/`):** Lightweight and annotated tags.~~ ✅ **Implemented in v0.2.0**
 3. **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.
-4. **Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.
+4. ~~**Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.~~ ✅ **Implemented**
 5. **Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.
 6. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.

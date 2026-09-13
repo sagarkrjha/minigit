@@ -28,6 +28,7 @@ add_executable(
     src/commands/branch.cpp
     src/commands/checkout.cpp
     src/commands/switch_branch.cpp
+    src/commands/reset.cpp
     src/commands/tag.cpp
 
     # domain objects

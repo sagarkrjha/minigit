@@ -14,6 +14,7 @@
 #include "commands/branch.h"
 #include "commands/checkout.h"
 #include "commands/switch_branch.h"
+#include "commands/reset.h"
 #include "commands/tag.h"
 
 int main(int argc, char const *argv[])
@@ -220,6 +221,34 @@ int main(int argc, char const *argv[])
         }
 
         tag_command(tag_name, annotated, tag_msg, del);
+    }
+    else if (command == "reset")
+    {
+        // minigit reset [--soft | --mixed | --hard] <commit>
+        // Default mode: --mixed
+        std::string reset_mode;
+        std::string reset_target;
+
+        for (int i = 2; i < argc; ++i)
+        {
+            const std::string arg = argv[i];
+            if (arg == "--soft" || arg == "--mixed" || arg == "--hard")
+                reset_mode = arg;
+            else
+                reset_target = arg;
+        }
+
+        if (reset_target.empty())
+        {
+            std::cerr << "usage: minigit reset [--soft | --mixed | --hard] <commit>\n";
+            return 1;
+        }
+
+        // Default to --mixed when no mode flag is given.
+        if (reset_mode.empty())
+            reset_mode = "--mixed";
+
+        reset_command(reset_mode, reset_target);
     }
     else
     {
