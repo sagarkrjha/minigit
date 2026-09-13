@@ -29,6 +29,11 @@ This document provides a comprehensive, production-grade technical specification
   - [2.16 `minigit merge`](#216-minigit-merge)
   - [2.17 `minigit revert`](#217-minigit-revert)
   - [2.18 `minigit stash`](#218-minigit-stash)
+  - [2.19 `minigit remote`](#219-minigit-remote)
+  - [2.20 `minigit clone`](#220-minigit-clone)
+  - [2.21 `minigit fetch`](#221-minigit-fetch)
+  - [2.22 `minigit push`](#222-minigit-push)
+  - [2.23 `minigit pull`](#223-minigit-pull)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -63,7 +68,7 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`, `stash`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`, `stash`, `remote`, `clone`, `fetch`, `push`, `pull`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
    - `hash-object`, `write-tree`, `cat-file`.
 
@@ -935,6 +940,195 @@ Dropped stash@{0} (abc1234)
 
 ---
 
+### 2.19 `minigit remote`
+
+#### Synopsis
+```bash
+minigit remote
+minigit remote -v
+minigit remote add <name> <url>
+minigit remote remove <name>
+```
+
+#### Purpose
+Manages tracked remote repositories stored in `.minigit/config`. Allows associating named aliases (e.g. `origin`) with local repository filesystem paths for synchronization workflows.
+
+#### Subcommands & Options
+- `minigit remote` (or `list`): Lists all configured remote aliases.
+- `minigit remote -v`: Lists configured remotes with their fetch and push URL targets.
+- `minigit remote add <name> <url>`: Registers a new remote alias pointing to `<url>`. Fails if the remote name already exists.
+- `minigit remote remove <name>` (or `rm`): Deletes the remote configuration entry from `.minigit/config`.
+
+#### Storage Format
+Stored using INI-style sections in `.minigit/config`:
+```ini
+[remote "origin"]
+	url = C:/path/to/upstream_repo
+```
+
+#### Example
+```bash
+# Add a remote named origin
+$ minigit remote add origin ../upstream_repo
+Added remote 'origin' -> ../upstream_repo
+
+# Inspect configured remotes
+$ minigit remote -v
+origin	../upstream_repo (fetch)
+origin	../upstream_repo (push)
+
+# Remove a remote
+$ minigit remote remove origin
+Removed remote 'origin'
+```
+
+---
+
+### 2.20 `minigit clone`
+
+#### Synopsis
+```bash
+minigit clone <repository> [<directory>]
+```
+
+#### Purpose
+Clones an existing MiniGit repository into a new local directory. Replicates the commit DAG, branches, tags, establishes the `origin` remote, sets up remote-tracking references (`refs/remotes/origin/<branch>`), and checks out the working tree and staging index.
+
+#### Behavioral Details
+1. **Source Discovery & Validation:**
+   - Resolves and verifies `<repository>` as an existing MiniGit repository containing a valid `.minigit/` directory.
+   - Derives the destination directory (defaults to the source directory name if omitted) and verifies it is either non-existent or empty.
+2. **Target Initialization:**
+   - Initializes a new repository structure (`Repository::init()`) with `objects/`, `refs/heads/`, and `refs/tags/`.
+3. **Commit DAG Traversal & Object Transfer:**
+   - Identifies the source repository's HEAD commit SHA.
+   - Uses Breadth-First Search (BFS) DAG traversal (`transfer::missing_objects`) to discover all reachable commit, tree, and blob objects.
+   - Copies all missing objects from the source to target object store, preserving loose object zlib compression (`transfer::copy_object`).
+4. **Reference Replication:**
+   - Replicates all branch heads from source `refs/heads/*` to target `refs/heads/*`.
+   - Replicates all tags from source `refs/tags/*` to target `refs/tags/*`.
+   - Sets up initial remote-tracking reference under `refs/remotes/origin/<branch>`.
+5. **Configuration Setup:**
+   - Writes `origin` remote configuration mapping into the target's `.minigit/config`.
+6. **Checkout & Index Construction:**
+   - Restores the working tree files corresponding to the active branch's root tree snapshot.
+   - Reconstructs `.minigit/index` with the paths and blob IDs matching the checked-out snapshot.
+
+#### Example
+```bash
+$ minigit clone ../shared-repo my-project
+Cloning into 'my-project'...
+Transferred 12 object(s).
+Branch 'main' set up to track origin/main.
+Done.
+```
+
+---
+
+### 2.21 `minigit fetch`
+
+#### Synopsis
+```bash
+minigit fetch [<remote>]
+```
+
+#### Purpose
+Downloads objects and references from `<remote>` (defaults to `origin`) into the local repository without modifying the local branches or working tree. Updates the remote-tracking references under `.minigit/refs/remotes/<remote>/<branch>`.
+
+#### Behavioral Details
+1. **Remote Resolution:** Reads remote URL configuration from `.minigit/config`.
+2. **Object Discovery & Ingestion:**
+   - Iterates through all branches located under `<remote>/.minigit/refs/heads/`.
+   - For each branch, computes reachable commits and objects missing locally using BFS DAG exploration (`transfer::missing_objects`).
+   - Ingests missing objects into the local `.minigit/objects/` store.
+3. **Tracking Ref Update:** Writes each fetched branch commit SHA to `.minigit/refs/remotes/<remote>/<branch>`.
+4. Leaves local branches (`refs/heads/*`), the index, and the working tree untouched.
+
+#### Example
+```bash
+$ minigit fetch origin
+From C:/path/to/upstream
+ * [new branch]  main -> origin/main
+Fetched 3 new object(s) from 'origin'.
+```
+
+---
+
+### 2.22 `minigit push`
+
+#### Synopsis
+```bash
+minigit push [<remote> [<branch>]]
+```
+
+#### Purpose
+Uploads local commits and objects to a remote repository and advances the remote branch reference to point to the local branch head. Enforces fast-forward ancestry rules to prevent accidental history overwrites.
+
+#### Options
+- `<remote>`: Remote alias to push to. Defaults to `origin`.
+- `<branch>`: Name of the local branch to push. Defaults to the current checked-out branch.
+
+#### Behavioral Details
+1. **Precondition & Identity Checks:**
+   - Resolves the local branch commit SHA. If HEAD is detached and `<branch>` is omitted, push is rejected.
+   - Resolves remote repository URL from `.minigit/config`.
+2. **Fast-Forward Ancestry Validation:**
+   - Inspects the existing remote branch reference (`<remote>/.minigit/refs/heads/<branch>`).
+   - If the remote branch exists, verifies using DAG BFS (`transfer::is_ancestor`) that the remote commit is an ancestor of the local commit.
+   - If history has diverged (non-fast-forward), the push is rejected with an error and a hint to fetch and merge first.
+3. **Object Transfer:**
+   - Identifies all local objects reachable from the local branch that are absent in the remote object store (`transfer::missing_objects`).
+   - Copies the objects into the remote `.minigit/objects/` store.
+4. **Remote Reference Update:** Updates the remote branch reference file to the local branch SHA.
+5. **Tracking Ref Update:** Updates the local remote-tracking reference (`refs/remotes/<remote>/<branch>`).
+
+#### Example
+```bash
+$ minigit push origin main
+   c48a94a..f18fe23  main -> origin/main
+Pushed 3 object(s).
+```
+
+---
+
+### 2.23 `minigit pull`
+
+#### Synopsis
+```bash
+minigit pull [<remote> [<branch>]]
+```
+
+#### Purpose
+Fetches changes from the remote repository and integrates them into the current active branch. Implements fast-forward merging, synchronizing the working tree and staging index.
+
+#### Options
+- `<remote>`: Remote to pull from. Defaults to `origin`.
+- `<branch>`: Branch to pull. Defaults to the active local branch.
+
+#### Behavioral Details
+1. **Fetch Execution:** Invokes the fetch subsystem for `<remote>`, updating objects and remote-tracking references (`refs/remotes/<remote>/<branch>`).
+2. **Fast-Forward Check:**
+   - Resolves local branch commit SHA and remote-tracking commit SHA.
+   - If local SHA equals remote SHA, outputs `Already up to date.`.
+   - Validates that the local commit is an ancestor of the remote commit (`transfer::is_ancestor`).
+   - If history has diverged, aborts with a recommendation to run `minigit merge` manually.
+3. **Fast-Forward Application:**
+   - Updates local branch reference (`refs/heads/<branch>`) to the remote commit SHA.
+   - Clears and reconstructs `.minigit/index` from the remote commit's tree snapshot.
+   - Restores all files in the working directory to match the newly pulled tree.
+
+#### Example
+```bash
+$ minigit pull origin main
+From C:/path/to/upstream
+ * [new branch]  main -> origin/main
+Fetched 3 new object(s) from 'origin'.
+Fast-forward f18fe23..6804695
+Updated branch 'main'.
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1104,8 +1298,9 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Implementation Language** | C++20 | C, POSIX Shell, Perl |
 | **Hashing Algorithm** | SHA-256 (64 hex characters) | SHA-1 (legacy default) / SHA-256 |
 | **Object Header** | `<type> <size>\0<content>` | `<type> <size>\0<content>` |
-| **Object Compression** | Uncompressed loose objects | zlib deflate compression |
-| **Packfiles (`.pack`)** | Roadmap | Full support (delta compression) |
+| **Object Compression** | zlib deflate compression | zlib deflate compression |
+| **Packfiles (`.pack`)** | Roadmap (v0.7.0) | Full support (delta compression) |
+| **Remotes & Synchronization** | Local filesystem (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
 | **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, and many more |
 | **Index Serialization** | Human-readable `<path> <sha256>` | Binary DIRC structure with stat cache |
 | **Diff Engine** | LCS DP Matrix | Eugene Myers $O(ND)$ Difference Algorithm |
@@ -1118,13 +1313,15 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 
 ## 9. Future Feature Roadmap
 
-The following features are scheduled for subsequent versions:
+The following features are scheduled for subsequent development phases:
 
 ```mermaid
 flowchart LR
-    A["v0.4.0\nCAS, DAG, Index, Diff,\nBranching, Tags, Ignore,\nThree-Way Merge, Reset, Revert"] --> B["v0.4.1\nStash & Working State"]
-    B --> C["v0.5.0 (Current)\nzlib Compression"]
-    C --> D["v0.6.0\nRemotes Protocol"]
+    A["v0.5.0\nzlib Compression"] --> B["v0.6.0 (Current)\nRemotes Protocol\n(clone, remote, fetch, push, pull)"]
+    B --> C["v0.7.0 (Phase 7)\nPackfiles & Delta Compression"]
+    C --> D["v0.8.0 (Phase 8)\nSmart HTTP Remotes"]
+    D --> E["v0.9.0 (Phase 9)\nInteractive Rebase & Cherry-Pick"]
+    E --> F["v1.0.0 (Phase 10)\nWorktrees & Submodules"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -1133,4 +1330,10 @@ flowchart LR
 4. ~~**History Rewriting & Undo (`reset`, `revert`):** Rollback index/working tree and history-safe commit inversion.~~ ✅ **Implemented in v0.4.0**
 5. ~~**Stash (`minigit stash`):** Save and restore uncommitted working-directory state without a commit.~~ ✅ **Implemented in v0.4.1**
 6. ~~**Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.~~ ✅ **Implemented in v0.5.0**
-7. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.
+7. ~~**Remote Protocols:** Push, pull, fetch, clone, and remote management over local filesystems.~~ ✅ **Implemented in v0.6.0**
+8. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
+9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
+10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Linear history rewriting (`minigit rebase -i`), commit squashing, commit message amending, and selective individual commit transplantation across branches (`minigit cherry-pick`).
+11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
+12. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
+

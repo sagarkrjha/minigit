@@ -33,7 +33,9 @@
   - [8. Tagging Releases](#8-tagging-releases)
   - [9. History Rewriting with Reset and Revert](#9-history-rewriting-with-reset-and-revert)
   - [10. Branch Merging and Conflict Resolution](#10-branch-merging-and-conflict-resolution)
-  - [11. Low-Level Plumbing Commands](#11-low-level-plumbing-commands)
+  - [11. Shelving Work with Stash](#11-shelving-work-with-stash)
+  - [12. Remote Repositories and Synchronization](#12-remote-repositories-and-synchronization)
+  - [13. Low-Level Plumbing Commands](#13-low-level-plumbing-commands)
 - [Internal Repository Layout](#internal-repository-layout)
 - [Codebase Structure](#codebase-structure)
 - [MiniGit vs Standard Git](#minigit-vs-standard-git)
@@ -69,6 +71,9 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
 - **History Rewriting & Undo:** Flexible history modification via `minigit reset` (`--soft`, `--mixed`, `--hard`) and non-destructive, history-safe commit inversion via `minigit revert`.
 - **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation via DAG traversal, fast-forward detection, line-level three-way merging, conflict marker insertion (`<<<<<<<`, `=======`, `>>>>>>>`), and multi-parent merge commits via `minigit merge`.
+- **Stash Management:** Temporarily shelve uncommitted working-tree and staging changes with `minigit stash` (`push`, `list`, `pop`, `drop`, `show`).
+- **Object Compression:** Deflate compression with transparent backward compatibility via `zlib` for all loose objects in CAS storage.
+- **Remotes & Synchronization:** Full local remote synchronization workflow: clone repositories with `minigit clone`, manage remotes with `minigit remote`, fetch updates with `minigit fetch`, fast-forward push with `minigit push`, and pull latest changes with `minigit pull`.
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -133,6 +138,12 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
 | `minigit revert <commit> [--author <a>]` | Porcelain | Creates a new commit that inverts the changes of a target commit. |
+| `minigit stash [push\|list\|pop\|drop\|show]` | Porcelain | Shelves uncommitted changes or restores saved working-tree state. |
+| `minigit remote [add\|remove\|-v]` | Porcelain | Manages tracked remote repositories in `.minigit/config`. |
+| `minigit clone <repository> [<directory>]` | Porcelain | Clones a repository, sets up `origin` tracking, and checks out HEAD. |
+| `minigit fetch [<remote>]` | Porcelain | Downloads objects and remote-tracking refs without altering local branches. |
+| `minigit push [<remote> [<branch>]]` | Porcelain | Pushes local branch commits and objects to a remote with fast-forward safety checks. |
+| `minigit pull [<remote> [<branch>]]` | Porcelain | Fetches and fast-forwards the active branch to match the remote. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -484,7 +495,64 @@ Resolve conflicts manually, stage the resolved files with `minigit add`, and fin
 
 ---
 
-### 11. Low-Level Plumbing Commands
+### 11. Shelving Work with Stash
+
+Temporarily save dirty working-tree and index modifications without committing:
+
+```bash
+# Shelve local changes and restore clean HEAD state
+minigit stash
+
+# Inspect saved stashes
+minigit stash list
+# stash@{0}: WIP on main: 5d24932 Merge branch 'feature/parser' into main
+
+# Inspect files stored inside a stash
+minigit stash show stash@{0}
+
+# Restore changes and drop the stash entry
+minigit stash pop
+```
+
+---
+
+### 12. Remote Repositories and Synchronization
+
+Synchronize commit history and objects between local repositories:
+
+#### 1. Clone a Repository
+```bash
+# Clone an upstream repository into a new directory
+minigit clone /path/to/upstream downstream_repo
+cd downstream_repo
+```
+
+#### 2. Manage Remotes
+```bash
+# Inspect configured remotes and their URLs
+minigit remote -v
+# origin	/path/to/upstream (fetch)
+# origin	/path/to/upstream (push)
+
+# Add a new secondary remote
+minigit remote add mirror /path/to/backup
+```
+
+#### 3. Push and Pull Changes
+```bash
+# Push newly committed local branch changes to upstream
+minigit push origin main
+
+# Fetch changes from upstream without touching working tree
+minigit fetch origin
+
+# Fetch and fast-forward active branch with remote updates
+minigit pull origin main
+```
+
+---
+
+### 13. Low-Level Plumbing Commands
 
 Inspect how MiniGit serializes objects under the hood:
 
@@ -536,14 +604,16 @@ When `minigit init` is executed, it creates the `.minigit` directory structure:
 ```text
 .minigit/
 ├── HEAD               # Symbolic ref (ref: refs/heads/main) or commit SHA
-├── config             # Repository configuration file
+├── config             # Repository configuration file (including remotes)
 ├── index              # Staging area: flat map of path -> SHA-256 entries
-├── objects/           # Content-addressable object store
+├── stash              # Stash commit stack (one SHA per line)
+├── objects/           # Content-addressable zlib-compressed object store
 │   ├── 5b/
 │   │   └── 2f8a18342dc2145b...   # Blob / Tree / Commit object payloads
 │   └── ...
 └── refs/
     ├── heads/         # Branch pointers (e.g., refs/heads/main)
+    ├── remotes/       # Remote-tracking branches (e.g., refs/remotes/origin/main)
     └── tags/          # Tag pointers
 ```
 
@@ -588,13 +658,24 @@ minigit/
 │   │   ├── reset.{h,cpp}        # History rewriting: soft, mixed, and hard resets
 │   │   ├── tag.{h,cpp}          # Tag listing, creation (lightweight & annotated), deletion
 │   │   ├── merge.{h,cpp}        # Three-way branch merging and conflict resolution
-│   │   └── revert.{h,cpp}       # Commit inversion without history rewriting
+│   │   ├── revert.{h,cpp}       # Commit inversion without history rewriting
+│   │   ├── stash.{h,cpp}        # Working-state shelving (push, list, pop, drop, show)
+│   │   ├── remote.{h,cpp}       # Remote repository alias management
+│   │   ├── clone.{h,cpp}        # Repository cloning and tracking setup
+│   │   ├── fetch.{h,cpp}        # Remote object ingestion and tracking ref update
+│   │   ├── push.{h,cpp}         # Object upload and remote ref advancement
+│   │   └── pull.{h,cpp}         # Fetch and working-tree fast-forward synchronization
 │   ├── objects/                # Domain models
 │   │   ├── blob.{h,cpp}        # Blob object representation
 │   │   ├── tree.{h,cpp}        # Tree object representation
 │   │   ├── commit.{h,cpp}      # Commit object representation
-│   │   ├── object_database.{h,cpp} # Sharded on-disk CAS store
+│   │   ├── object_database.{h,cpp} # Sharded on-disk CAS store with zlib compression
 │   │   └── object_parser.{h,cpp}   # Raw byte parsing into domain structs
+│   ├── remotes/                # Remote protocol & synchronization
+│   │   ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
+│   │   └── transfer.{h,cpp}    # BFS missing-object DAG traversal and ancestry checker
+│   ├── compression/            # Compression subsystem
+│   │   └── zlib_compress.{h,cpp}# zlib deflate / inflate wrappers
 │   ├── index/                  # Staging area
 │   │   └── index.{h,cpp}       # In-memory and on-disk index manager
 │   ├── ignore/                 # Ignore rule engine
@@ -623,8 +704,8 @@ minigit/
 | **Tree Storage** | Text-based sorted entries | Binary mode/path/SHA entries |
 | **Diff Engine** | Dynamic programming LCS (`O(M * N)`) | Myers diff algorithm (`O(N * D)`) |
 | **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
-| **Submodules & Remotes**| Planned | Full support |
-| **Compression** | Plaintext object payloads | zlib-deflated loose objects & Packfiles |
+| **Submodules & Remotes**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
+| **Compression** | zlib deflate compression | zlib deflate compression & Packfiles |
 
 ---
 
@@ -636,8 +717,12 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 2: Tagging:** Lightweight and annotated tags (`minigit tag`) stored under `refs/tags/`; annotated tags are first-class objects in the object database.
 - [x] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
 - [x] **Phase 4: History Rewriting & Safe Undo:** `minigit reset` (`--soft`, `--mixed`, `--hard`) and `minigit revert` (three-way inverse commit application with conflict detection).
-- [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.
-- [ ] **Phase 6: Networking & Remotes:** Basic HTTP / local remote transport protocol (`fetch`, `push`, `clone`).
+- [x] **Phase 5: Stash & Compression:** `minigit stash` working-state shelving (`push`, `list`, `pop`, `drop`, `show`) and zlib deflate loose object compression.
+- [x] **Phase 6: Networking & Remotes:** Local filesystem remotes protocol with `clone`, `remote`, `fetch`, `push`, and `pull`.
+- [ ] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression.
+- [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
+- [ ] **Phase 9: Interactive Rebase & Cherry-Pick:** History rewriting (`minigit rebase -i`), commit squashing, amending, and individual commit transplantation (`minigit cherry-pick`).
+- [ ] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) and nested repository tracking (`minigit submodule`).
 
 ---
 
