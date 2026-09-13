@@ -27,6 +27,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.14 `.minigitignore`](#214-minigitignore)
   - [2.15 `minigit reset`](#215-minigit-reset)
   - [2.16 `minigit merge`](#216-minigit-merge)
+  - [2.17 `minigit revert`](#217-minigit-revert)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -61,7 +62,7 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
    - `hash-object`, `write-tree`, `cat-file`.
 
@@ -766,6 +767,66 @@ Automatic merge failed; fix conflicts and then commit the result.
 
 ---
 
+### 2.17 `minigit revert`
+
+#### Synopsis
+```bash
+minigit revert <commit> [--author <author>]
+```
+
+#### Purpose
+Inverses the changes introduced by `<commit>` by creating a new commit on top of current HEAD. Unlike `reset`, which alters existing branch history, `revert` is non-destructive and safe for shared branches because it linearly advances HEAD with an inverse diff.
+
+#### Flags & Options
+- `<commit>`: *(Required)* Commit SHA, branch name, or tag reference to revert.
+- `--author <author>`: *(Optional)* Author identity for the revert commit. Defaults to `MiniGit User <user@minigit>`.
+
+#### Behavioral Details
+1. **Target Commit Resolution:**
+   - Resolves `<commit>` through branches (`refs/heads/`), tags (`refs/tags/`), or raw commit SHAs.
+   - Reads and validates that the target object is a commit.
+2. **Three-Way Inverse Merge Model:**
+   - Evaluates the commit DAG to establish three distinct tree roles:
+     - **Base Tree:** The tree snapshot of `<commit>` being reverted.
+     - **Ours Tree:** The tree snapshot of the current `HEAD`.
+     - **Theirs Tree:** The tree snapshot of `<commit>`'s first parent (the state immediately prior to the reverted commit). If the reverted commit is a root commit, the parent tree is considered empty.
+   - Leverages `three_way_merge` across the union of all paths across these three trees:
+     - Files added by `<commit>` are removed from the working tree and index.
+     - Files deleted by `<commit>` are restored from the parent tree.
+     - Files modified by `<commit>` have their edits reversed line-by-line using the LCS diff engine.
+     - Files changed in other subsequent commits or untouched by `<commit>` pass through safely.
+3. **Conflict Detection & Markers:**
+   - If subsequent changes on `HEAD` overlap or conflict with the inverse edits, standard conflict markers are inserted into the files:
+     ```text
+     <<<<<<< <branch>
+     ... current content ...
+     =======
+     ... reverted parent content ...
+     >>>>>>> parent of <commit-short-sha>
+     ```
+   - Emits `CONFLICT (content): Merge conflict in <file>` and aborts with `Automatic revert failed; fix conflicts and then commit the result.`.
+4. **Commit Creation:**
+   - Upon clean application, updates the index and writes a new `Tree` object.
+   - Creates a new single-parent commit with message `Revert "<original-commit-message>"`.
+   - Advances the active branch pointer or detached HEAD to the new revert commit.
+
+#### Example
+```bash
+# Revert a faulty commit by SHA
+$ minigit revert 0f2c6f9
+[f00c6db] Revert "add line4 and change line1"
+
+# Inspect history to confirm linear advancement
+$ minigit log
+commit f00c6db6332cd7751e885bd79024b7ced5ec7985c8d1d9a8f2e4d18a46957ec1
+Author: MiniGit User <user@minigit>
+Date:   1789294717
+
+    Revert "add line4 and change line1"
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -953,13 +1014,13 @@ The following features are scheduled for subsequent versions:
 
 ```mermaid
 flowchart LR
-    A["v0.3.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore,<br/>Three-Way Merge, Reset"] --> B["v0.4.0<br/>History Rewriting<br/>(revert, stash)"]
+    A["v0.4.0 (Current)<br/>CAS, DAG, Index, Diff,<br/>Branching, Tags, Ignore,<br/>Three-Way Merge, Reset, Revert"] --> B["v0.4.1<br/>Stash & Working State"]
     B --> C["v0.5.0<br/>zlib Compression<br/>& Remotes Protocol"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
 2. ~~**Tag References (`refs/tags/`):** Lightweight and annotated tags.~~ ✅ **Implemented in v0.2.0**
 3. ~~**Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation with conflict markers.~~ ✅ **Implemented in v0.3.0**
-4. ~~**Interactive Resets (`reset --soft | --mixed | --hard`):** Rollback index and working tree to historic commits.~~ ✅ **Implemented in v0.2.1**
+4. ~~**History Rewriting & Undo (`reset`, `revert`):** Rollback index/working tree and history-safe commit inversion.~~ ✅ **Implemented in v0.4.0**
 5. **Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.
 6. **Remote Protocols:** Push, pull, and clone mechanisms over local filesystems and HTTP.

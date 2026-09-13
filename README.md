@@ -31,7 +31,7 @@
   - [6. Branching and Switching](#6-branching-and-switching)
   - [7. Detached HEAD and Historic Checkout](#7-detached-head-and-historic-checkout)
   - [8. Tagging Releases](#8-tagging-releases)
-  - [9. History Rewriting with Reset](#9-history-rewriting-with-reset)
+  - [9. History Rewriting with Reset and Revert](#9-history-rewriting-with-reset-and-revert)
   - [10. Branch Merging and Conflict Resolution](#10-branch-merging-and-conflict-resolution)
   - [11. Low-Level Plumbing Commands](#11-low-level-plumbing-commands)
 - [Internal Repository Layout](#internal-repository-layout)
@@ -67,7 +67,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Plumbing Utilities:** Direct object hashing (`minigit hash-object -w`), tree generation (`minigit write-tree`), and object inspection (`minigit cat-file -t/-s/-p`) for scriptability.
 - **Ignore Rules:** `.minigitignore` file with glob pattern matching (wildcards, directory patterns, negation with `!`) to exclude files from `status` and `add`.
 - **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
-- **History Rewriting:** `minigit reset` with `--soft` (move HEAD only), `--mixed` (move HEAD + reset index, default), and `--hard` (move HEAD + reset index + restore working tree).
+- **History Rewriting & Undo:** Flexible history modification via `minigit reset` (`--soft`, `--mixed`, `--hard`) and non-destructive, history-safe commit inversion via `minigit revert`.
 - **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation via DAG traversal, fast-forward detection, line-level three-way merging, conflict marker insertion (`<<<<<<<`, `=======`, `>>>>>>>`), and multi-parent merge commits via `minigit merge`.
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
@@ -132,6 +132,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
+| `minigit revert <commit> [--author <a>]` | Porcelain | Creates a new commit that inverts the changes of a target commit. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -414,8 +415,9 @@ minigit tag -d v1.0.0
 
 ---
 
-### 9. History Rewriting with Reset
+### 9. History Rewriting with Reset and Revert
 
+#### Rollback History with `reset`
 Undo or adjust commits with three levels of depth:
 
 ```bash
@@ -428,6 +430,19 @@ minigit reset <commit-sha>
 # Hard reset: move pointer, reset staging area, and revert working files
 minigit reset --hard <commit-sha>
 ```
+
+#### Safe History Undo with `revert`
+Invert the changes of an existing commit by creating a new commit on top of HEAD (safe for public/shared branches):
+
+```bash
+minigit revert <commit-sha>
+```
+*Output:*
+```text
+[f00c6db] Revert "add line4 and change line1"
+```
+
+If subsequent changes conflict with the revert, conflict markers are inserted into the files for manual resolution.
 
 ---
 
@@ -572,7 +587,8 @@ minigit/
 │   │   ├── switch_branch.{h,cpp}# Modern branch switching interface
 │   │   ├── reset.{h,cpp}        # History rewriting: soft, mixed, and hard resets
 │   │   ├── tag.{h,cpp}          # Tag listing, creation (lightweight & annotated), deletion
-│   │   └── merge.{h,cpp}        # Three-way branch merging and conflict resolution
+│   │   ├── merge.{h,cpp}        # Three-way branch merging and conflict resolution
+│   │   └── revert.{h,cpp}       # Commit inversion without history rewriting
 │   ├── objects/                # Domain models
 │   │   ├── blob.{h,cpp}        # Blob object representation
 │   │   ├── tree.{h,cpp}        # Tree object representation
@@ -619,7 +635,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 1: Ignore Rules:** `.minigitignore` glob pattern matching — excludes files from `status` and `add` with support for wildcards, directory patterns (`build/`), and negation (`!pattern`).
 - [x] **Phase 2: Tagging:** Lightweight and annotated tags (`minigit tag`) stored under `refs/tags/`; annotated tags are first-class objects in the object database.
 - [x] **Phase 3: Three-Way Merging:** Merge base computation, automatic three-way file merge, and conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
-- [x] **Phase 4 (Partial): History Rewriting:** `minigit reset` (`--soft`, `--mixed`, `--hard`) implemented; `minigit revert` planned.
+- [x] **Phase 4: History Rewriting & Safe Undo:** `minigit reset` (`--soft`, `--mixed`, `--hard`) and `minigit revert` (three-way inverse commit application with conflict detection).
 - [ ] **Phase 5: Compression:** Deflate / zlib compression for loose objects.
 - [ ] **Phase 6: Networking & Remotes:** Basic HTTP / local remote transport protocol (`fetch`, `push`, `clone`).
 
