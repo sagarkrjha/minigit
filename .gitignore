@@ -1,0 +1,34 @@
+# CMake and Ninja build output
+build/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+.ninja_deps
+.ninja_log
+.ninja_lock
+build.ninja
+
+# Generated binaries and compiler artifacts
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+
+# MiniGit runtime data
+.minigit/
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Temporary files
+*.tmp
+*.swp
+*~
