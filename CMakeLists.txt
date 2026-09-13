@@ -34,6 +34,11 @@ add_executable(
     src/commands/merge.cpp
     src/commands/revert.cpp
     src/commands/stash.cpp
+    src/commands/remote.cpp
+    src/commands/clone.cpp
+    src/commands/fetch.cpp
+    src/commands/push.cpp
+    src/commands/pull.cpp
 
     # domain objects
     src/objects/blob.cpp
@@ -51,6 +56,8 @@ add_executable(
     src/ignore/ignore.cpp
     src/merge/merge_engine.cpp
     src/compression/zlib_compress.cpp
+    src/remotes/config.cpp
+    src/remotes/transfer.cpp
 )
 
 target_link_libraries(

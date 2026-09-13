@@ -19,6 +19,11 @@
 #include "commands/merge.h"
 #include "commands/revert.h"
 #include "commands/stash.h"
+#include "commands/remote.h"
+#include "commands/clone.h"
+#include "commands/fetch.h"
+#include "commands/push.h"
+#include "commands/pull.h"
 
 int main(int argc, char const *argv[])
 {
@@ -314,10 +319,53 @@ int main(int argc, char const *argv[])
 
         stash_command(sub, ref);
     }
+    else if (command == "remote")
+    {
+        // minigit remote                          → list
+        // minigit remote -v                       → list verbose
+        // minigit remote add <name> <url>
+        // minigit remote remove <name>
+        std::string sub2, rname, rurl;
+        if (argc >= 3) sub2  = argv[2];
+        if (argc >= 4) rname = argv[3];
+        if (argc >= 5) rurl  = argv[4];
+        remote_command(sub2, rname, rurl);
+    }
+    else if (command == "clone")
+    {
+        // minigit clone <src-path> [<dest-dir>]
+        if (argc < 3)
+        {
+            std::cerr << "usage: minigit clone <repository> [<directory>]\n";
+            return 1;
+        }
+        const std::string dest = (argc >= 4) ? argv[3] : "";
+        clone_command(argv[2], dest);
+    }
+    else if (command == "fetch")
+    {
+        // minigit fetch [<remote>]
+        const std::string rname2 = (argc >= 3) ? argv[2] : "origin";
+        fetch_command(rname2);
+    }
+    else if (command == "push")
+    {
+        // minigit push [<remote> [<branch>]]
+        const std::string rname3 = (argc >= 3) ? argv[2] : "origin";
+        const std::string branch = (argc >= 4) ? argv[3] : "";
+        push_command(rname3, branch);
+    }
+    else if (command == "pull")
+    {
+        // minigit pull [<remote> [<branch>]]
+        const std::string rname4 = (argc >= 3) ? argv[2] : "origin";
+        const std::string branch = (argc >= 4) ? argv[3] : "";
+        pull_command(rname4, branch);
+    }
     else
     {
         std::cerr << "Unknown command: " << command << '\n';
         return 1;
     }
     return 0;
-}
+}
