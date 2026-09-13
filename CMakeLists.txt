@@ -30,6 +30,7 @@ add_executable(
     src/commands/switch_branch.cpp
     src/commands/reset.cpp
     src/commands/tag.cpp
+    src/commands/merge.cpp
 
     # domain objects
     src/objects/blob.cpp
@@ -45,6 +46,7 @@ add_executable(
     src/filesystem/file.cpp
     src/diff/diff.cpp
     src/ignore/ignore.cpp
+    src/merge/merge_engine.cpp
 )
 
 target_link_libraries(

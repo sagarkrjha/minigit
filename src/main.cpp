@@ -16,6 +16,7 @@
 #include "commands/switch_branch.h"
 #include "commands/reset.h"
 #include "commands/tag.h"
+#include "commands/merge.h"
 
 int main(int argc, char const *argv[])
 {
@@ -249,6 +250,29 @@ int main(int argc, char const *argv[])
             reset_mode = "--mixed";
 
         reset_command(reset_mode, reset_target);
+    }
+    else if (command == "merge")
+    {
+        // minigit merge <branch> [--author <author>]
+        std::string merge_branch;
+        std::string merge_author = "MiniGit User <user@minigit>";
+
+        for (int i = 2; i < argc; ++i)
+        {
+            const std::string arg = argv[i];
+            if (arg == "--author" && i + 1 < argc)
+                merge_author = argv[++i];
+            else if (arg[0] != '-')
+                merge_branch = arg;
+        }
+
+        if (merge_branch.empty())
+        {
+            std::cerr << "usage: minigit merge <branch> [--author <author>]\n";
+            return 1;
+        }
+
+        merge_command(merge_branch, merge_author);
     }
     else
     {
