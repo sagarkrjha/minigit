@@ -17,6 +17,7 @@
 #include "commands/reset.h"
 #include "commands/tag.h"
 #include "commands/merge.h"
+#include "commands/revert.h"
 
 int main(int argc, char const *argv[])
 {
@@ -273,6 +274,29 @@ int main(int argc, char const *argv[])
         }
 
         merge_command(merge_branch, merge_author);
+    }
+    else if (command == "revert")
+    {
+        // minigit revert <commit> [--author <author>]
+        std::string revert_target;
+        std::string revert_author = "MiniGit User <user@minigit>";
+
+        for (int i = 2; i < argc; ++i)
+        {
+            const std::string arg = argv[i];
+            if (arg == "--author" && i + 1 < argc)
+                revert_author = argv[++i];
+            else if (arg[0] != '-')
+                revert_target = arg;
+        }
+
+        if (revert_target.empty())
+        {
+            std::cerr << "usage: minigit revert <commit> [--author <author>]\n";
+            return 1;
+        }
+
+        revert_command(revert_target, revert_author);
     }
     else
     {

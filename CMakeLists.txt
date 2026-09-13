@@ -31,6 +31,7 @@ add_executable(
     src/commands/reset.cpp
     src/commands/tag.cpp
     src/commands/merge.cpp
+    src/commands/revert.cpp
 
     # domain objects
     src/objects/blob.cpp
