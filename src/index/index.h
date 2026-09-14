@@ -16,6 +16,10 @@ public:
     void add(const std::filesystem::path &relative_path,
              const std::string &blob_id);
 
+    // Remove a staged entry by relative path.
+    void remove(const std::filesystem::path &relative_path);
+
+
     // Persist changes back to disk.
     void write() const;
 

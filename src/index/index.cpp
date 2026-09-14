@@ -36,6 +36,12 @@ void Index::add(const std::filesystem::path &relative_path,
     entries_[relative_path.generic_string()] = blob_id;
 }
 
+void Index::remove(const std::filesystem::path &relative_path)
+{
+    entries_.erase(relative_path.generic_string());
+}
+
+
 void Index::write() const
 {
     std::ofstream file(index_path_, std::ios::trunc);

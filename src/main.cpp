@@ -49,8 +49,7 @@ int cmd_add(int argc, char const *argv[])
     for (int i = 2; i < argc; ++i)
         paths.emplace_back(argv[i]);
 
-    add_files(paths);
-    return 0;
+    return add_files(paths) ? 0 : 1;
 }
 
 int cmd_hash_object(int argc, char const *argv[])
