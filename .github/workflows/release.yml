@@ -105,7 +105,13 @@ jobs:
           New-Item -ItemType Directory -Path bin -Force
           Copy-Item $exe.FullName -Destination bin\minigit.exe
           Write-Host "Verifying binary execution..."
-          & .\bin\minigit.exe
+          $output = & .\bin\minigit.exe 2>&1
+          Write-Host $output
+          if ($output -notmatch "Usage: minigit") {
+            Write-Error "minigit.exe failed execution check!"
+            exit 1
+          }
+          $global:LASTEXITCODE = 0
 
       - name: Verify and stage binary (Linux / macOS)
         if: runner.os != 'Windows'
@@ -129,7 +135,12 @@ jobs:
           cp "$BIN" "bin/${{ matrix.release_asset }}"
           chmod +x "bin/${{ matrix.release_asset }}"
           echo "Verifying binary execution..."
-          "./bin/${{ matrix.release_asset }}" || true
+          OUT=$("./bin/${{ matrix.release_asset }}" 2>&1 || true)
+          echo "$OUT"
+          if ! echo "$OUT" | grep -q "Usage: minigit"; then
+            echo "Binary failed execution check!" >&2
+            exit 1
+          fi
 
       # --- Upload Artifact ---
       - name: Upload binary artifact
