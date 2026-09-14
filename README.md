@@ -8,12 +8,55 @@
 
 **MiniGit** is a lightweight, educational, yet architecturally authentic version control system built from scratch in modern **C++20**. Designed as a clean-room behavioral recreation of Git internals, it implements content-addressable object storage, DAG-based commit histories, a two-phase staging index, dynamic programming diff calculation, and full branch management.
 
-> 📖 For a deep dive into every command, internal data structures, and algorithmic details, see [FEATURES.md](FEATURES.md).
+> 📖 For practical CLI usage examples, workflows, and recipes, see [USAGE.MD](USAGE.MD). For architectural and technical specifications, see [FEATURES.md](FEATURES.md).
+
+---
+
+## Download Latest Build
+
+Pre-compiled native standalone binaries are automatically built, verified, and published on every push for Windows, Linux, and macOS. These direct download links always point to the newest successful cross-platform builds:
+
+| Platform | Architecture | Binary | Direct Download Link |
+| :--- | :--- | :--- | :--- |
+| **Windows** | x86_64 | `minigit.exe` | [Download `minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
+| **Linux** | x86_64 | `minigit-linux` | [Download `minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
+| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download `minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
+
+> ℹ️ These stable direct URLs always point to the newest verified release assets.
+
+### Quick Start with Downloaded Binaries
+
+#### Windows (PowerShell / Command Prompt)
+Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) and run directly:
+```powershell
+# Run directly from PowerShell or Command Prompt
+.\minigit.exe init
+.\minigit.exe status
+```
+
+#### Linux
+Download [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux), grant execution permissions, and run:
+```bash
+curl -LO https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux
+chmod +x minigit-linux
+./minigit-linux init
+./minigit-linux status
+```
+
+#### macOS
+Download [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos), grant execution permissions, and run:
+```bash
+curl -LO https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos
+chmod +x minigit-macos
+./minigit-macos init
+./minigit-macos status
+```
 
 ---
 
 ## Table of Contents
 
+- [Download Latest Build](#download-latest-build)
 - [Overview](#overview)
 - [Key Features](#key-features)
 - [Storage Architecture](#storage-architecture)
@@ -127,7 +170,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | :--- | :--- | :--- |
 | `minigit init` | Porcelain | Initializes a new repository or reinitializes an existing one. |
 | `minigit status` | Porcelain | Shows working tree, staging area, and untracked file status. |
-| `minigit add <file>...` | Porcelain | Stages one or more files into the index and writes blob objects. |
+| `minigit add (<file>\|<dir>\|.)...` | Porcelain | Stages one or more files, directories, or the entire working tree (`.`) into the index. |
 | `minigit commit -m <msg> [--author <a>]` | Porcelain | Records staged changes into a new commit object and advances HEAD. |
 | `minigit log` | Porcelain | Displays commit logs following parent commit hashes from HEAD. |
 | `minigit diff [--cached] [<path>...]` | Porcelain | Displays line-level unified diffs (unstaged or staged). |
@@ -257,9 +300,10 @@ Untracked files:
 
 ### 3. Stage and Commit Changes
 
-Stage files to the index:
+Stage files to the index (or stage everything using `minigit add .`):
 
 ```bash
+# Stage specific files or use `minigit add .` to stage all changes
 minigit add hello.txt app.conf
 minigit status
 ```

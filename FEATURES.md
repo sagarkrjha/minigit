@@ -2,6 +2,8 @@
 
 This document provides a comprehensive, production-grade technical specification of **MiniGit**, covering its command-line interface, underlying subsystems, algorithms, data structures, storage formats, and behavioral semantics.
 
+> 📖 For practical CLI usage examples, daily workflows, and recipe guides, see [USAGE.MD](USAGE.MD). For installation instructions and pre-built binaries, see [README.md](README.md).
+
 ---
 
 ## Table of Contents
@@ -44,6 +46,7 @@ This document provides a comprehensive, production-grade technical specification
   - [4.1 On-Disk Index Format](#41-on-disk-index-format)
   - [4.2 In-Memory Representation](#42-in-memory-representation)
   - [4.3 Path Resolution & Normalization](#43-path-resolution--normalization)
+  - [4.4 Recursive Directory & Tree Staging (`minigit add .`)](#44-recursive-directory--tree-staging-minigit-add-)
 - [5. Diff Engine & LCS Algorithm](#5-diff-engine--lcs-algorithm)
   - [5.1 Longest Common Subsequence Formulation](#51-longest-common-subsequence-formulation)
   - [5.2 CRLF & End-of-Line Handling](#52-crlf--end-of-line-handling)
@@ -171,26 +174,39 @@ Untracked files:
 
 #### Synopsis
 ```bash
-minigit add <file> [<file>...]
+minigit add (<file> | <directory> | .) [<path>...]
 ```
 
 #### Purpose
-Stages changes by storing the file content into the object database as a blob and recording the relative path and blob hash into `.minigit/index`.
+Stages changes by storing file content into the object database as blobs and recording relative paths and blob hashes into `.minigit/index`. Supports individual files, directory trees, and entire working tree staging (`minigit add .`), as well as staging file deletions.
 
 #### Behavioral Details
 1. For each specified path:
-   - Resolves canonical absolute path.
+   - Resolves canonical absolute path and normalizes relative path within repository root.
    - Validates that the path is within the repository root (prevents path traversal out of the workspace).
-   - Reads file content in binary mode.
-   - Generates a `Blob` object: calculates SHA-256 and serializes with the `blob <size>\0` envelope.
-   - Writes the blob into `.minigit/objects/`.
-   - Updates the in-memory index map (`path -> blob_id`).
-2. Persists the updated index to disk (`.minigit/index`).
-3. If a path is invalid or missing, outputs an error message and proceeds to process remaining arguments.
+   - **Path does not exist on disk:** If the path (or a directory containing tracked files) was deleted from the working tree, stages the removal from the index.
+   - **Path is a directory (e.g. `.` or a subfolder):**
+     - Recursively walks the directory, discovering all untracked and modified regular files.
+     - Automatically skips `.minigit` and `.git` internals.
+     - Respects `.minigitignore` ignore rules (skips ignored directories and files without error).
+     - Persists new and modified files as blobs in `.minigit/objects/` and updates their index entries.
+     - Detects and stages the removal of any tracked files within the directory that were deleted on disk.
+   - **Path is a regular file:**
+     - Checks `.minigitignore` (warns and skips if ignored and not already tracked).
+     - Reads file in binary mode, generates SHA-256 blob object, stores in `.minigit/objects/`, and records in `.minigit/index`.
+2. Persists the updated index atomically to disk (`.minigit/index`) if no fatal errors occurred.
+3. Exits with status code 0 on success, or 1 if any invalid pathspec was specified.
 
 #### Example
 ```bash
+# Stage individual files
 $ minigit add src/main.cpp include/header.h
+
+# Stage entire repository / working tree from current location
+$ minigit add .
+
+# Stage an entire subdirectory
+$ minigit add src/
 ```
 
 ---
@@ -1213,6 +1229,18 @@ In memory, the index is loaded into an `std::unordered_map<std::string, std::str
 ### 4.3 Path Resolution & Normalization
 
 All paths added to the index are converted into paths relative to the repository root. Paths containing directory traversal sequences (such as `../`) that point outside the repository boundary are rejected with an explicit error.
+
+### 4.4 Recursive Directory & Tree Staging (`minigit add .`)
+
+When `minigit add` is invoked with a directory path or `.` (current directory), the staging engine performs a recursive directory scan using `std::filesystem::recursive_directory_iterator`:
+
+1. **Internal Tree Isolation:** Automatically suppresses recursion into internal metadata trees (`.minigit` and `.git`).
+2. **Ignore Engine Integration:** Evaluates directory paths against parsed `IgnoreRules`. If a directory matches an ignore rule (e.g. `build/`), recursion into that directory is disabled via `disable_recursion_pending()`.
+3. **Delta Staging:**
+   - **New & Modified Files:** Unindexed regular files and modified tracked files have their content hashed into `Blob` objects, compressed, written to `.minigit/objects/`, and registered in the in-memory index map.
+   - **Deletion Synchronization:** Any file previously tracked in the index that is rooted under the target directory path prefix but no longer exists on disk has its index entry removed.
+4. **Subdirectory Scope:** When invoked from within a subdirectory, path resolution scopes additions and deletions strictly to files rooted under that subdirectory.
+5. **Atomic Persistence:** If all path arguments succeed without fatal pathspec or I/O errors, the entire updated index map is serialized and written atomically to `.minigit/index`.
 
 ---
 
