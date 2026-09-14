@@ -12,6 +12,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -428,30 +429,23 @@ void stash_command(const std::string& subcommand, const std::string& stash_ref)
 
     ObjectDatabase db(repo.git_dir() / "objects");
 
-    if (subcommand == "push" || subcommand.empty())
-    {
-        stash_push(repo, db);
-    }
-    else if (subcommand == "list")
-    {
-        stash_list(repo, db);
-    }
-    else if (subcommand == "pop")
-    {
-        stash_pop(repo, db, stash_ref);
-    }
-    else if (subcommand == "drop")
-    {
-        stash_drop(repo, stash_ref);
-    }
-    else if (subcommand == "show")
-    {
-        stash_show(repo, db, stash_ref);
-    }
-    else
+    using StashHandler = std::function<void(Repository&, ObjectDatabase&, const std::string&)>;
+    static const std::unordered_map<std::string, StashHandler> handlers = {
+        {"",     [](Repository& r, ObjectDatabase& d, const std::string& /*ref*/) { stash_push(r, d); }},
+        {"push", [](Repository& r, ObjectDatabase& d, const std::string& /*ref*/) { stash_push(r, d); }},
+        {"list", [](Repository& r, ObjectDatabase& d, const std::string& /*ref*/) { stash_list(r, d); }},
+        {"pop",  [](Repository& r, ObjectDatabase& d, const std::string& ref) { stash_pop(r, d, ref); }},
+        {"drop", [](Repository& r, ObjectDatabase& /*d*/, const std::string& ref) { stash_drop(r, ref); }},
+        {"show", [](Repository& r, ObjectDatabase& d, const std::string& ref) { stash_show(r, d, ref); }}
+    };
+
+    const auto it = handlers.find(subcommand);
+    if (it == handlers.end())
     {
         std::cerr << "error: unknown stash subcommand '" << subcommand << "'\n"
                   << "usage: minigit stash [push | list | pop | drop | show] [stash@{N}]\n";
         std::exit(1);
     }
+
+    it->second(repo, db, stash_ref);
 }

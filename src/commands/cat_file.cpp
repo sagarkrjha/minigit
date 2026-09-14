@@ -4,9 +4,12 @@
 #include "../objects/object_parser.h"
 
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -105,31 +108,39 @@ void cat_file(const std::string& mode, const std::string& object_id)
         return;
     }
 
-    if (mode == "-t")
-    {
-        std::cout << object_type(raw) << '\n';
-    }
-    else if (mode == "-s")
-    {
-        std::cout << object_size(raw) << '\n';
-    }
-    else if (mode == "-p")
-    {
-        const std::string type = object_type(raw);
+    using PrintHandler = void (*)(const std::string&);
+    static const std::unordered_map<std::string, PrintHandler> type_printers = {
+        {"blob",   print_blob},
+        {"tree",   print_tree},
+        {"commit", print_commit},
+        {"tag",    print_tag}
+    };
 
-        if (type == "blob")
-            print_blob(raw);
-        else if (type == "tree")
-            print_tree(raw);
-        else if (type == "commit")
-            print_commit(raw);
-        else if (type == "tag")
-            print_tag(raw);
-        else
-            std::cerr << "cat-file: unknown object type '" << type << "'\n";
-    }
-    else
+    using ModeHandler = std::function<void(const std::string&)>;
+    static const std::unordered_map<std::string, ModeHandler> mode_handlers = {
+        {"-t", [](const std::string& r) {
+            std::cout << object_type(r) << '\n';
+        }},
+        {"-s", [](const std::string& r) {
+            std::cout << object_size(r) << '\n';
+        }},
+        {"-p", [](const std::string& r) {
+            const std::string type = object_type(r);
+            const auto it = type_printers.find(type);
+            if (it == type_printers.end())
+            {
+                std::cerr << "cat-file: unknown object type '" << type << "'\n";
+                return;
+            }
+            it->second(r);
+        }}
+    };
+
+    const auto it = mode_handlers.find(mode);
+    if (it == mode_handlers.end())
     {
         std::cerr << "usage: minigit cat-file (-t | -s | -p) <object>\n";
+        return;
     }
+    it->second(raw);
 }

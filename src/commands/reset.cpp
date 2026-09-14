@@ -8,10 +8,12 @@
 
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
@@ -159,37 +161,38 @@ void reset_command(const std::string& mode, const std::string& target)
     // Apply the reset according to the requested mode.
     // -----------------------------------------------------------------------
 
-    if (mode == "--soft")
-    {
-        // Move HEAD / branch pointer only — index and working tree untouched.
-        update_ref(repo.git_dir(), commit_sha);
-        std::cout << "HEAD is now at " << commit_sha.substr(0, 7)
-                  << ' ' << commit.message << '\n';
-    }
-    else if (mode == "--mixed" || mode.empty())
-    {
-        // Move HEAD + reset index; leave working tree alone.
-        update_ref(repo.git_dir(), commit_sha);
-        reset_index(repo.git_dir(), tree);
-        std::cout << "HEAD is now at " << commit_sha.substr(0, 7)
-                  << ' ' << commit.message << '\n';
-        std::cout << "Unstaged changes after reset:\n";
-        for (const auto& entry : tree.entries)
-            std::cout << "M\t" << entry.name << '\n';
-    }
-    else if (mode == "--hard")
-    {
-        // Move HEAD + reset index + restore working tree.
-        update_ref(repo.git_dir(), commit_sha);
-        reset_index(repo.git_dir(), tree);
+    using ResetHandler = std::function<void(const Repository&, ObjectDatabase&, const std::string&, const ParsedCommit&, const ParsedTree&)>;
 
-        for (const auto& entry : tree.entries)
+    auto handle_soft = [](const Repository& r, ObjectDatabase&, const std::string& sha, const ParsedCommit& c, const ParsedTree&) {
+        // Move HEAD / branch pointer only — index and working tree untouched.
+        update_ref(r.git_dir(), sha);
+        std::cout << "HEAD is now at " << sha.substr(0, 7)
+                  << ' ' << c.message << '\n';
+    };
+
+    auto handle_mixed = [](const Repository& r, ObjectDatabase&, const std::string& sha, const ParsedCommit& c, const ParsedTree& t) {
+        // Move HEAD + reset index; leave working tree alone.
+        update_ref(r.git_dir(), sha);
+        reset_index(r.git_dir(), t);
+        std::cout << "HEAD is now at " << sha.substr(0, 7)
+                  << ' ' << c.message << '\n';
+        std::cout << "Unstaged changes after reset:\n";
+        for (const auto& entry : t.entries)
+            std::cout << "M\t" << entry.name << '\n';
+    };
+
+    auto handle_hard = [](const Repository& r, ObjectDatabase& d, const std::string& sha, const ParsedCommit& c, const ParsedTree& t) {
+        // Move HEAD + reset index + restore working tree.
+        update_ref(r.git_dir(), sha);
+        reset_index(r.git_dir(), t);
+
+        for (const auto& entry : t.entries)
         {
             try
             {
                 const std::string body =
-                    strip_object_header(db.read(entry.id));
-                restore_file(repo.root(), entry.name, body);
+                    strip_object_header(d.read(entry.id));
+                restore_file(r.root(), entry.name, body);
             }
             catch (const std::exception& e)
             {
@@ -198,13 +201,24 @@ void reset_command(const std::string& mode, const std::string& target)
             }
         }
 
-        std::cout << "HEAD is now at " << commit_sha.substr(0, 7)
-                  << ' ' << commit.message << '\n';
-    }
-    else
+        std::cout << "HEAD is now at " << sha.substr(0, 7)
+                  << ' ' << c.message << '\n';
+    };
+
+    static const std::unordered_map<std::string, ResetHandler> mode_handlers = {
+        {"--soft",  handle_soft},
+        {"--mixed", handle_mixed},
+        {"",        handle_mixed},
+        {"--hard",  handle_hard}
+    };
+
+    const auto it = mode_handlers.find(mode);
+    if (it == mode_handlers.end())
     {
         std::cerr << "error: unknown reset mode '" << mode << "'\n"
                   << "usage: minigit reset [--soft | --mixed | --hard] <commit>\n";
         std::exit(1);
     }
+
+    it->second(repo, db, commit_sha, commit, tree);
 }
