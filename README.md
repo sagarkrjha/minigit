@@ -19,20 +19,20 @@
 Pre-compiled native standalone binaries are automatically built, verified, and published on every push for Windows, Linux, and macOS. These direct download links always point to the newest successful cross-platform builds:
 
 [![Total Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases)
-[![Latest Release Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases/tag/latest)
+[![Latest Release Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest)
 
 | Platform | Architecture | Binary | Direct Download Link | Downloads |
 | :--- | :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 | `minigit.exe` | [Download `minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
-| **Linux** | x86_64 | `minigit-linux` | [Download `minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
-| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download `minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
+| **Windows** | x86_64 | `minigit.exe` | [Download `minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) |
+| **Linux** | x86_64 | `minigit-linux` | [Download `minigit-linux`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) |
+| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download `minigit-macos`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) |
 
-> ℹ️ These stable direct URLs always point to the newest verified release assets. Download counts are automatically tracked via GitHub Releases.
+> ℹ️ These stable direct URLs always point to the newest verified release assets via GitHub's latest release redirect. Download counts are automatically tracked via GitHub Releases.
 
 ### Quick Start with Downloaded Binaries
 
 #### Windows (PowerShell / Command Prompt)
-Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) and run directly:
+Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) and run directly:
 ```powershell
 # Run directly from PowerShell or Command Prompt
 .\minigit.exe init
@@ -40,18 +40,18 @@ Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download
 ```
 
 #### Linux
-Download [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux), grant execution permissions, and run:
+Download [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux), grant execution permissions, and run:
 ```bash
-curl -LO https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux
+curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux
 chmod +x minigit-linux
 ./minigit-linux init
 ./minigit-linux status
 ```
 
 #### macOS
-Download [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos), grant execution permissions, and run:
+Download [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos), grant execution permissions, and run:
 ```bash
-curl -LO https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos
+curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos
 chmod +x minigit-macos
 ./minigit-macos init
 ./minigit-macos status

@@ -60,13 +60,13 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
 
 ### Download Pre-Built Binaries
 
-Every push to the main repository automatically builds and publishes verified native standalone executables to the `latest` release.
+Pre-compiled native standalone executables are automatically built, verified, and published for each release.
 
 | OS | Direct Download Link | Execution | Downloads |
 | :--- | :--- | :--- | :--- |
-| **Windows** | [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) | `.\minigit.exe <command>` | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
-| **Linux** | [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) | `chmod +x minigit-linux && ./minigit-linux <command>` | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
-| **macOS** | [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) | `chmod +x minigit-macos && ./minigit-macos <command>` | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
+| **Windows** | [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) | `.\minigit.exe <command>` | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) |
+| **Linux** | [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) | `chmod +x minigit-linux && ./minigit-linux <command>` | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) |
+| **macOS** | [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) | `chmod +x minigit-macos && ./minigit-macos <command>` | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) |
 
 ### Build from Source
 
