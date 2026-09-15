@@ -1,6 +1,6 @@
 #include "init.h"
 
-#include "../repository/repository.h"
+#include "repository.h"
 
 #include <iostream>
 #include <exception>
