@@ -3,155 +3,40 @@ name: Build & Release
 on:
   push:
     branches:
-      - '**'
-    tags-ignore:
-      - 'latest'
+      - 'main'
+    tags:
+      - 'v*'
+    paths-ignore:
+      - '**.md'
+      - 'LICENCE'
+      - '.gitignore'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to create/update (e.g. v1.0.1 or latest)'
+        required: false
+        default: 'latest'
+        type: string
+      release_title:
+        description: 'Release title'
+        required: false
+        default: 'MiniGit Latest'
+        type: string
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            binary_name: minigit.exe
-            release_asset: minigit.exe
-          - os: ubuntu-latest
-            platform: linux
-            binary_name: minigit
-            release_asset: minigit-linux
-          - os: macos-latest
-            platform: macos
-            binary_name: minigit
-            release_asset: minigit-macos
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # --- Linux dependencies ---
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev zlib1g-dev
-
-      # --- macOS dependencies ---
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install openssl zlib
-
-      # --- Windows dependencies ---
-      - name: Cache vcpkg dependencies (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-            ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-vcpkg-openssl-zlib-${{ hashFiles('CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-openssl-zlib-
-
-      - name: Install dependencies via vcpkg (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
-
-      # --- Configure CMake ---
-      - name: Configure CMake (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-
-      - name: Configure CMake (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          OPENSSL_ROOT="$(brew --prefix openssl)"
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT"
-
-      - name: Configure CMake (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cmake -B build -S . `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
-
-      # --- Build ---
-      - name: Build binary
-        run: |
-          cmake --build build --config Release
-
-      # --- Verify and stage binary ---
-      - name: Verify and stage binary (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $exe = Get-ChildItem -Path build -Filter minigit.exe -Recurse | Select-Object -First 1
-          if (-not $exe -or -not (Test-Path $exe.FullName)) {
-            Write-Error "minigit.exe was not produced by the build!"
-            exit 1
-          }
-          if ($exe.Length -le 0) {
-            Write-Error "minigit.exe is empty (0 bytes)!"
-            exit 1
-          }
-          Write-Host "Found binary at $($exe.FullName) (Size: $($exe.Length) bytes)"
-          New-Item -ItemType Directory -Path bin -Force
-          Copy-Item $exe.FullName -Destination bin\minigit.exe
-          Write-Host "Verifying binary execution..."
-          $output = & .\bin\minigit.exe 2>&1
-          Write-Host $output
-          if ($output -notmatch "Usage: minigit") {
-            Write-Error "minigit.exe failed execution check!"
-            exit 1
-          }
-          $global:LASTEXITCODE = 0
-
-      - name: Verify and stage binary (Linux / macOS)
-        if: runner.os != 'Windows'
-        run: |
-          BIN=$(find build -type f -name minigit | head -n 1)
-          if [ -z "$BIN" ] || [ ! -f "$BIN" ]; then
-            echo "minigit binary was not produced by the build!" >&2
-            exit 1
-          fi
-          if [ ! -s "$BIN" ]; then
-            echo "minigit binary is empty (0 bytes)!" >&2
-            exit 1
-          fi
-          chmod +x "$BIN"
-          if [ ! -x "$BIN" ]; then
-            echo "minigit does not have executable permissions!" >&2
-            exit 1
-          fi
-          echo "Found binary at $BIN (Size: $(stat -c%s "$BIN" 2>/dev/null || stat -f%z "$BIN") bytes)"
-          mkdir -p bin
-          cp "$BIN" "bin/${{ matrix.release_asset }}"
-          chmod +x "bin/${{ matrix.release_asset }}"
-          echo "Verifying binary execution..."
-          OUT=$("./bin/${{ matrix.release_asset }}" 2>&1 || true)
-          echo "$OUT"
-          if ! echo "$OUT" | grep -q "Usage: minigit"; then
-            echo "Binary failed execution check!" >&2
-            exit 1
-          fi
-
-      # --- Upload Artifact ---
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.release_asset }}
-          path: bin/${{ matrix.release_asset }}
-          if-no-files-found: error
+    name: Cross-Platform Build
+    uses: ./.github/workflows/build.yml
+    with:
+      build_type: 'Release'
+      upload_artifacts: true
 
   publish-release:
-    name: Publish Latest Release
+    name: Publish Release
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -186,17 +71,35 @@ jobs:
           chmod +x minigit-linux minigit-macos
           ls -lh
 
+      - name: Determine release tag and title
+        id: meta
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            TITLE="MiniGit ${TAG_NAME}"
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            TAG_NAME="latest"
+            TITLE="MiniGit Latest"
+          else
+            TAG_NAME="${{ inputs.release_tag || 'latest' }}"
+            TITLE="${{ inputs.release_title || 'MiniGit Latest' }}"
+          fi
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
       - name: Generate release notes
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
           DATE_UTC=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          TAG="${{ steps.meta.outputs.tag }}"
+          TITLE="${{ steps.meta.outputs.title }}"
           cat <<EOF > release_notes.md
-          ## MiniGit Latest Build
+          ## ${TITLE}
 
-          Automated release containing the newest verified cross-platform builds of **MiniGit**.
+          Automated release containing verified cross-platform builds of **MiniGit**.
 
+          - **Target:** \`${TAG}\`
           - **Commit:** [\`${SHORT_SHA}\`](https://github.com/${{ github.repository }}/commit/${GITHUB_SHA})
-          - **Branch:** \`${{ github.ref_name }}\`
           - **Build Date:** \`${DATE_UTC}\`
           - **Platforms:** Windows (x86_64), Linux (x86_64), macOS (Apple Silicon arm64)
 
@@ -204,28 +107,29 @@ jobs:
 
           | Platform | Architecture | Binary | Direct Download Link |
           | :--- | :--- | :--- | :--- |
-          | **Windows** | x86_64 | \`minigit.exe\` | [Download \`minigit.exe\`](https://github.com/${{ github.repository }}/releases/download/latest/minigit.exe) |
-          | **Linux** | x86_64 | \`minigit-linux\` | [Download \`minigit-linux\`](https://github.com/${{ github.repository }}/releases/download/latest/minigit-linux) |
-          | **macOS** | Apple Silicon (arm64) | \`minigit-macos\` | [Download \`minigit-macos\`](https://github.com/${{ github.repository }}/releases/download/latest/minigit-macos) |
+          | **Windows** | x86_64 | \`minigit.exe\` | [Download \`minigit.exe\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit.exe) |
+          | **Linux** | x86_64 | \`minigit-linux\` | [Download \`minigit-linux\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-linux) |
+          | **macOS** | Apple Silicon (arm64) | \`minigit-macos\` | [Download \`minigit-macos\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-macos) |
 
           ---
-          *These stable download URLs always point to the newest successful build.*
+          *Cross-platform binaries compiled and verified by automated CI.*
           EOF
 
-      - name: Publish or update latest release
+      - name: Publish or update release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          TITLE: ${{ steps.meta.outputs.title }}
         run: |
-          # Check if the 'latest' release already exists
-          if gh release view latest --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release 'latest' exists. Updating tag pointer..."
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release '$TAG' exists. Updating tag pointer..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -f latest "${{ github.sha }}"
-            git push -f origin latest
+            git tag -f "$TAG" "${{ github.sha }}"
+            git push -f origin "$TAG"
 
             echo "Uploading and replacing assets (--clobber)..."
-            gh release upload latest \
+            gh release upload "$TAG" \
               release_assets/minigit.exe \
               release_assets/minigit-linux \
               release_assets/minigit-macos \
@@ -233,19 +137,19 @@ jobs:
               --clobber
 
             echo "Updating release title and release notes..."
-            gh release edit latest \
+            gh release edit "$TAG" \
               --repo "${{ github.repository }}" \
-              --title "MiniGit Latest" \
+              --title "$TITLE" \
               --notes-file release_notes.md
           else
-            echo "Release 'latest' does not exist. Creating new release..."
-            gh release create latest \
+            echo "Release '$TAG' does not exist. Creating new release..."
+            gh release create "$TAG" \
               release_assets/minigit.exe \
               release_assets/minigit-linux \
               release_assets/minigit-macos \
               --repo "${{ github.repository }}" \
-              --title "MiniGit Latest" \
+              --title "$TITLE" \
               --notes-file release_notes.md \
               --target "${{ github.sha }}"
           fi
-          echo "Release published/updated successfully."
+          echo "Release '$TAG' published/updated successfully."
