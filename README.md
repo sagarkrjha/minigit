@@ -681,59 +681,73 @@ Objects are sharded using the first 2 characters of their 64-character hex SHA-2
 
 ```text
 minigit/
-├── CMakeLists.txt              # CMake build configuration
+├── CMakeLists.txt              # Root CMake build configuration
 ├── README.md                   # Project overview and user guide
 ├── FEATURES.md                 # In-depth architectural and feature specification
 ├── src/
-│   ├── main.cpp                # CLI entry point and argument dispatcher
-│   ├── commands/               # User-facing commands
-│   │   ├── init.{h,cpp}        # Repository initialization
-│   │   ├── hash_object.{h,cpp} # File hashing and blob storage
-│   │   ├── cat_file.{h,cpp}    # Object inspection (type, size, pretty-print)
-│   │   ├── add.{h,cpp}         # Staging area population
-│   │   ├── write_tree.{h,cpp}  # Index-to-tree serialization
-│   │   ├── commit.{h,cpp}      # Commit creation and ref advancement
-│   │   ├── log.{h,cpp}         # Commit graph history traversal
-│   │   ├── status.{h,cpp}      # Multi-tree delta calculation
-│   │   ├── diff.{h,cpp}        # Diff CLI command integration
-│   │   ├── branch.{h,cpp}      # Branch listing, creation, and deletion
-│   │   ├── checkout.{h,cpp}    # Working directory restoration
-│   │   ├── switch_branch.{h,cpp}# Modern branch switching interface
-│   │   ├── reset.{h,cpp}        # History rewriting: soft, mixed, and hard resets
-│   │   ├── tag.{h,cpp}          # Tag listing, creation (lightweight & annotated), deletion
-│   │   ├── merge.{h,cpp}        # Three-way branch merging and conflict resolution
-│   │   ├── revert.{h,cpp}       # Commit inversion without history rewriting
-│   │   ├── stash.{h,cpp}        # Working-state shelving (push, list, pop, drop, show)
-│   │   ├── remote.{h,cpp}       # Remote repository alias management
-│   │   ├── clone.{h,cpp}        # Repository cloning and tracking setup
-│   │   ├── fetch.{h,cpp}        # Remote object ingestion and tracking ref update
-│   │   ├── push.{h,cpp}         # Object upload and remote ref advancement
-│   │   └── pull.{h,cpp}         # Fetch and working-tree fast-forward synchronization
-│   ├── objects/                # Domain models
+│   ├── CMakeLists.txt          # Modular CMake targets & executable linking
+│   ├── main.cpp                # Minimal executable entry point
+│   ├── cli/                    # CLI Dispatcher & Command Router
+│   │   ├── CMakeLists.txt
+│   │   ├── dispatcher.h
+│   │   └── dispatcher.cpp
+│   ├── core/                   # Shared Infrastructure & Utilities
+│   │   ├── CMakeLists.txt
+│   │   ├── file.{h,cpp}        # File reading and binary I/O helpers
+│   │   ├── sha256.{h,cpp}      # OpenSSL SHA-256 cryptographic hashing
+│   │   └── zlib_compress.{h,cpp}# zlib deflate / inflate compression
+│   ├── repository/             # Repository Lifecycle & Initialization
+│   │   ├── CMakeLists.txt
+│   │   ├── repository.{h,cpp}  # Directory discovery and .minigit structure
+│   │   └── init.{h,cpp}        # init command
+│   ├── storage/                # Content-Addressable Storage (CAS) & Plumbing
+│   │   ├── CMakeLists.txt
 │   │   ├── blob.{h,cpp}        # Blob object representation
 │   │   ├── tree.{h,cpp}        # Tree object representation
-│   │   ├── commit.{h,cpp}      # Commit object representation
+│   │   ├── commit.{h,cpp}      # Commit domain object representation
 │   │   ├── object_database.{h,cpp} # Sharded on-disk CAS store with zlib compression
-│   │   └── object_parser.{h,cpp}   # Raw byte parsing into domain structs
-│   ├── remotes/                # Remote protocol & synchronization
-│   │   ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
-│   │   └── transfer.{h,cpp}    # BFS missing-object DAG traversal and ancestry checker
-│   ├── compression/            # Compression subsystem
-│   │   └── zlib_compress.{h,cpp}# zlib deflate / inflate wrappers
-│   ├── index/                  # Staging area
-│   │   └── index.{h,cpp}       # In-memory and on-disk index manager
-│   ├── ignore/                 # Ignore rule engine
-│   │   └── ignore.{h,cpp}      # .minigitignore parser and glob matcher
-│   ├── diff/                   # Diff algorithm
-│   │   └── diff.{h,cpp}        # LCS dynamic programming diff algorithm
-│   ├── merge/                  # Merge engine
-│   │   └── merge_engine.{h,cpp}# Three-way line merge and LCA DAG traversal
-│   ├── hashing/                # Cryptography
-│   │   └── sha256.{h,cpp}      # OpenSSL SHA-256 wrapper
-│   ├── repository/             # Repository environment
-│   │   └── repository.{h,cpp}  # Directory discovery and structure management
-│   └── filesystem/             # Cross-platform utilities
-│       └── file.{h,cpp}        # File reading and binary I/O helpers
+│   │   ├── object_parser.{h,cpp}   # Raw byte parsing into domain structs
+│   │   ├── hash_object.{h,cpp} # hash-object plumbing command
+│   │   └── cat_file.{h,cpp}    # cat-file plumbing command
+│   ├── staging/                # Staging Area, Index & Working Tree State
+│   │   ├── CMakeLists.txt
+│   │   ├── index.{h,cpp}       # In-memory and on-disk index manager
+│   │   ├── ignore.{h,cpp}      # .minigitignore parser and glob matcher
+│   │   ├── add.{h,cpp}         # add command: recursive staging & deletion sync
+│   │   ├── status.{h,cpp}      # status command: multi-tree delta calculation
+│   │   ├── reset.{h,cpp}       # reset command: soft, mixed, and hard resets
+│   │   └── write_tree.{h,cpp}  # write-tree plumbing command
+│   ├── history/                # Commit History & Log
+│   │   ├── CMakeLists.txt
+│   │   ├── commit.{h,cpp}      # commit command: snapshot index and update branch
+│   │   └── log.{h,cpp}         # log command: commit graph traversal
+│   ├── branching/              # Branches, References & Switching
+│   │   ├── CMakeLists.txt
+│   │   ├── branch.{h,cpp}      # branch command: list, create, delete branches
+│   │   ├── checkout.{h,cpp}    # checkout command: restore tree & detached HEAD
+│   │   ├── switch_branch.{h,cpp}# switch command: branch switching
+│   │   └── tag.{h,cpp}         # tag command: lightweight & annotated tags
+│   ├── diff/                   # Diff Engine & Command
+│   │   ├── CMakeLists.txt
+│   │   ├── diff_engine.{h,cpp} # LCS dynamic programming algorithm & unified diff
+│   │   └── diff.{h,cpp}        # diff CLI command
+│   ├── merge/                  # Merge & Revert Engine
+│   │   ├── CMakeLists.txt
+│   │   ├── merge_engine.{h,cpp}# 3-way line merge & LCA DAG traversal
+│   │   ├── merge.{h,cpp}       # merge command
+│   │   └── revert.{h,cpp}      # revert command
+│   ├── stash/                  # Working-State Shelving
+│   │   ├── CMakeLists.txt
+│   │   └── stash.{h,cpp}       # stash command: push, list, pop, drop, show
+│   └── remotes/                # Remote Synchronization & Transport Protocol
+│       ├── CMakeLists.txt
+│       ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
+│       ├── transfer.{h,cpp}    # BFS missing-object DAG traversal & ancestry checker
+│       ├── remote.{h,cpp}      # remote command: list, add, remove remotes
+│       ├── clone.{h,cpp}       # clone command
+│       ├── fetch.{h,cpp}       # fetch command
+│       ├── push.{h,cpp}        # push command
+│       └── pull.{h,cpp}        # pull command
 ```
 
 ---
