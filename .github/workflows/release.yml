@@ -27,6 +27,9 @@ concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Cross-Platform Build
@@ -44,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -122,11 +125,11 @@ jobs:
           TITLE: ${{ steps.meta.outputs.title }}
         run: |
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release '$TAG' exists. Updating tag pointer..."
+            echo "Release '$TAG' exists. Updating tag pointer if permitted..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -f "$TAG" "${{ github.sha }}"
-            git push -f origin "$TAG"
+            git tag -f "$TAG" "${{ github.sha }}" 2>/dev/null || true
+            git push -f origin "$TAG" 2>/dev/null || echo "Notice: Tag '$TAG' pointer push skipped or protected by repository rules; proceeding to update release assets and metadata."
 
             echo "Uploading and replacing assets (--clobber)..."
             gh release upload "$TAG" \

@@ -30,6 +30,9 @@ on:
         default: true
         type: boolean
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   compile:
     name: Build (${{ matrix.platform }})
@@ -53,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # --- Setup Optimistic Compiler Cache (ccache / sccache) ---
       - name: Setup ccache
