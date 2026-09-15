@@ -1,7 +1,7 @@
 #include "transfer.h"
 
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
 
 #include <filesystem>
 #include <fstream>

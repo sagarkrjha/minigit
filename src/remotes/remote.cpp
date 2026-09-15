@@ -1,7 +1,7 @@
 #include "remote.h"
 
-#include "../remotes/config.h"
-#include "../repository/repository.h"
+#include "config.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <functional>

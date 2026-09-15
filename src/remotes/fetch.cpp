@@ -1,8 +1,8 @@
 #include "fetch.h"
 
-#include "../remotes/config.h"
-#include "../remotes/transfer.h"
-#include "../repository/repository.h"
+#include "config.h"
+#include "transfer.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>

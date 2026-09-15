@@ -1,12 +1,12 @@
 #include "pull.h"
 #include "fetch.h"
 
-#include "../remotes/config.h"
-#include "../remotes/transfer.h"
-#include "../repository/repository.h"
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
-#include "../index/index.h"
+#include "config.h"
+#include "transfer.h"
+#include "repository/repository.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
+#include "staging/index.h"
 
 #include <filesystem>
 #include <fstream>
