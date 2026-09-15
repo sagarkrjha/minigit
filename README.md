@@ -5,6 +5,8 @@
 [![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%2B-721412.svg?style=flat-square&logo=openssl)](https://www.openssl.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#building-and-installation)
 [![Architecture](https://img.shields.io/badge/Architecture-Content--Addressable%20Storage-success.svg?style=flat-square)](#storage-architecture)
+[![Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases)
+[![Lines of Code](https://img.shields.io/endpoint?url=https://ghloc.dev/api/sagarkrjha/minigit/badge&style=flat-square&label=lines%20of%20code&color=informational)](https://github.com/sagarkrjha/minigit)
 
 **MiniGit** is a lightweight, educational, yet architecturally authentic version control system built from scratch in modern **C++20**. Designed as a clean-room behavioral recreation of Git internals, it implements content-addressable object storage, DAG-based commit histories, a two-phase staging index, dynamic programming diff calculation, and full branch management.
 
@@ -16,13 +18,16 @@
 
 Pre-compiled native standalone binaries are automatically built, verified, and published on every push for Windows, Linux, and macOS. These direct download links always point to the newest successful cross-platform builds:
 
-| Platform | Architecture | Binary | Direct Download Link |
-| :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 | `minigit.exe` | [Download `minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
-| **Linux** | x86_64 | `minigit-linux` | [Download `minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
-| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download `minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
+[![Total Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases)
+[![Latest Release Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases/tag/latest)
 
-> ℹ️ These stable direct URLs always point to the newest verified release assets.
+| Platform | Architecture | Binary | Direct Download Link | Downloads |
+| :--- | :--- | :--- | :--- | :--- |
+| **Windows** | x86_64 | `minigit.exe` | [Download `minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
+| **Linux** | x86_64 | `minigit-linux` | [Download `minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
+| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download `minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
+
+> ℹ️ These stable direct URLs always point to the newest verified release assets. Download counts are automatically tracked via GitHub Releases.
 
 ### Quick Start with Downloaded Binaries
 

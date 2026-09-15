@@ -62,11 +62,11 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
 
 Every push to the main repository automatically builds and publishes verified native standalone executables to the `latest` release.
 
-| OS | Direct Download Link | Execution |
-| :--- | :--- | :--- |
-| **Windows** | [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) | `.\minigit.exe <command>` |
-| **Linux** | [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) | `chmod +x minigit-linux && ./minigit-linux <command>` |
-| **macOS** | [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) | `chmod +x minigit-macos && ./minigit-macos <command>` |
+| OS | Direct Download Link | Execution | Downloads |
+| :--- | :--- | :--- | :--- |
+| **Windows** | [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) | `.\minigit.exe <command>` | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit.exe) |
+| **Linux** | [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) | `chmod +x minigit-linux && ./minigit-linux <command>` | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-linux) |
+| **macOS** | [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) | `chmod +x minigit-macos && ./minigit-macos <command>` | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/download/latest/minigit-macos) |
 
 ### Build from Source
 
