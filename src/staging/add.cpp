@@ -1,11 +1,11 @@
 #include "add.h"
 
-#include "../filesystem/file.h"
-#include "../ignore/ignore.h"
-#include "../index/index.h"
-#include "../objects/blob.h"
-#include "../objects/object_database.h"
-#include "../repository/repository.h"
+#include "core/file.h"
+#include "ignore.h"
+#include "index.h"
+#include "storage/blob.h"
+#include "storage/object_database.h"
+#include "repository/repository.h"
 
 #include <iostream>
 #include <stdexcept>

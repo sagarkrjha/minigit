@@ -1,9 +1,9 @@
 #include "write_tree.h"
 
-#include "../index/index.h"
-#include "../objects/object_database.h"
-#include "../objects/tree.h"
-#include "../repository/repository.h"
+#include "index.h"
+#include "storage/object_database.h"
+#include "storage/tree.h"
+#include "repository/repository.h"
 
 #include <iostream>
 #include <stdexcept>

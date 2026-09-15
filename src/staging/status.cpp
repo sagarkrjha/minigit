@@ -1,11 +1,11 @@
 #include "status.h"
 
-#include "../hashing/sha256.h"
-#include "../ignore/ignore.h"
-#include "../index/index.h"
-#include "../objects/blob.h"
-#include "../objects/object_database.h"
-#include "../repository/repository.h"
+#include "core/sha256.h"
+#include "ignore.h"
+#include "index.h"
+#include "storage/blob.h"
+#include "storage/object_database.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>
