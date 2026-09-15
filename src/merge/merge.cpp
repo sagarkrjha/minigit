@@ -1,13 +1,13 @@
 #include "merge.h"
 
-#include "../index/index.h"
-#include "../merge/merge_engine.h"
-#include "../objects/blob.h"
-#include "../objects/commit.h"
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
-#include "../objects/tree.h"
-#include "../repository/repository.h"
+#include "staging/index.h"
+#include "merge_engine.h"
+#include "storage/blob.h"
+#include "storage/commit.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
+#include "storage/tree.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>

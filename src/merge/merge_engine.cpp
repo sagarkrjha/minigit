@@ -1,7 +1,7 @@
 #include "merge_engine.h"
 
-#include "../diff/diff.h"
-#include "../objects/object_parser.h"
+#include "diff/diff_engine.h"
+#include "storage/object_parser.h"
 
 #include <algorithm>
 #include <functional>
