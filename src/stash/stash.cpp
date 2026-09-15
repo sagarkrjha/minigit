@@ -1,14 +1,14 @@
 #include "stash.h"
 
-#include "../hashing/sha256.h"
-#include "../ignore/ignore.h"
-#include "../index/index.h"
-#include "../objects/blob.h"
-#include "../objects/commit.h"
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
-#include "../objects/tree.h"
-#include "../repository/repository.h"
+#include "core/sha256.h"
+#include "staging/ignore.h"
+#include "staging/index.h"
+#include "storage/blob.h"
+#include "storage/commit.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
+#include "storage/tree.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>
