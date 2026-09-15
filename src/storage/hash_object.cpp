@@ -1,9 +1,9 @@
 #include "hash_object.h"
 
-#include "../filesystem/file.h"
-#include "../objects/blob.h"
-#include "../objects/object_database.h"
-#include "../repository/repository.h"
+#include "core/file.h"
+#include "blob.h"
+#include "object_database.h"
+#include "repository/repository.h"
 
 #include <iostream>
 #include <stdexcept>

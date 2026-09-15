@@ -1,6 +1,6 @@
 #include "object_database.h"
 
-#include "../compression/zlib_compress.h"
+#include "core/zlib_compress.h"
 
 #include <fstream>
 #include <iterator>

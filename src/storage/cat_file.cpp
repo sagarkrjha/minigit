@@ -1,7 +1,7 @@
 #include "cat_file.h"
 
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
+#include "object_database.h"
+#include "object_parser.h"
 
 #include <filesystem>
 #include <functional>

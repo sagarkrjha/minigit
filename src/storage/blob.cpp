@@ -1,6 +1,6 @@
 #include "blob.h"
 
-#include "../hashing/sha256.h"
+#include "core/sha256.h"
 
 #include <utility>
 

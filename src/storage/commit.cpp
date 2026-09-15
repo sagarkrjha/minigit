@@ -1,6 +1,6 @@
 #include "commit.h"
 
-#include "../hashing/sha256.h"
+#include "core/sha256.h"
 
 #include <chrono>
 #include <ctime>
