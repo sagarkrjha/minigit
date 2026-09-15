@@ -1,0 +1,185 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**.md'
+      - 'LICENCE'
+      - '.gitignore'
+  push:
+    branches-ignore:
+      - 'main'
+    paths-ignore:
+      - '**.md'
+      - 'LICENCE'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            binary: minigit.exe
+            test_binary: minigit_tests.exe
+          - os: ubuntu-latest
+            platform: linux
+            binary: minigit
+            test_binary: minigit_tests
+          - os: macos-latest
+            platform: macos
+            binary: minigit
+            test_binary: minigit_tests
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Setup Optimistic Compiler Cache (ccache / sccache) ---
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: test-${{ matrix.platform }}-${{ matrix.os }}
+          max-size: 500M
+
+      # --- Linux dependencies ---
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          if ! pkg-config --exists openssl zlib; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev ninja-build
+          fi
+
+      # --- macOS dependencies ---
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_INSTALL_UPGRADE=1
+          if ! brew list openssl@3 &>/dev/null && ! brew list openssl &>/dev/null; then
+            brew install openssl
+          fi
+          if ! brew list ninja &>/dev/null; then
+            brew install ninja
+          fi
+
+      # --- Windows dependencies & vcpkg cache ---
+      - name: Cache vcpkg dependencies (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-vcpkg-openssl-zlib-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-openssl-zlib-
+
+      - name: Install dependencies via vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
+
+      # --- Configure CMake ---
+      - name: Configure CMake (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          OPENSSL_ROOT="$(brew --prefix openssl@3 2>/dev/null || brew --prefix openssl 2>/dev/null || echo '/opt/homebrew/opt/openssl')"
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build -S . `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_TESTING=ON `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      # --- Build ---
+      - name: Build binaries and test suite
+        run: |
+          cmake --build build --config Release --parallel
+
+      # --- Run CTest Suite ---
+      - name: Run CTest Automated Suite
+        run: |
+          ctest --test-dir build --output-on-failure --build-config Release
+
+      # --- End-to-End CLI Smoke Test ---
+      - name: Run CLI Smoke Test (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $testRepo = "build\smoke_test_repo"
+          if (Test-Path $testRepo) { Remove-Item -Recurse -Force $testRepo }
+          New-Item -ItemType Directory -Path $testRepo | Out-Null
+          $exe = (Resolve-Path "build\${{ matrix.binary }}").Path
+          Push-Location $testRepo
+          try {
+            & $exe init
+            "smoke test content" | Set-Content "file.txt"
+            & $exe add file.txt
+            & $exe commit -m "smoke test commit"
+            & $exe log
+            & $exe branch smoke-branch
+            & $exe switch smoke-branch
+            "second line" | Add-Content "file.txt"
+            & $exe diff
+            & $exe add file.txt
+            & $exe commit -m "second commit"
+            & $exe tag v-smoke
+            Write-Host "Windows CLI smoke tests passed successfully!"
+          } finally {
+            Pop-Location
+            Remove-Item -Recurse -Force $testRepo
+          }
+
+      - name: Run CLI Smoke Test (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          TEST_REPO="build/smoke_test_repo"
+          rm -rf "$TEST_REPO"
+          mkdir -p "$TEST_REPO"
+          EXE=$(find build -type f -name minigit | head -n 1)
+          chmod +x "$EXE"
+          cd "$TEST_REPO"
+          "$EXE" init
+          echo "smoke test content" > file.txt
+          "$EXE" add file.txt
+          "$EXE" commit -m "smoke test commit"
+          "$EXE" log
+          "$EXE" branch smoke-branch
+          "$EXE" switch smoke-branch
+          echo "second line" >> file.txt
+          "$EXE" diff
+          "$EXE" add file.txt
+          "$EXE" commit -m "second commit"
+          "$EXE" tag v-smoke
+          cd -
+          rm -rf "$TEST_REPO"
+          echo "POSIX CLI smoke tests passed successfully!"
