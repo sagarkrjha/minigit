@@ -1,172 +1,219 @@
 #include "diff.h"
 
-#include <algorithm>
+#include "diff_engine.h"
+#include "core/file.h"
+#include "staging/index.h"
+#include "storage/blob.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
+#include "repository/repository.h"
+
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 #include <sstream>
+#include <string>
+#include <unordered_map>
+
+namespace fs = std::filesystem;
 
 // ---------------------------------------------------------------------------
-// split_lines
+// Helpers shared with other commands (could move to a utils header later).
 // ---------------------------------------------------------------------------
 
-std::vector<std::string> split_lines(const std::string &text)
+static std::string read_text_file(const fs::path &path)
 {
-    std::vector<std::string> lines;
-    std::istringstream stream(text);
-    std::string line;
+    std::ifstream f(path);
+    if (!f)
+        return {};
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
 
-    while (std::getline(stream, line))
-    {
-        // Strip trailing \r so Windows CRLF files compare correctly.
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-        lines.push_back(std::move(line));
-    }
+static std::string trim_trailing(std::string s)
+{
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' '))
+        s.pop_back();
+    return s;
+}
 
-    // If text ends with a newline, std::getline leaves an empty trailing
-    // entry — drop it to avoid a spurious blank edit line.
-    if (!lines.empty() && lines.back().empty() && !text.empty() &&
-        text.back() == '\n')
-    {
-        lines.pop_back();
-    }
+static std::string resolve_head_sha(const fs::path &git_dir)
+{
+    const std::string raw = trim_trailing(read_text_file(git_dir / "HEAD"));
+    if (raw.empty())
+        return {};
+    if (raw.substr(0, 5) == "ref: ")
+        return trim_trailing(read_text_file(git_dir / raw.substr(5)));
+    return raw;
+}
 
-    return lines;
+// Read a blob from the object DB and return its content (just the body).
+static std::string read_blob_content(const ObjectDatabase &db,
+                                     const std::string &blob_id)
+{
+    const std::string raw = db.read(blob_id);
+    return strip_object_header(raw);
 }
 
 // ---------------------------------------------------------------------------
-// lcs_diff  (O(m*n) LCS dynamic programming)
+// diff_command
 // ---------------------------------------------------------------------------
 
-std::vector<Edit> lcs_diff(const std::vector<std::string> &old_lines,
-                            const std::vector<std::string> &new_lines)
+void diff_command(bool cached, const std::vector<std::string> &paths)
 {
-    const int m = static_cast<int>(old_lines.size());
-    const int n = static_cast<int>(new_lines.size());
+    Repository repo = [&]() -> Repository {
+        try {
+            return Repository::discover(fs::current_path());
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            std::exit(1);
+        }
+    }();
 
-    // Build LCS table.
-    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
-    for (int i = 1; i <= m; ++i)
-        for (int j = 1; j <= n; ++j)
-            dp[i][j] = (old_lines[i - 1] == new_lines[j - 1])
-                           ? dp[i - 1][j - 1] + 1
-                           : std::max(dp[i - 1][j], dp[i][j - 1]);
+    ObjectDatabase db(repo.git_dir() / "objects");
+    Index index(repo.git_dir() / "index");
 
-    // Backtrack iteratively to build the edit sequence in reverse.
-    std::vector<Edit> edits;
-    int i = m, j = n;
-    while (i > 0 || j > 0)
+    // Build a filter set if specific paths were requested.
+    const bool filter = !paths.empty();
+
+    auto should_include = [&](const std::string &path) -> bool {
+        if (!filter)
+            return true;
+        for (const auto &p : paths)
+            if (path == p || path.starts_with(p + "/"))
+                return true;
+        return false;
+    };
+
+    bool any_diff = false;
+
+    if (!cached)
     {
-        if (i > 0 && j > 0 && old_lines[i - 1] == new_lines[j - 1])
+        // ----------------------------------------------------------------
+        // Mode 1: working tree vs index (unstaged changes).
+        // ----------------------------------------------------------------
+        for (const auto &[rel_path, blob_id] : index.entries())
         {
-            edits.push_back({EditType::Keep, old_lines[i - 1]});
-            --i; --j;
-        }
-        else if (j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]))
-        {
-            edits.push_back({EditType::Add, new_lines[j - 1]});
-            --j;
-        }
-        else
-        {
-            edits.push_back({EditType::Remove, old_lines[i - 1]});
-            --i;
-        }
-    }
+            if (!should_include(rel_path))
+                continue;
 
-    std::reverse(edits.begin(), edits.end());
-    return edits;
-}
+            const fs::path abs_path = repo.root() / rel_path;
 
-// ---------------------------------------------------------------------------
-// format_unified_diff
-// ---------------------------------------------------------------------------
-
-std::string format_unified_diff(const std::string &old_name,
-                                const std::string &new_name,
-                                const std::vector<Edit> &edits,
-                                int context)
-{
-    // --- Identify hunk ranges ---
-    // A hunk is a contiguous region of changes (+/-) expanded by `context`
-    // Keep lines on each side. Overlapping expansions are merged.
-
-    const int n = static_cast<int>(edits.size());
-
-    // Mark which edit indices have a change.
-    std::vector<bool> changed(n, false);
-    for (int k = 0; k < n; ++k)
-        if (edits[k].type != EditType::Keep)
-            changed[k] = true;
-
-    // Build list of [start, end) ranges (inclusive of context).
-    struct Range { int start, end; };
-    std::vector<Range> ranges;
-
-    for (int k = 0; k < n; ++k)
-    {
-        if (!changed[k])
-            continue;
-
-        // Find contiguous block of changes.
-        int block_end = k;
-        while (block_end + 1 < n && changed[block_end + 1])
-            ++block_end;
-
-        const int range_start = std::max(0, k - context);
-        const int range_end   = std::min(n - 1, block_end + context);
-
-        if (!ranges.empty() && range_start <= ranges.back().end + 1)
-            ranges.back().end = std::max(ranges.back().end, range_end);
-        else
-            ranges.push_back({range_start, range_end});
-
-        k = block_end; // skip past the block
-    }
-
-    if (ranges.empty())
-        return {}; // no differences
-
-    // --- Format output ---
-    std::ostringstream out;
-    out << "diff --minigit a/" << old_name << " b/" << new_name << '\n';
-    out << "--- a/" << old_name << '\n';
-    out << "+++ b/" << new_name << '\n';
-
-    for (const auto &range : ranges)
-    {
-        // Compute old/new line numbers and counts for the @@ header.
-        int old_start = 1, old_count = 0;
-        int new_start = 1, new_count = 0;
-
-        // Count Keep/Remove before range start → determines old_start.
-        // Count Keep/Add before range start → determines new_start.
-        int old_line = 0, new_line = 0;
-        for (int k = 0; k < range.start; ++k)
-        {
-            if (edits[k].type != EditType::Add)    ++old_line;
-            if (edits[k].type != EditType::Remove)  ++new_line;
-        }
-        old_start = old_line + 1;
-        new_start = new_line + 1;
-
-        for (int k = range.start; k <= range.end; ++k)
-        {
-            if (edits[k].type != EditType::Add)    ++old_count;
-            if (edits[k].type != EditType::Remove)  ++new_count;
-        }
-
-        out << "@@ -" << old_start << ',' << old_count
-            << " +" << new_start << ',' << new_count << " @@\n";
-
-        for (int k = range.start; k <= range.end; ++k)
-        {
-            switch (edits[k].type)
+            if (!fs::exists(abs_path))
             {
-            case EditType::Keep:   out << ' ' << edits[k].line << '\n'; break;
-            case EditType::Add:    out << '+' << edits[k].line << '\n'; break;
-            case EditType::Remove: out << '-' << edits[k].line << '\n'; break;
+                // File deleted from working tree but still staged.
+                std::cout << "diff --minigit a/" << rel_path << " b/" << rel_path << '\n';
+                std::cout << "--- a/" << rel_path << '\n';
+                std::cout << "+++ /dev/null\n";
+                const std::string old_content = read_blob_content(db, blob_id);
+                for (const auto &line : split_lines(old_content))
+                    std::cout << '-' << line << '\n';
+                any_diff = true;
+                continue;
+            }
+
+            // Read file from disk.
+            std::string wt_content;
+            try { wt_content = read_file(abs_path); }
+            catch (...) { continue; }
+
+            // Hash the working-tree content to see if it differs.
+            Blob wt_blob(wt_content);
+            if (wt_blob.id() == blob_id)
+                continue; // unchanged
+
+            // Produce unified diff.
+            const std::string old_content = read_blob_content(db, blob_id);
+            const auto edits = lcs_diff(split_lines(old_content),
+                                        split_lines(wt_content));
+            const std::string patch =
+                format_unified_diff(rel_path, rel_path, edits);
+
+            if (!patch.empty())
+            {
+                std::cout << patch;
+                any_diff = true;
+            }
+        }
+    }
+    else
+    {
+        // ----------------------------------------------------------------
+        // Mode 2: index vs HEAD commit (staged changes).
+        // ----------------------------------------------------------------
+        const std::string head_sha = resolve_head_sha(repo.git_dir());
+
+        // Build a map of path -> blob_id from the HEAD commit's tree.
+        std::unordered_map<std::string, std::string> committed; // path -> blob_id
+
+        if (!head_sha.empty())
+        {
+            try
+            {
+                const ParsedCommit commit = parse_commit(db.read(head_sha));
+                const ParsedTree   tree   = parse_tree(db.read(commit.tree_id));
+                for (const auto &e : tree.entries)
+                    committed[e.name] = e.id;
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "error reading HEAD commit: " << e.what() << '\n';
+                std::exit(1);
+            }
+        }
+
+        // Files in index but not in HEAD, or with different blob IDs.
+        for (const auto &[rel_path, blob_id] : index.entries())
+        {
+            if (!should_include(rel_path))
+                continue;
+
+            const auto it = committed.find(rel_path);
+            const bool is_new = (it == committed.end());
+            if (!is_new && it->second == blob_id)
+                continue; // unchanged
+
+            const std::string new_content = read_blob_content(db, blob_id);
+            const std::string old_content =
+                is_new ? "" : read_blob_content(db, it->second);
+
+            const auto edits =
+                lcs_diff(split_lines(old_content), split_lines(new_content));
+            const std::string patch =
+                format_unified_diff(is_new ? "/dev/null" : rel_path,
+                                    rel_path, edits);
+
+            if (!patch.empty())
+            {
+                std::cout << patch;
+                any_diff = true;
+            }
+        }
+
+        // Files in HEAD but deleted from index.
+        for (const auto &[rel_path, blob_id] : committed)
+        {
+            if (!should_include(rel_path))
+                continue;
+            if (index.entries().count(rel_path))
+                continue;
+
+            const std::string old_content = read_blob_content(db, blob_id);
+            const auto edits =
+                lcs_diff(split_lines(old_content), {});
+            const std::string patch =
+                format_unified_diff(rel_path, "/dev/null", edits);
+
+            if (!patch.empty())
+            {
+                std::cout << patch;
+                any_diff = true;
             }
         }
     }
 
-    return out.str();
+    if (!any_diff)
+        ; // git diff exits 0 and prints nothing when clean
 }
