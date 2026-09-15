@@ -1,0 +1,46 @@
+name: Automerge PR
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to enable automerge on'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: Enable Auto-Merge
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Configure Auto-Merge (Squash)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          if [ -z "$PR_URL" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            PR_URL="https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number }}"
+          fi
+
+          echo "Enabling auto-merge (squash) for $PR_URL..."
+          # Try enabling native GitHub auto-merge
+          if gh pr merge "$PR_URL" --auto --squash; then
+            echo "Successfully enabled auto-merge (squash) for $PR_URL."
+          else
+            echo "Auto-merge command returned non-zero."
+            echo "Ensure 'Allow auto-merge' is enabled in repository Settings -> General -> Pull Requests."
+          fi
