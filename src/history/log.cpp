@@ -1,7 +1,7 @@
 #include "log.h"
 
-#include "../objects/object_database.h"
-#include "../repository/repository.h"
+#include "storage/object_database.h"
+#include "repository/repository.h"
 
 #include <fstream>
 #include <iostream>

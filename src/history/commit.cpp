@@ -1,11 +1,9 @@
 #include "commit.h"
-#include "write_tree.h"
-
-#include "../index/index.h"
-#include "../objects/commit.h"
-#include "../objects/object_database.h"
-#include "../objects/tree.h"
-#include "../repository/repository.h"
+#include "staging/index.h"
+#include "storage/commit.h"
+#include "storage/object_database.h"
+#include "storage/tree.h"
+#include "repository/repository.h"
 
 #include <fstream>
 #include <iostream>
