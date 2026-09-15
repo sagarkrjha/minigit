@@ -2,7 +2,7 @@
 #include "branch.h"
 #include "checkout.h"
 
-#include "../repository/repository.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>

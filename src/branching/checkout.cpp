@@ -1,9 +1,9 @@
 #include "checkout.h"
 
-#include "../index/index.h"
-#include "../objects/object_database.h"
-#include "../objects/object_parser.h"
-#include "../repository/repository.h"
+#include "staging/index.h"
+#include "storage/object_database.h"
+#include "storage/object_parser.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>

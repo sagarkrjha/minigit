@@ -1,6 +1,6 @@
 #include "branch.h"
 
-#include "../repository/repository.h"
+#include "repository/repository.h"
 
 #include <algorithm>
 #include <filesystem>

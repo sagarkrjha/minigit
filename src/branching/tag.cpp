@@ -1,8 +1,8 @@
 #include "tag.h"
 
-#include "../hashing/sha256.h"
-#include "../objects/object_database.h"
-#include "../repository/repository.h"
+#include "core/sha256.h"
+#include "storage/object_database.h"
+#include "repository/repository.h"
 
 #include <algorithm>
 #include <chrono>
