@@ -127,7 +127,7 @@ jobs:
       # --- Build ---
       - name: Build binaries and test suite
         run: |
-          cmake --build build --config Release --parallel
+          cmake --build build --config Release --target minigit minigit_tests --parallel
 
       # --- Run CTest Suite ---
       - name: Run CTest Automated Suite
@@ -141,7 +141,12 @@ jobs:
           $testRepo = "build\smoke_test_repo"
           if (Test-Path $testRepo) { Remove-Item -Recurse -Force $testRepo }
           New-Item -ItemType Directory -Path $testRepo | Out-Null
-          $exe = (Resolve-Path "build\${{ matrix.binary }}").Path
+          $exePath = "build\${{ matrix.binary }}"
+          if (-not (Test-Path $exePath)) {
+            $found = Get-ChildItem -Path build -Filter ${{ matrix.binary }} -Recurse | Select-Object -First 1
+            if ($found) { Copy-Item $found.FullName -Destination $exePath }
+          }
+          $exe = (Resolve-Path $exePath).Path
           Push-Location $testRepo
           try {
             & $exe init
@@ -169,6 +174,11 @@ jobs:
           rm -rf "$TEST_REPO"
           mkdir -p "$TEST_REPO"
           EXE=$(find build -type f -name minigit | head -n 1)
+          if [ -z "$EXE" ] || [ ! -f "$EXE" ]; then
+            echo "minigit executable not found in build directory!" >&2
+            exit 1
+          fi
+          EXE="$(cd "$(dirname "$EXE")" && pwd)/$(basename "$EXE")"
           chmod +x "$EXE"
           cd "$TEST_REPO"
           "$EXE" init
