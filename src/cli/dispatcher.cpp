@@ -16,6 +16,7 @@
 #include "branching/tag.h"
 #include "merge/merge.h"
 #include "merge/revert.h"
+#include "merge/cherry_pick.h"
 #include "stash/stash.h"
 #include "remotes/remote.h"
 #include "remotes/clone.h"
@@ -333,6 +334,53 @@ int cmd_revert(int argc, char const *argv[])
     return 0;
 }
 
+int cmd_cherry_pick(int argc, char const *argv[])
+{
+    // minigit cherry-pick [-n | --no-commit] [--author <author>] [-m <parent>] <commit>
+    bool no_commit = false;
+    std::string author;
+    int parent_index = 1;
+    std::string target;
+
+    for (int i = 2; i < argc; ++i)
+    {
+        const std::string arg = argv[i];
+        if (arg == "-n" || arg == "--no-commit")
+        {
+            no_commit = true;
+        }
+        else if (arg == "--author" && i + 1 < argc)
+        {
+            author = argv[++i];
+        }
+        else if (arg == "-m" && i + 1 < argc)
+        {
+            try
+            {
+                parent_index = std::stoi(argv[++i]);
+            }
+            catch (...)
+            {
+                std::cerr << "error: invalid parent number\n";
+                return 1;
+            }
+        }
+        else if (arg[0] != '-')
+        {
+            target = arg;
+        }
+    }
+
+    if (target.empty())
+    {
+        std::cerr << "usage: minigit cherry-pick [-n] [--author <author>] [-m <parent>] <commit>\n";
+        return 1;
+    }
+
+    cherry_pick_command(target, author, no_commit, parent_index);
+    return 0;
+}
+
 int cmd_stash(int argc, char const *argv[])
 {
     // minigit stash [push]            → save working state, restore HEAD
@@ -432,6 +480,7 @@ int run(int argc, char const *argv[])
         {"reset", cmd_reset},
         {"merge", cmd_merge},
         {"revert", cmd_revert},
+        {"cherry-pick", cmd_cherry_pick},
         {"stash", cmd_stash},
         {"remote", cmd_remote},
         {"clone", cmd_clone},

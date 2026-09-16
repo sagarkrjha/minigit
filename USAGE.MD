@@ -35,6 +35,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
 - [6. Undoing & History Rewriting](#6-undoing--history-rewriting)
   - [Undo Changes with Reset (`minigit reset`)](#undo-changes-with-reset-minigit-reset)
   - [Invert Commits with Revert (`minigit revert`)](#invert-commits-with-revert-minigit-revert)
+  - [Transplant Commits with Cherry-Pick (`minigit cherry-pick`)](#transplant-commits-with-cherry-pick-minigit-cherry-pick)
 - [7. Shelving Work with Stash (`minigit stash`)](#7-shelving-work-with-stash-minigit-stash)
   - [Save Uncommitted Work (`push`)](#save-uncommitted-work-push)
   - [List Stashes (`list`)](#list-stashes-list)
@@ -464,6 +465,43 @@ minigit revert 7e9a12cf4603951239c4f4244f7d4bb21a71997d9178ad9902636a04a6ee1039
 
 ---
 
+### Transplant Commits with Cherry-Pick (`minigit cherry-pick`)
+
+Selectively applies the exact changes introduced by an existing commit onto the current working branch, creating a new commit that preserves the original commit message and author identity.
+
+```bash
+# 1. Cherry-pick by branch name or commit SHA
+minigit cherry-pick feature/analytics
+# or
+minigit cherry-pick 7b1c402
+
+# 2. Stage changes without committing (--no-commit / -n)
+minigit cherry-pick -n hotfix/db-patch
+
+# 3. Override author identity
+minigit cherry-pick 7b1c402 --author "Alice Developer <alice@example.com>"
+
+# 4. Cherry-pick from a merge commit specifying mainline parent
+minigit cherry-pick -m 1 <merge-commit-sha>
+```
+
+*Output:*
+```text
+[main 7b1c402] Fix query timeout in payment gateway
+```
+
+**Conflict Handling:**
+If conflicting changes exist, conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) are inserted into the file and the cherry-pick pauses:
+```text
+CONFLICT (content): Merge conflict in src/service.cpp
+error: could not apply 7b1c402... Fix query timeout
+hint: after resolving the conflicts, mark the corrected paths
+hint: with 'minigit add <paths>' or 'minigit rm <paths>'
+hint: and commit the result with 'minigit commit'
+```
+
+---
+
 ## 7. Shelving Work with Stash (`minigit stash`)
 
 Temporarily shelves uncommitted changes (both staged and unstaged) into a stash stack, reverting the working directory back to `HEAD`.
@@ -658,6 +696,7 @@ minigit cat-file -p $SHA
 | `reset` | `minigit reset [--soft\|--mixed\|--hard] <sha>`| Roll back HEAD, index, and/or working tree. |
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |
 | `revert` | `minigit revert <commit> [--author <a>]` | Create a new commit inverting changes of a previous commit. |
+| `cherry-pick` | `minigit cherry-pick [-n] [--author <a>] [-m <p>] <c>` | Transplant changes from a commit onto current branch. |
 | `stash` | `minigit stash [push\|list\|pop\|drop\|show]` | Shelve uncommitted modifications without committing. |
 | `remote` | `minigit remote [add\|remove\|-v] [<args>]` | Inspect or manage remote repository aliases. |
 | `clone` | `minigit clone <src> [<dest>]` | Clone a repository, set up tracking, and check out HEAD. |
