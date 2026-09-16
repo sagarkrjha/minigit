@@ -5,6 +5,7 @@ add_executable(minigit_tests
     test_staging.cpp
     test_diff.cpp
     test_repository.cpp
+    test_cherry_pick.cpp
 )
 
 target_include_directories(minigit_tests
@@ -20,6 +21,7 @@ target_link_libraries(minigit_tests
         minigit_staging
         minigit_diff
         minigit_repository
+        minigit_merge
 )
 
 add_test(NAME minigit_tests COMMAND minigit_tests)

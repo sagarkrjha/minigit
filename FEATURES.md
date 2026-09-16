@@ -36,6 +36,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.21 `minigit fetch`](#221-minigit-fetch)
   - [2.22 `minigit push`](#222-minigit-push)
   - [2.23 `minigit pull`](#223-minigit-pull)
+  - [2.24 `minigit cherry-pick`](#224-minigit-cherry-pick)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1145,6 +1146,46 @@ Updated branch 'main'.
 
 ---
 
+### 2.24 `minigit cherry-pick`
+
+#### Synopsis
+```bash
+minigit cherry-pick [-n | --no-commit] [--author <author>] [-m <parent-number>] <commit>
+```
+
+#### Purpose
+Applies the changes introduced by an existing commit to the current working branch, creating a new commit (unless `--no-commit` is specified) with the original commit message and author metadata.
+
+#### Options
+- `<commit>`: Target commit identifier to transplant. Can be a full 64-character hex SHA, a short SHA prefix (>=4 characters), a branch name, or a tag name.
+- `-n`, `--no-commit`: Applies the changes to the staging index and working tree without creating a commit object or advancing refs.
+- `--author <author>`: Overrides the author identity for the cherry-picked commit. If omitted, the original commit's author is preserved.
+- `-m <parent-number>`: For merge commits, specifies the 1-based mainline parent to diff against (defaults to `1`).
+
+#### Behavioral Details
+1. **Revision Resolution:** Resolves `<commit>` against local branch refs (`refs/heads/`), tag refs (`refs/tags/`, peeling annotated tag objects), and object database loose files via full or prefix matching.
+2. **Three-Tree Delta Formulation:**
+   - **Base:** Parent of the cherry-picked commit (empty tree for root commits).
+   - **Theirs:** The target commit's tree snapshot.
+   - **Ours:** The current `HEAD` commit's tree snapshot.
+3. **Three-Way Merge Application:**
+   - File additions in target are written to working directory and staged.
+   - File deletions in target (unmodified in ours) are accepted and removed from disk and index.
+   - Differing content is merged using the line-by-line three-way diff engine (`three_way_merge`).
+4. **Conflict Handling:**
+   - If conflicting edits occur, standard Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) are written into the affected files.
+   - Reports conflicting paths and terminates with exit code 1 with guidance hints for `minigit add` and `minigit commit`.
+5. **Commit Creation:**
+   - On a clean apply without `--no-commit`, builds a new tree, constructs a commit object with current `HEAD` as parent, and advances the active branch reference.
+
+#### Example
+```bash
+$ minigit cherry-pick feature-branch
+[main 7b1c402] Add payment validation logic
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1361,7 +1402,7 @@ flowchart LR
 7. ~~**Remote Protocols:** Push, pull, fetch, clone, and remote management over local filesystems.~~ ✅ **Implemented in v0.6.0**
 8. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
 9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Linear history rewriting (`minigit rebase -i`), commit squashing, commit message amending, and selective individual commit transplantation across branches (`minigit cherry-pick`).
+10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Selective commit transplantation (`minigit cherry-pick`) ✅ **Implemented in v0.6.1**; Linear history rewriting (`minigit rebase -i`), commit squashing, and commit amending scheduled for subsequent phases.
 11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
 12. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
 

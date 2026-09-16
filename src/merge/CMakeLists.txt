@@ -2,6 +2,7 @@ add_library(minigit_merge STATIC
     merge_engine.cpp
     merge.cpp
     revert.cpp
+    cherry_pick.cpp
 )
 
 target_include_directories(minigit_merge

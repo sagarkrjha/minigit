@@ -32,3 +32,6 @@ build.ninja
 *.tmp
 *.swp
 *~
+
+# Local prompt context
+context.md
