@@ -32,11 +32,18 @@ jobs:
     steps:
       - name: Configure Auto-Merge (Squash)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || secrets.GITHUB_TOKEN }}
         run: |
           PR_URL="${{ github.event.pull_request.html_url }}"
           if [ -z "$PR_URL" ] && [ -n "${{ inputs.pr_number }}" ]; then
             PR_URL="https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number }}"
+          fi
+
+          if [ -n "${{ secrets.AUTO_MERGE_PAT }}" ]; then
+            echo "Using custom AUTO_MERGE_PAT token (subsequent workflows on main will be triggered upon merge)."
+          else
+            echo "WARNING: AUTO_MERGE_PAT secret is not set; falling back to default GITHUB_TOKEN."
+            echo "Merges performed using GITHUB_TOKEN do not trigger subsequent workflows due to GitHub Actions recursion prevention."
           fi
 
           echo "Enabling auto-merge (squash) for $PR_URL..."
