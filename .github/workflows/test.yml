@@ -9,8 +9,6 @@ on:
       - 'LICENCE'
       - '.gitignore'
   push:
-    branches-ignore:
-      - 'main'
     paths-ignore:
       - '**.md'
       - 'LICENCE'
@@ -35,25 +33,34 @@ jobs:
           - os: windows-latest
             platform: windows
             binary: minigit.exe
-            test_binary: minigit_tests.exe
+            release_asset: minigit.exe
+            compiler_cache: sccache
           - os: ubuntu-latest
             platform: linux
             binary: minigit
-            test_binary: minigit_tests
+            release_asset: minigit-linux
+            compiler_cache: ccache
           - os: macos-latest
             platform: macos
             binary: minigit
-            test_binary: minigit_tests
+            release_asset: minigit-macos
+            compiler_cache: ccache
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      # --- Setup Optimistic Compiler Cache (ccache / sccache) ---
-      - name: Setup ccache
+      # --- Setup MSVC Developer Command Prompt (Windows) ---
+      - name: Setup MSVC Developer Command Prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # --- Setup Compiler Cache (ccache / sccache) ---
+      - name: Setup compiler cache (${{ matrix.compiler_cache }})
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: test-${{ matrix.platform }}-${{ matrix.os }}
+          variant: ${{ matrix.compiler_cache }}
+          key: ${{ matrix.platform }}-${{ matrix.os }}-${{ matrix.compiler_cache }}
           max-size: 500M
 
       # --- Linux dependencies ---
@@ -78,20 +85,22 @@ jobs:
             brew install ninja
           fi
 
-      # --- Windows dependencies & vcpkg cache ---
-      - name: Cache vcpkg dependencies (Windows)
+      # --- Windows dependencies & proper vcpkg binary cache ---
+      - name: Cache vcpkg binary archives (Windows)
         if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-            ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-vcpkg-openssl-zlib-${{ hashFiles('**/CMakeLists.txt') }}
+            ${{ runner.temp }}/vcpkg_cache
+            C:\Users\runneradmin\AppData\Local\vcpkg\archives
+          key: ${{ runner.os }}-vcpkg-archives-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-openssl-zlib-
+            ${{ runner.os }}-vcpkg-archives-
 
       - name: Install dependencies via vcpkg (Windows)
         if: runner.os == 'Windows'
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/vcpkg_cache
         run: |
           vcpkg install openssl:x64-windows-static zlib:x64-windows-static
 
@@ -102,6 +111,7 @@ jobs:
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Configure CMake (macOS)
@@ -112,17 +122,22 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/vcpkg_cache
         run: |
-          cmake -B build -S . `
+          cmake -B build -S . -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_TESTING=ON `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
 
       # --- Build ---
       - name: Build binaries and test suite
@@ -138,13 +153,17 @@ jobs:
       - name: Run CLI Smoke Test (Windows)
         if: runner.os == 'Windows'
         run: |
-          $testRepo = "build\smoke_test_repo"
+          $testRepo = "$((Get-Item .).FullName)\build\smoke_test_repo"
           if (Test-Path $testRepo) { Remove-Item -Recurse -Force $testRepo }
           New-Item -ItemType Directory -Path $testRepo | Out-Null
           $exePath = "build\${{ matrix.binary }}"
           if (-not (Test-Path $exePath)) {
             $found = Get-ChildItem -Path build -Filter ${{ matrix.binary }} -Recurse | Select-Object -First 1
             if ($found) { Copy-Item $found.FullName -Destination $exePath }
+          }
+          if (-not (Test-Path $exePath)) {
+            Write-Error "${{ matrix.binary }} was not produced by the build!"
+            exit 1
           }
           $exe = (Resolve-Path $exePath).Path
           Push-Location $testRepo
@@ -170,13 +189,20 @@ jobs:
       - name: Run CLI Smoke Test (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
-          TEST_REPO="build/smoke_test_repo"
+          TEST_REPO="$(pwd)/build/smoke_test_repo"
           rm -rf "$TEST_REPO"
           mkdir -p "$TEST_REPO"
-          EXE=$(find build -type f -name minigit | head -n 1)
+          EXE=$(find build -type f -name "${{ matrix.binary }}" -not -path "*/CMakeFiles/*" -not -path "*/smoke_test_repo/*" | head -n 1)
           if [ -z "$EXE" ] || [ ! -f "$EXE" ]; then
-            echo "minigit executable not found in build directory!" >&2
-            exit 1
+            if [ -f "build/${{ matrix.binary }}" ]; then
+              EXE="build/${{ matrix.binary }}"
+            elif [ -f "build/src/${{ matrix.binary }}" ]; then
+              EXE="build/src/${{ matrix.binary }}"
+            else
+              echo "minigit executable not found in build directory!" >&2
+              find build -maxdepth 3 -ls >&2
+              exit 1
+            fi
           fi
           EXE="$(cd "$(dirname "$EXE")" && pwd)/$(basename "$EXE")"
           chmod +x "$EXE"
@@ -196,3 +222,31 @@ jobs:
           cd -
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"
+
+      # --- Stage and Upload Artifacts ---
+      - name: Stage binary artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Path bin -Force | Out-Null
+          $exePath = "build\${{ matrix.binary }}"
+          if (-not (Test-Path $exePath)) {
+            $found = Get-ChildItem -Path build -Filter ${{ matrix.binary }} -Recurse | Select-Object -First 1
+            $exePath = $found.FullName
+          }
+          Copy-Item $exePath -Destination "bin\${{ matrix.release_asset }}"
+
+      - name: Stage binary artifact (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p bin
+          EXE=$(find build -type f -name "${{ matrix.binary }}" -not -path "*/CMakeFiles/*" -not -path "*/smoke_test_repo/*" | head -n 1)
+          cp "$EXE" "bin/${{ matrix.release_asset }}"
+          chmod +x "bin/${{ matrix.release_asset }}"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.release_asset }}
+          path: bin/${{ matrix.release_asset }}
+          if-no-files-found: error
+          retention-days: 7
