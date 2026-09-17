@@ -25,6 +25,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   automerge:
@@ -32,8 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Process Auto-Merge & Multi-PR Queue
         env:
+          GH_REPO: ${{ github.repository }}
           PAT_TOKEN: ${{ secrets.AUTO_MERGE_PAT }}
           G_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
