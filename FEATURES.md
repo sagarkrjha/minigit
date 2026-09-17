@@ -1264,6 +1264,107 @@ Removing temp_build/
 
 ---
 
+### 2.27 `minigit ls-files`
+
+#### Synopsis
+```bash
+minigit ls-files [-s | --stage] [-c | --cached] [-d | --deleted] [-m | --modified] [-o | --others] [<path>...]
+```
+
+#### Purpose
+`minigit ls-files` inspects the staging area (`.minigit/index`) and compares tracked items against the working tree to report file statuses or display raw stage information.
+
+#### Flags
+| Flag | Meaning |
+| :--- | :--- |
+| `-c`, `--cached` | Show cached / tracked files (default if no filter flags provided). |
+| `-s`, `--stage` | Show staged object mode, SHA-256 hash, stage number (`0`), and relative path. |
+| `-d`, `--deleted` | Show tracked files that have been deleted from the working tree. |
+| `-m`, `--modified` | Show tracked files whose working tree content differs from the staged blob SHA. |
+| `-o`, `--others` | Show untracked files in the working tree, respecting `.minigitignore` patterns. |
+| `[<path>...]` | Optional path filters restricting results to matching paths or directory prefixes. |
+
+#### Staging Output Format
+When `-s` / `--stage` is enabled, each entry is printed in canonical Git format:
+```text
+<mode> <sha256> <stage>\t<path>
+```
+For example:
+```text
+100644 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0\tsrc/main.cpp
+```
+
+#### Example
+```bash
+# List all tracked files
+$ minigit ls-files
+README.md
+src/main.cpp
+
+# List staged entries with mode and blob SHA
+$ minigit ls-files -s
+100644 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0\tREADME.md
+100644 f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb 0\tsrc/main.cpp
+
+# Show untracked files
+$ minigit ls-files -o
+scratch.txt
+```
+
+---
+
+### 2.28 `minigit ls-tree`
+
+#### Synopsis
+```bash
+minigit ls-tree [-d] [-r] [-t] [--name-only] [--object-only] <tree-ish> [<path>...]
+```
+
+#### Purpose
+`minigit ls-tree` lists the contents of a given tree object, resolving any valid `<tree-ish>` (tree SHA, commit SHA, branch name, tag name, or `HEAD`) down to its underlying tree object and traversing its entries.
+
+#### Flags
+| Flag | Meaning |
+| :--- | :--- |
+| `-r` | Recurse into sub-trees (directories). |
+| `-d` | Show only tree objects (directories); suppress regular blobs. |
+| `-t` | Show tree entries even when recursing into sub-trees (when combined with `-r`). |
+| `--name-only` | Output only filenames / relative paths, one per line. |
+| `--object-only` | Output only object SHA-256 hashes, one per line. |
+| `<tree-ish>` | Target identifier (commit SHA, tree SHA, branch, tag, `HEAD`, or ancestor `HEAD~1`). |
+| `[<path>...]` | Optional path filters restricting results to matching paths or directory prefixes. |
+
+#### Output Format
+By default, entries are printed in canonical Git tree listing format:
+```text
+<mode> <type> <sha256>\t<path>
+```
+For example:
+```text
+100644 blob e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\tREADME.md
+040000 tree a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0\tsrc
+```
+
+#### Example
+```bash
+# Inspect HEAD tree
+$ minigit ls-tree HEAD
+100644 blob e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\tREADME.md
+100644 blob f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb\tsrc/main.cpp
+
+# List filenames only
+$ minigit ls-tree --name-only HEAD
+README.md
+src/main.cpp
+
+# List object SHAs only
+$ minigit ls-tree --object-only HEAD
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1480,7 +1581,8 @@ flowchart LR
 7. ~~**Remote Protocols:** Push, pull, fetch, clone, and remote management over local filesystems.~~ ✅ **Implemented in v0.6.0**
 8. ~~**Selective Commit Transplantation & Object Inspection:** `minigit cherry-pick` and `minigit show` (commit metadata + unified diff vs parent, tags, trees, and blobs).~~ ✅ **Implemented in v1.1.0**
 9. ~~**Working Tree Cleanup & Hygiene:** `minigit clean` (untracked files and directory deletion with `-f`, `-d`, `-n`, and `-x`).~~ ✅ **Implemented in v1.2.0**
-10. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
+10. ~~**Index and Tree Object Plumbing:** `minigit ls-files` (stage and working tree status filtering) and `minigit ls-tree` (tree-ish resolution and recursive tree traversal).~~ ✅ **Implemented in v1.2.1**
+11. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
 9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
 10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Selective commit transplantation (`minigit cherry-pick`) ✅ **Implemented in v0.6.1**; Linear history rewriting (`minigit rebase -i`), commit squashing, and commit amending scheduled for subsequent phases.
 11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.

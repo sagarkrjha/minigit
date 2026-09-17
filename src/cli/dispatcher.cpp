@@ -10,6 +10,8 @@
 #include "history/show.h"
 #include "staging/status.h"
 #include "staging/clean.h"
+#include "staging/ls_files.h"
+#include "storage/ls_tree.h"
 #include "diff/diff.h"
 #include "branching/branch.h"
 #include "branching/checkout.h"
@@ -464,6 +466,16 @@ int cmd_pull(int argc, char const *argv[])
     return 0;
 }
 
+int cmd_ls_files(int argc, char const *argv[])
+{
+    return ls_files_command(argc, argv);
+}
+
+int cmd_ls_tree(int argc, char const *argv[])
+{
+    return ls_tree_command(argc, argv);
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -487,6 +499,8 @@ int run(int argc, char const *argv[])
         {"show", cmd_show},
         {"status", cmd_status},
         {"clean", cmd_clean},
+        {"ls-files", cmd_ls_files},
+        {"ls-tree", cmd_ls_tree},
         {"diff", cmd_diff},
         {"branch", cmd_branch},
         {"checkout", cmd_checkout},
