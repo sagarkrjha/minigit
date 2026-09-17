@@ -38,6 +38,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Undo Changes with Reset (`minigit reset`)](#undo-changes-with-reset-minigit-reset)
   - [Invert Commits with Revert (`minigit revert`)](#invert-commits-with-revert-minigit-revert)
   - [Transplant Commits with Cherry-Pick (`minigit cherry-pick`)](#transplant-commits-with-cherry-pick-minigit-cherry-pick)
+  - [Replay Linear History with Rebase (`minigit rebase`)](#replay-linear-history-with-rebase-minigit-rebase)
 - [7. Shelving Work with Stash (`minigit stash`)](#7-shelving-work-with-stash-minigit-stash)
   - [Save Uncommitted Work (`push`)](#save-uncommitted-work-push)
   - [List Stashes (`list`)](#list-stashes-list)
@@ -579,6 +580,59 @@ hint: with 'minigit add <paths>' or 'minigit rm <paths>'
 hint: and commit the result with 'minigit commit'
 ```
 
+### Replay Linear History with Rebase (`minigit rebase`)
+
+Replays commits from the current branch onto an upstream branch or commit, producing a clean, linear project history without merge commits.
+
+```bash
+# 1. Standard Rebase: Replay current branch commits onto upstream
+minigit switch feature/payment
+minigit rebase main
+
+# 2. Rebase onto a different base branch
+minigit rebase --onto main feature/legacy-auth
+
+# 3. Continue rebase after resolving conflict
+minigit add <resolved-files>
+minigit rebase --continue
+
+# 4. Skip the currently conflicted commit
+minigit rebase --skip
+
+# 5. Abort rebase and restore original branch and working tree
+minigit rebase --abort
+```
+
+*Example Clean Rebase Output:*
+```text
+First, rewinding head to replay your work on top of it...
+Applying: Add credit card tokenization
+Applying: Integrate Stripe webhook handler
+Successfully rebased and updated refs/heads/feature/payment.
+```
+
+*Conflict Handling Workflow:*
+When rebase encounters a conflict during commit replay:
+```text
+Applying: Add credit card tokenization
+CONFLICT (content): Merge conflict in src/payment.cpp
+error: could not apply 3a7b1c4... Add credit card tokenization
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "minigit add <file>", then run "minigit rebase --continue".
+hint: You can instead skip this commit: run "minigit rebase --skip".
+hint: To abort and get back to the state before "minigit rebase", run "minigit rebase --abort".
+```
+1. Resolve the conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in the conflicted file.
+2. Stage the resolution:
+   ```bash
+   minigit add src/payment.cpp
+   ```
+3. Resume replaying the remaining commits:
+   ```bash
+   minigit rebase --continue
+   ```
+4. If you decide the commit should be abandoned or was already applied upstream, run `minigit rebase --skip`. To return safely to your branch tip prior to rebasing, run `minigit rebase --abort`.
+
 ---
 
 ## 7. Shelving Work with Stash (`minigit stash`)
@@ -839,6 +893,7 @@ minigit ls-tree HEAD src/
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |
 | `revert` | `minigit revert <commit> [--author <a>]` | Create a new commit inverting changes of a previous commit. |
 | `cherry-pick` | `minigit cherry-pick [-n] [--author <a>] [-m <p>] <c>` | Transplant changes from a commit onto current branch. |
+| `rebase` | `minigit rebase [-i] [--onto <nb>] <up> \| --continue \| --abort \| --skip` | Replay commits linearly onto upstream base. |
 | `stash` | `minigit stash [push\|list\|pop\|drop\|show]` | Shelve uncommitted modifications without committing. |
 | `remote` | `minigit remote [add\|remove\|-v] [<args>]` | Inspect or manage remote repository aliases. |
 | `clone` | `minigit clone <src> [<dest>]` | Clone a repository, set up tracking, and check out HEAD. |
