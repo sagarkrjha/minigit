@@ -1441,6 +1441,81 @@ Successfully rebased and updated refs/heads/feature.
 
 ---
 
+### 2.30 `minigit repack`
+
+#### Synopsis
+```bash
+minigit repack [-a] [-d] [-w <window>]
+```
+
+#### Purpose
+Consolidates loose objects in `.minigit/objects/` into a single, high-density binary packfile (`.pack`) and companion index (`.idx`) using sliding-window byte-level delta compression. Dramatically reduces inode consumption and repository disk footprint.
+
+#### Flags
+| Flag | Description |
+| :--- | :--- |
+| `-a` | Pack all loose objects in the repository (default behavior). |
+| `-d` | Delete redundant loose object files after packfile generation and verification. |
+| `-w <n>`, `--window=<n>` | Window size for candidate delta compression comparisons (default: `10`). |
+
+#### Behavioral Details
+1. **Object Enumeration:** Recursively scans `.minigit/objects/` for loose objects across all 2-character hex directories (`00` to `ff`).
+2. **Delta Formulation:** Groups objects by type and sorts them by payload size, attempting byte-level sliding-window delta compression against the previous $W$ candidates. Adopts deltas achieving $\ge 20\%$ byte savings.
+3. **Pack & Index Generation:** Atomically writes the `.pack` and `.idx` files into `.minigit/objects/pack/pack-<sha256>.{pack,idx}`.
+4. **Pruning (`-d`):** When `-d` is specified, safely unlinks the original loose files and removes empty parent shard directories.
+5. **Transparent Access:** The `ObjectDatabase` immediately recognizes and serves objects from the new packfile for all operations (`cat-file`, `log`, `show`, `diff`, `rebase`, `checkout`).
+
+#### Example
+```bash
+$ minigit repack -d
+Counting objects: 42, done.
+Compressing objects: 100% (42/42), done.
+Writing objects: 100% (42/42), done.
+Total 42 (delta 18), reused 0
+Removed 42 redundant loose objects.
+```
+
+---
+
+### 2.31 `minigit verify-pack`
+
+#### Synopsis
+```bash
+minigit verify-pack [-v | --verbose] <pack-file>...
+```
+
+#### Purpose
+Validates the cryptographic and structural integrity of `.pack` and `.idx` files, verifying CRC-32 object checksums, packfile SHA-256 trailers, index self-checksums, and cross-file checksum parity.
+
+#### Flags
+| Flag | Description |
+| :--- | :--- |
+| `-v`, `--verbose` | Pretty-prints per-object details including SHA, type, unpacked size, pack size, offset, and delta base chain info. |
+
+#### Output Format
+- **Standard:** `<pack-name>.pack: OK (<count> objects)`
+- **Verbose:**
+  ```text
+  <sha256> <type> <unpacked-size> <pack-size> <offset> [<depth> <base-sha256>]
+  ...
+  non delta: <count> objects
+  chain length = 1: <count> objects
+  <path>: OK
+  ```
+
+#### Example
+```bash
+$ minigit verify-pack -v .minigit/objects/pack/pack-b590ba80.pack
+9faf601a... commit          181      135         12
+b8b1a63e... blob             16       24        227
+e46967d0... tree             82       80        147
+non delta: 3 objects
+chain length = 1: 0 objects
+.minigit/objects/pack/pack-b590ba80.pack: OK
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1499,6 +1574,31 @@ To prevent filesystem performance degradation due to thousands of files in a sin
 - Directory: `.minigit/objects/<first-2-hex-chars>/`
 - Filename: `<remaining-62-hex-chars>`
 - Total path length: 64-character hash split into `2 / 62`.
+
+### 3.6 Packfiles (`.pack`) and Index (`.idx`) Format with Delta Compression
+
+MiniGit implements the canonical Git Packfile Version 2 and Index Version 2 specifications adapted for SHA-256 content addressing:
+
+1. **Packfile (`.pack` Version 2):**
+   - **Header (12 bytes):** 4-byte magic signature `PACK` (`0x5041434B`), 4-byte big-endian version `2`, and 4-byte big-endian object count $N$.
+   - **Object Records:** Packed sequentially with variable-length encoded type and size headers (LEB128):
+     - `OBJ_COMMIT` (1), `OBJ_TREE` (2), `OBJ_BLOB` (3), `OBJ_TAG` (4): Followed by zlib-compressed object payload.
+     - `OBJ_REF_DELTA` (7): Followed by the 32-byte binary SHA-256 of the base object, and the zlib-compressed delta stream.
+   - **Trailer (32 bytes):** SHA-256 checksum over all preceding packfile bytes.
+
+2. **Pack Index (`.idx` Version 2):**
+   - **Header (8 bytes):** 4-byte magic `\xFF t O c` (`0xFF744F63`), 4-byte big-endian version `2`.
+   - **Level 1 (Fanout Table, 1024 bytes):** 256 entries of 4-byte big-endian integers storing the cumulative count of objects whose SHA-256 begins with $\le i$. Enables $O(1)$ range isolation.
+   - **Level 2 (SHA-256 Table, $N \times 32$ bytes):** Sorted list of 32-byte binary SHA-256 hashes enabling $O(\log N)$ binary search.
+   - **Level 3 (CRC-32 Table, $N \times 4$ bytes):** Big-endian CRC-32 checksums of each object's packed byte slice for rapid integrity validation.
+   - **Level 4 (Offset Table, $N \times 4$ bytes):** Big-endian 4-byte byte offsets pointing directly to object locations in the corresponding `.pack` file.
+   - **Dual Trailers (64 bytes):** 32-byte SHA-256 checksum of the target `.pack` file, followed by 32-byte SHA-256 checksum of the `.idx` file itself.
+
+3. **Byte-Level Sliding-Window Delta Compression:**
+   - Evaluates object candidates within a configurable sliding window (`-w <size>`).
+   - Uses 16-byte rolling hash indexing to locate common block copies.
+   - Emits variable-length copy instructions (offset + size) and literal insert instructions.
+   - Restricts delta base references to non-delta objects, ensuring maximum recursion depth $\le 1$ for deterministic, constant-time delta resolution.
 
 ---
 
@@ -1623,9 +1723,9 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Hashing Algorithm** | SHA-256 (64 hex characters) | SHA-1 (legacy default) / SHA-256 |
 | **Object Header** | `<type> <size>\0<content>` | `<type> <size>\0<content>` |
 | **Object Compression** | zlib deflate compression | zlib deflate compression |
-| **Packfiles (`.pack`)** | Roadmap (v0.7.0) | Full support (delta compression) |
+| **Packfiles (`.pack`)** | Supported (v1.4.0, delta compression) | Full support (delta compression) |
 | **Remotes & Synchronization** | Local filesystem (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
-| **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, and many more |
+| **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file`, `verify-pack` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, `verify-pack`, and many more |
 | **Index Serialization** | Human-readable `<path> <sha256>` | Binary DIRC structure with stat cache |
 | **Diff Engine** | LCS DP Matrix | Eugene Myers $O(ND)$ Difference Algorithm |
 | **Symbolic HEAD Ref** | Supported (`ref: refs/heads/...`) | Supported (`ref: refs/heads/...`) |
@@ -1658,9 +1758,9 @@ flowchart LR
 8. ~~**Selective Commit Transplantation & Object Inspection:** `minigit cherry-pick` and `minigit show` (commit metadata + unified diff vs parent, tags, trees, and blobs).~~ ✅ **Implemented in v1.1.0**
 9. ~~**Working Tree Cleanup & Hygiene:** `minigit clean` (untracked files and directory deletion with `-f`, `-d`, `-n`, and `-x`).~~ ✅ **Implemented in v1.2.0**
 10. ~~**Index and Tree Object Plumbing:** `minigit ls-files` (stage and working tree status filtering) and `minigit ls-tree` (tree-ish resolution and recursive tree traversal).~~ ✅ **Implemented in v1.2.1**
-11. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
-9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-10. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
-11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
-12. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
+11. ~~**Packfiles (`.pack`) & Delta Compression:** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.~~ ✅ **Implemented in v1.4.0**
+12. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
+13. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
+14. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
+15. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
 

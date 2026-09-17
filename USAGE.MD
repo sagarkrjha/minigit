@@ -869,6 +869,33 @@ minigit ls-tree -r --name-only HEAD
 minigit ls-tree HEAD src/
 ```
 
+### Packfile Maintenance & Compaction (`minigit repack`)
+
+Consolidates loose objects in `.minigit/objects/` into a single, delta-compressed binary packfile (`.pack`) and index (`.idx`).
+
+```bash
+# Repack loose objects into packfiles
+minigit repack
+
+# Repack and delete original loose objects (-d)
+minigit repack -d
+
+# Repack with custom delta window size (default: 10)
+minigit repack -d -w 15
+```
+
+### Verify Packfiles (`minigit verify-pack`)
+
+Validates CRC-32 object checksums and SHA-256 integrity of packfiles and indices.
+
+```bash
+# Verify packfile integrity
+minigit verify-pack .minigit/objects/pack/pack-*.pack
+
+# Verbose inspection displaying object types, sizes, offsets, and delta chains
+minigit verify-pack -v .minigit/objects/pack/pack-*.pack
+```
+
 ---
 
 ## 11. Command Summary & Cheat Sheet
@@ -900,6 +927,8 @@ minigit ls-tree HEAD src/
 | `fetch` | `minigit fetch [<remote>]` | Download objects and update remote-tracking references. |
 | `push` | `minigit push [<remote> [<branch>]]` | Upload objects and advance remote branch references. |
 | `pull` | `minigit pull [<remote> [<branch>]]` | Fetch and fast-forward the current branch with remote updates. |
+| `repack` | `minigit repack [-a] [-d] [-w <n>]` | Consolidate loose objects into binary packfile with delta compression. |
+| `verify-pack` | `minigit verify-pack [-v] <pack>...` | Validate cryptographic integrity and CRC-32 of packfiles. |
 | `hash-object` | `minigit hash-object [-w] <file>` | Compute SHA-256 for a file; optionally persist as blob. |
 | `write-tree` | `minigit write-tree` | Serialize current index entries into a tree object. |
 | `cat-file` | `minigit cat-file (-t\|-s\|-p) <sha>` | Inspect object type, size, or pretty-print contents. |

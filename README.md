@@ -197,6 +197,8 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit fetch [<remote>]` | Porcelain | Downloads objects and remote-tracking refs without altering local branches. |
 | `minigit push [<remote> [<branch>]]` | Porcelain | Pushes local branch commits and objects to a remote with fast-forward safety checks. |
 | `minigit pull [<remote> [<branch>]]` | Porcelain | Fetches and fast-forwards the active branch to match the remote. |
+| `minigit repack [-a] [-d] [-w <n>]` | Porcelain | Consolidates loose objects into binary packfiles with delta compression. |
+| `minigit verify-pack [-v] <pack>...` | Plumbing | Validates cryptographic integrity, CRC-32 checksums, and delta chains. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
@@ -775,7 +777,7 @@ minigit/
 | **Diff Engine** | Dynamic programming LCS (`O(M * N)`) | Myers diff algorithm (`O(N * D)`) |
 | **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
 | **Submodules & Remotes**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
-| **Compression** | zlib deflate compression | zlib deflate compression & Packfiles |
+| **Compression & Packing** | zlib deflate & Packfile v2 with delta compression | zlib deflate compression & Packfiles |
 
 ---
 
@@ -789,7 +791,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 4: History Rewriting & Safe Undo:** `minigit reset` (`--soft`, `--mixed`, `--hard`) and `minigit revert` (three-way inverse commit application with conflict detection).
 - [x] **Phase 5: Stash & Compression:** `minigit stash` working-state shelving (`push`, `list`, `pop`, `drop`, `show`) and zlib deflate loose object compression.
 - [x] **Phase 6: Networking & Remotes:** Local filesystem remotes protocol with `clone`, `remote`, `fetch`, `push`, and `pull`.
-- [ ] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression.
+- [x] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression (`minigit repack`, `minigit verify-pack`).
 - [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
 - [x] **Phase 9: Linear Rebase & Cherry-Pick:** Linear history rewriting and replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`), and individual commit transplantation (`minigit cherry-pick`).
 - [ ] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) and nested repository tracking (`minigit submodule`).

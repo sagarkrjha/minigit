@@ -7,6 +7,8 @@ add_library(minigit_storage STATIC
     hash_object.cpp
     cat_file.cpp
     ls_tree.cpp
+    pack.cpp
+    repack.cpp
 )
 
 target_include_directories(minigit_storage
