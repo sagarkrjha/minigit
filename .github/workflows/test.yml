@@ -184,6 +184,7 @@ jobs:
             & $exe add file.txt
             & $exe commit -m "second commit"
             & $exe tag v-smoke
+            & $exe show
             Write-Host "Windows CLI smoke tests passed successfully!"
           } finally {
             Pop-Location
@@ -223,6 +224,7 @@ jobs:
           "$EXE" add file.txt
           "$EXE" commit -m "second commit"
           "$EXE" tag v-smoke
+          "$EXE" show
           cd -
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"
