@@ -9,6 +9,7 @@
 #include "history/log.h"
 #include "history/show.h"
 #include "staging/status.h"
+#include "staging/clean.h"
 #include "diff/diff.h"
 #include "branching/branch.h"
 #include "branching/checkout.h"
@@ -135,6 +136,11 @@ int cmd_status(int /*argc*/, char const * /*argv*/[])
 {
     status();
     return 0;
+}
+
+int cmd_clean(int argc, char const *argv[])
+{
+    return clean_command(argc, argv);
 }
 
 int cmd_diff(int argc, char const *argv[])
@@ -480,6 +486,7 @@ int run(int argc, char const *argv[])
         {"log", cmd_log},
         {"show", cmd_show},
         {"status", cmd_status},
+        {"clean", cmd_clean},
         {"diff", cmd_diff},
         {"branch", cmd_branch},
         {"checkout", cmd_checkout},

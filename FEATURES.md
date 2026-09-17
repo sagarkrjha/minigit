@@ -38,6 +38,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.23 `minigit pull`](#223-minigit-pull)
   - [2.24 `minigit cherry-pick`](#224-minigit-cherry-pick)
   - [2.25 `minigit show`](#225-minigit-show)
+  - [2.26 `minigit clean`](#226-minigit-clean)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1227,6 +1228,42 @@ diff --minigit a/auth.cpp b/auth.cpp
 
 ---
 
+### 2.26 `minigit clean`
+
+Removes untracked files and directories from the working tree to restore a clean build environment.
+
+```text
+minigit clean [-f | --force] [-n | --dry-run] [-d] [-x] [<path>...]
+```
+
+#### Behavioral Semantics
+1. **Accidental Deletion Safeguard:**
+   - MiniGit strictly enforces safety: clean operations will refuse to run unless explicitly invoked with either `-f` (`--force`) to perform deletion or `-n` (`--dry-run`) to preview deletions.
+2. **Directory Handling (`-d`):**
+   - By default, untracked directories are not deleted unless `-d` is specified.
+   - When `-d` is active, any directory containing only untracked files is cleaned as a unit (`Removing <dir>/`).
+   - Directories containing tracked files are never deleted as a whole; untracked files within them are cleaned individually.
+3. **Ignore Rule Integration (`-x`):**
+   - Untracked files matching patterns in `.minigitignore` are safely preserved by default.
+   - Supplying `-x` overrides ignore rules, cleaning all untracked artifacts including build products and log files.
+4. **Path Filter Restraints:**
+   - Optional `<path>...` arguments restrict cleaning exclusively to matching paths or directory prefixes.
+
+#### Example
+```bash
+# Preview what untracked files would be cleaned
+$ minigit clean -n
+Would remove scratch.log
+Would remove temp_build/
+
+# Force removal of untracked files and directories
+$ minigit clean -fd
+Removing scratch.log
+Removing temp_build/
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1442,7 +1479,8 @@ flowchart LR
 6. ~~**Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.~~ ✅ **Implemented in v0.5.0**
 7. ~~**Remote Protocols:** Push, pull, fetch, clone, and remote management over local filesystems.~~ ✅ **Implemented in v0.6.0**
 8. ~~**Selective Commit Transplantation & Object Inspection:** `minigit cherry-pick` and `minigit show` (commit metadata + unified diff vs parent, tags, trees, and blobs).~~ ✅ **Implemented in v1.1.0**
-9. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
+9. ~~**Working Tree Cleanup & Hygiene:** `minigit clean` (untracked files and directory deletion with `-f`, `-d`, `-n`, and `-x`).~~ ✅ **Implemented in v1.2.0**
+10. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
 9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
 10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Selective commit transplantation (`minigit cherry-pick`) ✅ **Implemented in v0.6.1**; Linear history rewriting (`minigit rebase -i`), commit squashing, and commit amending scheduled for subsequent phases.
 11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.

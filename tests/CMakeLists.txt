@@ -7,6 +7,7 @@ add_executable(minigit_tests
     test_repository.cpp
     test_cherry_pick.cpp
     test_show.cpp
+    test_clean.cpp
 )
 
 target_include_directories(minigit_tests

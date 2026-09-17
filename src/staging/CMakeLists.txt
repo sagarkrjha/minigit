@@ -5,6 +5,7 @@ add_library(minigit_staging STATIC
     status.cpp
     reset.cpp
     write_tree.cpp
+    clean.cpp
 )
 
 target_include_directories(minigit_staging
