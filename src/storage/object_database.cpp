@@ -1,5 +1,6 @@
 #include "object_database.h"
 
+#include "pack.h"
 #include "core/zlib_compress.h"
 
 #include <fstream>
@@ -43,30 +44,110 @@ void ObjectDatabase::write(
     out.write(compressed.data(), static_cast<std::streamsize>(compressed.size()));
 }
 
+void ObjectDatabase::ensure_packs_loaded() const
+{
+    if (packs_loaded_)
+        return;
+
+    packs_loaded_ = true;
+    packs_.clear();
+
+    const auto pack_dir = objects_directory_ / "pack";
+    if (!std::filesystem::exists(pack_dir) || !std::filesystem::is_directory(pack_dir))
+        return;
+
+    for (const auto& entry : std::filesystem::directory_iterator(pack_dir))
+    {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() == ".idx")
+        {
+            auto pack_path = entry.path();
+            pack_path.replace_extension(".pack");
+            if (std::filesystem::exists(pack_path))
+            {
+                auto idx = minigit::storage::PackIndex::open(entry.path());
+                auto reader = minigit::storage::PackReader::open(pack_path);
+                if (idx && reader)
+                {
+                    packs_.push_back({std::move(idx), std::move(reader)});
+                }
+            }
+        }
+    }
+}
+
+void ObjectDatabase::reload_packs() const
+{
+    packs_loaded_ = false;
+    packs_.clear();
+    ensure_packs_loaded();
+}
+
+bool ObjectDatabase::contains(const std::string &id) const
+{
+    if (id.size() >= 2)
+    {
+        const std::string prefix    = id.substr(0, 2);
+        const std::string remainder = id.substr(2);
+        const auto file_path = objects_directory_ / prefix / remainder;
+        if (std::filesystem::exists(file_path))
+        {
+            return true;
+        }
+    }
+
+    ensure_packs_loaded();
+    for (const auto& pack : packs_)
+    {
+        if (pack.index->find_offset(id) >= 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::string ObjectDatabase::read(const std::string &id) const
 {
-    const std::string prefix    = id.substr(0, 2);
-    const std::string remainder = id.substr(2);
-    const auto file_path = objects_directory_ / prefix / remainder;
-
-    std::ifstream in(file_path, std::ios::binary);
-    if (!in)
-        throw std::runtime_error("object not found: " + id);
-
-    const std::string raw{
-        std::istreambuf_iterator<char>(in),
-        std::istreambuf_iterator<char>{}};
-
-    // Decompress the stored data.  If decompression fails the object was
-    // written by an older version of MiniGit (uncompressed), so fall back
-    // to returning the raw bytes directly — ensuring backward compatibility
-    // with repositories created before v0.5.0.
-    try
+    if (id.size() >= 2)
     {
-        return zlib_decompress(raw);
+        const std::string prefix    = id.substr(0, 2);
+        const std::string remainder = id.substr(2);
+        const auto file_path = objects_directory_ / prefix / remainder;
+
+        std::ifstream in(file_path, std::ios::binary);
+        if (in)
+        {
+            const std::string raw{
+                std::istreambuf_iterator<char>(in),
+                std::istreambuf_iterator<char>{}};
+
+            // Decompress the stored data.  If decompression fails the object was
+            // written by an older version of MiniGit (uncompressed), so fall back
+            // to returning the raw bytes directly — ensuring backward compatibility
+            // with repositories created before v0.5.0.
+            try
+            {
+                return zlib_decompress(raw);
+            }
+            catch (const std::runtime_error&)
+            {
+                return raw;
+            }
+        }
     }
-    catch (const std::runtime_error&)
+
+    // Fall back to packfile search
+    ensure_packs_loaded();
+    for (const auto& pack : packs_)
     {
-        return raw;
+        const int64_t offset = pack.index->find_offset(id);
+        if (offset >= 0)
+        {
+            return pack.reader->read_object(static_cast<uint64_t>(offset), *this);
+        }
     }
-}
+
+    throw std::runtime_error("object not found: " + id);
+}

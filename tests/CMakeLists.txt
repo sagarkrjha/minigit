@@ -10,6 +10,7 @@ add_executable(minigit_tests
     test_clean.cpp
     test_ls.cpp
     test_rebase.cpp
+    test_pack.cpp
 )
 
 target_include_directories(minigit_tests

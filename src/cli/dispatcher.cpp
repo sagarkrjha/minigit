@@ -28,6 +28,7 @@
 #include "remotes/fetch.h"
 #include "remotes/push.h"
 #include "remotes/pull.h"
+#include "storage/repack.h"
 
 #include <functional>
 #include <iostream>
@@ -482,6 +483,16 @@ int cmd_ls_tree(int argc, char const *argv[])
     return ls_tree_command(argc, argv);
 }
 
+int cmd_repack(int argc, char const *argv[])
+{
+    return minigit::storage::repack_command(argc, argv);
+}
+
+int cmd_verify_pack(int argc, char const *argv[])
+{
+    return minigit::storage::verify_pack_command(argc, argv);
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -522,7 +533,9 @@ int run(int argc, char const *argv[])
         {"clone", cmd_clone},
         {"fetch", cmd_fetch},
         {"push", cmd_push},
-        {"pull", cmd_pull}
+        {"pull", cmd_pull},
+        {"repack", cmd_repack},
+        {"verify-pack", cmd_verify_pack}
     };
 
     const std::string command = argv[1];
