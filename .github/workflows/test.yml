@@ -186,6 +186,8 @@ jobs:
             & $exe tag v-smoke
             & $exe show
             "untracked text" | Set-Content "untracked.tmp"
+            & $exe ls-files -o
+            & $exe ls-tree HEAD
             & $exe clean -n
             & $exe clean -f
             Write-Host "Windows CLI smoke tests passed successfully!"
@@ -229,6 +231,8 @@ jobs:
           "$EXE" tag v-smoke
           "$EXE" show
           echo "untracked text" > untracked.tmp
+          "$EXE" ls-files -o
+          "$EXE" ls-tree HEAD
           "$EXE" clean -n
           "$EXE" clean -f
           cd -

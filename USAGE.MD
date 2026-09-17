@@ -55,6 +55,8 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Compute Object Hashes (`minigit hash-object`)](#compute-object-hashes-minigit-hash-object)
   - [Write Staging Area to Tree (`minigit write-tree`)](#write-staging-area-to-tree-minigit-write-tree)
   - [Inspect Stored Objects (`minigit cat-file`)](#inspect-stored-objects-minigit-cat-file)
+  - [List Staged & Working Tree Files (`minigit ls-files`)](#list-staged--working-tree-files-minigit-ls-files)
+  - [Inspect Tree Objects (`minigit ls-tree`)](#inspect-tree-objects-minigit-ls-tree)
 - [11. Command Summary & Cheat Sheet](#11-command-summary--cheat-sheet)
 
 ---
@@ -756,6 +758,65 @@ minigit cat-file -p $SHA
 
 ---
 
+### List Staged & Working Tree Files (`minigit ls-files`)
+
+Inspects the staging area (`.minigit/index`) and compares tracked items against the working directory:
+
+| Option | Description |
+| :--- | :--- |
+| `-c`, `--cached` | Show cached/tracked files (default). |
+| `-s`, `--stage` | Show mode, SHA-256 hash, stage number (`0`), and path. |
+| `-d`, `--deleted` | Show tracked files deleted in working tree. |
+| `-m`, `--modified` | Show tracked files modified in working tree. |
+| `-o`, `--others` | Show untracked files in working tree (respects `.minigitignore`). |
+| `[<path>...]` | Filter output to specific file or directory prefix. |
+
+```bash
+# List all tracked files
+minigit ls-files
+
+# Show staged blob hashes and file modes
+minigit ls-files -s
+
+# Show untracked files
+minigit ls-files -o
+
+# Show modified or deleted files
+minigit ls-files -m
+minigit ls-files -d
+```
+
+---
+
+### Inspect Tree Objects (`minigit ls-tree`)
+
+Inspects the contents of a tree object referenced by a tree-ish (tree SHA, commit SHA, branch, tag, or `HEAD`):
+
+| Option | Description |
+| :--- | :--- |
+| `-r` | Recurse into sub-trees. |
+| `-d` | Show only tree entries (directories). |
+| `-t` | Show tree entries even when recursing with `-r`. |
+| `--name-only` | Show filenames/paths only. |
+| `--object-only` | Show object SHA-256 hashes only. |
+| `[<path>...]` | Filter output to specific paths. |
+
+```bash
+# Inspect root tree of HEAD
+minigit ls-tree HEAD
+
+# Inspect recursively
+minigit ls-tree -r HEAD
+
+# List only file paths
+minigit ls-tree -r --name-only HEAD
+
+# Inspect specific subtree or directory
+minigit ls-tree HEAD src/
+```
+
+---
+
 ## 11. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
@@ -763,6 +824,8 @@ minigit cat-file -p $SHA
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
 | `clean` | `minigit clean [-f\|-n] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |
+| `ls-files` | `minigit ls-files [-s\|-c\|-d\|-m\|-o] [<path>...]` | Inspect index entries and working-tree status. |
+| `ls-tree` | `minigit ls-tree [-d] [-r] [-t] [--name-only] <tree-ish>` | Inspect contents of a tree CAS object. |
 | `add` | `minigit add (<file>\|<dir>\|.) ...` | Stage files, directories, or entire working tree into index. |
 | `commit` | `minigit commit -m <msg> [--author <a>]` | Record staged snapshot into an immutable commit object. |
 | `log` | `minigit log` | Traverse linear commit history backward from HEAD. |
