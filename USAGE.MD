@@ -19,6 +19,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [View Commit History (`minigit log`)](#view-commit-history-minigit-log)
   - [Inspect Differences (`minigit diff`)](#inspect-differences-minigit-diff)
   - [Inspect Objects & Commits (`minigit show`)](#inspect-objects--commits-minigit-show)
+  - [Clean Untracked Files and Directories (`minigit clean`)](#clean-untracked-files-and-directories-minigit-clean)
 - [3. Branching & Switching](#3-branching--switching)
   - [List Branches (`minigit branch`)](#list-branches-minigit-branch)
   - [Create a Branch (`minigit branch <name>`)](#create-a-branch-minigit-branch-name)
@@ -289,6 +290,37 @@ diff --minigit a/tests/test_service.cpp b/tests/test_service.cpp
 @@ -1,0 +1,5 @@
 +#include "service.h"
 +...
+```
+
+---
+
+### Clean Untracked Files and Directories (`minigit clean`)
+
+Removes untracked files and directories from the working directory. Requires `-f` (`--force`) or `-n` (`--dry-run`) to prevent accidental data loss.
+
+```bash
+# 1. Preview untracked files that would be removed (dry-run)
+minigit clean -n
+
+# 2. Force removal of untracked files
+minigit clean -f
+
+# 3. Remove untracked directories as well (-d)
+minigit clean -fd
+
+# 4. Remove all untracked files including ignored ones (-x)
+minigit clean -fx
+
+# 5. Restrict cleaning to a specific path or prefix
+minigit clean -f src/temp/
+```
+
+*Example Output:*
+```text
+Would remove scratch.log
+Would remove temp_build/
+Removing scratch.log
+Removing temp_build/
 ```
 
 ---
@@ -730,6 +762,7 @@ minigit cat-file -p $SHA
 | :--- | :--- | :--- |
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
+| `clean` | `minigit clean [-f\|-n] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |
 | `add` | `minigit add (<file>\|<dir>\|.) ...` | Stage files, directories, or entire working tree into index. |
 | `commit` | `minigit commit -m <msg> [--author <a>]` | Record staged snapshot into an immutable commit object. |
 | `log` | `minigit log` | Traverse linear commit history backward from HEAD. |

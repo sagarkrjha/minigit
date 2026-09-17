@@ -185,6 +185,9 @@ jobs:
             & $exe commit -m "second commit"
             & $exe tag v-smoke
             & $exe show
+            "untracked text" | Set-Content "untracked.tmp"
+            & $exe clean -n
+            & $exe clean -f
             Write-Host "Windows CLI smoke tests passed successfully!"
           } finally {
             Pop-Location
@@ -225,6 +228,9 @@ jobs:
           "$EXE" commit -m "second commit"
           "$EXE" tag v-smoke
           "$EXE" show
+          echo "untracked text" > untracked.tmp
+          "$EXE" clean -n
+          "$EXE" clean -f
           cd -
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"
