@@ -18,6 +18,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Commit Staged Changes (`minigit commit`)](#commit-staged-changes-minigit-commit)
   - [View Commit History (`minigit log`)](#view-commit-history-minigit-log)
   - [Inspect Differences (`minigit diff`)](#inspect-differences-minigit-diff)
+  - [Inspect Objects & Commits (`minigit show`)](#inspect-objects--commits-minigit-show)
 - [3. Branching & Switching](#3-branching--switching)
   - [List Branches (`minigit branch`)](#list-branches-minigit-branch)
   - [Create a Branch (`minigit branch <name>`)](#create-a-branch-minigit-branch-name)
@@ -244,6 +245,50 @@ diff --minigit a/src/main.cpp b/src/main.cpp
 +    std::cout << "MiniGit Version 1.0\n";
      return 0;
  }
+```
+
+---
+
+### Inspect Objects & Commits (`minigit show`)
+
+Displays commit metadata alongside the unified diff against its parent commit, inspects tags, and directly examines trees or blobs.
+
+```bash
+# 1. Inspect the HEAD commit and its changes
+minigit show
+
+# 2. Inspect a specific commit, branch, or tag
+minigit show feature/analytics
+minigit show v1.0.0
+minigit show 7e9a12c
+
+# 3. Ancestry navigation (~N or ^)
+minigit show HEAD~1
+minigit show main^
+
+# 4. View diffstat summary or modified filenames only
+minigit show --stat
+minigit show --name-only 7e9a12c
+
+# 5. Inspect tree or blob objects directly
+minigit show <tree-sha>
+minigit show <blob-sha>
+```
+
+*Example Output (Commit):*
+```text
+commit 7e9a12cf4603951239c4f4244f7d4bb21a71997d9178ad9902636a04a6ee1039
+Author: Jane Doe <jane@example.com>
+Date:   1773322800
+
+    Add unit tests
+
+diff --minigit a/tests/test_service.cpp b/tests/test_service.cpp
+--- a//dev/null
++++ b/tests/test_service.cpp
+@@ -1,0 +1,5 @@
++#include "service.h"
++...
 ```
 
 ---
@@ -688,6 +733,7 @@ minigit cat-file -p $SHA
 | `add` | `minigit add (<file>\|<dir>\|.) ...` | Stage files, directories, or entire working tree into index. |
 | `commit` | `minigit commit -m <msg> [--author <a>]` | Record staged snapshot into an immutable commit object. |
 | `log` | `minigit log` | Traverse linear commit history backward from HEAD. |
+| `show` | `minigit show [--stat\|--name-only] [<obj>]` | Inspect commit metadata with parent diff, tags, trees, or blobs. |
 | `diff` | `minigit diff [--cached] [<path>...]` | Show line-level unified diffs (unstaged or staged). |
 | `branch` | `minigit branch [-d <name>] [<name>]` | List, create, or delete branches. |
 | `switch` | `minigit switch [-c] <branch>` | Switch active branch, optionally creating it first with `-c`. |
