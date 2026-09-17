@@ -37,6 +37,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.22 `minigit push`](#222-minigit-push)
   - [2.23 `minigit pull`](#223-minigit-pull)
   - [2.24 `minigit cherry-pick`](#224-minigit-cherry-pick)
+  - [2.25 `minigit show`](#225-minigit-show)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1186,6 +1187,46 @@ $ minigit cherry-pick feature-branch
 
 ---
 
+### 2.25 `minigit show`
+
+Inspects and pretty-prints repository objects (commits, tags, trees, and blobs) alongside unified diffs.
+
+```text
+minigit show [--stat | --name-only] [<object>]
+```
+
+#### Behavioral Semantics
+1. **Target Resolution:**
+   - Defaults to `HEAD` if no `<object>` argument is supplied.
+   - Resolves branch names (`refs/heads/<name>`), tag names (`refs/tags/<name>`), full 64-character SHA-256 hashes, and short hex prefixes ($\ge 4$ characters with ambiguity check).
+   - Supports ancestry navigation operators: `~<n>` (e.g. `HEAD~1`, `main~2`) and `^` (e.g. `HEAD^`).
+2. **Object Type Semantics:**
+   - **Commit Objects:** Pretty-prints the commit header (`commit`, `Author`, `Date`, indented message) followed by a line-level unified diff against its primary parent commit (`c.parent_ids[0]`). If the target is a root commit (zero parents), changes are diffed against an empty tree (`/dev/null`), showing all files as additions.
+   - **Annotated Tag Objects:** Displays tag metadata (`tag`, `Tagger`, `Date`, tag message) and recursively dereferences and displays the target commit or object.
+   - **Tree Objects:** Formats entries in canonical table structure (`<mode> <type> <sha> <name>`).
+   - **Blob Objects:** Outputs the raw byte contents of the blob directly to standard output.
+3. **Format Options:**
+   - `--stat`: Generates an aligned diffstat summary with addition/deletion histogram bars and summary counts (`X files changed, Y insertions(+), Z deletions(-)`).
+   - `--name-only`: Suppresses diff hunks and outputs only the list of modified, added, or deleted file paths.
+
+#### Example
+```bash
+$ minigit show HEAD
+commit 7e9a12cf4603951239c4f4244f7d4bb21a71997d9178ad9902636a04a6ee1039
+Author: MiniGit User <user@minigit>
+Date:   1773322800
+
+    Implement user authentication
+
+diff --minigit a/auth.cpp b/auth.cpp
+--- a/auth.cpp
++++ b/auth.cpp
+@@ -10,2 +10,4 @@
++bool authenticate(const std::string& token);
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1400,7 +1441,8 @@ flowchart LR
 5. ~~**Stash (`minigit stash`):** Save and restore uncommitted working-directory state without a commit.~~ ✅ **Implemented in v0.4.1**
 6. ~~**Object Compression:** Deflate compression for `.minigit/objects/` loose files using zlib.~~ ✅ **Implemented in v0.5.0**
 7. ~~**Remote Protocols:** Push, pull, fetch, clone, and remote management over local filesystems.~~ ✅ **Implemented in v0.6.0**
-8. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
+8. ~~**Selective Commit Transplantation & Object Inspection:** `minigit cherry-pick` and `minigit show` (commit metadata + unified diff vs parent, tags, trees, and blobs).~~ ✅ **Implemented in v1.1.0**
+9. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
 9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
 10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Selective commit transplantation (`minigit cherry-pick`) ✅ **Implemented in v0.6.1**; Linear history rewriting (`minigit rebase -i`), commit squashing, and commit amending scheduled for subsequent phases.
 11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.

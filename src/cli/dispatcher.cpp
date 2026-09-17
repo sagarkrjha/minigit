@@ -7,6 +7,7 @@
 #include "staging/write_tree.h"
 #include "history/commit.h"
 #include "history/log.h"
+#include "history/show.h"
 #include "staging/status.h"
 #include "diff/diff.h"
 #include "branching/branch.h"
@@ -123,6 +124,12 @@ int cmd_log(int /*argc*/, char const * /*argv*/[])
     log();
     return 0;
 }
+
+int cmd_show(int argc, char const *argv[])
+{
+    return show_command(argc, argv);
+}
+
 
 int cmd_status(int /*argc*/, char const * /*argv*/[])
 {
@@ -471,6 +478,7 @@ int run(int argc, char const *argv[])
         {"write-tree", cmd_write_tree},
         {"commit", cmd_commit},
         {"log", cmd_log},
+        {"show", cmd_show},
         {"status", cmd_status},
         {"diff", cmd_diff},
         {"branch", cmd_branch},

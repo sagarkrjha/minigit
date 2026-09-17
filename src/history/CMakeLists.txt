@@ -1,6 +1,7 @@
 add_library(minigit_history STATIC
     commit.cpp
     log.cpp
+    show.cpp
 )
 
 target_include_directories(minigit_history
@@ -14,4 +15,6 @@ target_link_libraries(minigit_history
         minigit_storage
         minigit_repository
         minigit_staging
+        minigit_diff
 )
+
