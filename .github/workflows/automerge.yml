@@ -14,8 +14,9 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'Pull Request number to enable automerge on'
-        required: true
+        description: 'Pull Request number to enable automerge on (leave blank for all open PRs)'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -27,36 +28,105 @@ env:
 
 jobs:
   automerge:
-    name: Enable Auto-Merge
+    name: Auto-Merge & Cascade Queue
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Configure Auto-Merge & Delete Branch
+      - name: Process Auto-Merge & Multi-PR Queue
         env:
-          GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.AUTO_MERGE_PAT }}
+          G_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # If triggered after PR merge, delete the merged feature branch
-          if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-            BRANCH="${{ github.event.pull_request.head.ref }}"
-            if [ -n "$BRANCH" ] && [ "$BRANCH" != "main" ]; then
-              echo "PR merged. Deleting feature branch '$BRANCH'..."
-              gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$BRANCH" || true
+          # Helper: Enable auto-merge with dual-token fallback strategy
+          enable_automerge_for_pr() {
+            local pr="$1"
+            local pr_url="https://github.com/${{ github.repository }}/pull/$pr"
+            echo "Attempting to enable auto-merge on PR #$pr ($pr_url)..."
+
+            # 1. Try with AUTO_MERGE_PAT if configured
+            if [ -n "$PAT_TOKEN" ]; then
+              echo "Trying auto-merge with AUTO_MERGE_PAT..."
+              if GH_TOKEN="$PAT_TOKEN" gh pr merge "$pr" --auto --squash --delete-branch; then
+                echo "Successfully enabled auto-merge using AUTO_MERGE_PAT for PR #$pr."
+                return 0
+              else
+                echo "AUTO_MERGE_PAT failed (possibly lacking GraphQL permissions). Retrying with GITHUB_TOKEN..."
+              fi
             fi
+
+            # 2. Fallback to GITHUB_TOKEN
+            if GH_TOKEN="$G_TOKEN" gh pr merge "$pr" --auto --squash --delete-branch; then
+              echo "Successfully enabled auto-merge using GITHUB_TOKEN for PR #$pr."
+              return 0
+            fi
+
+            echo "WARNING: Could not enable auto-merge on PR #$pr with available tokens. Ensure 'Allow auto-merge' is enabled in repo settings."
+            return 1
+          }
+
+          # Helper: Delete branch safely
+          delete_branch() {
+            local branch="$1"
+            local token="${PAT_TOKEN:-$G_TOKEN}"
+            if [ -n "$branch" ] && [ "$branch" != "main" ]; then
+              echo "Deleting feature branch '$branch'..."
+              GH_TOKEN="$token" gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" || true
+            fi
+          }
+
+          # CASE 1: PR was merged -> Delete branch and cascade update to remaining open PRs
+          if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+            delete_branch "${{ github.event.pull_request.head.ref }}"
+
+            echo "PR #${{ github.event.pull_request.number }} was merged into main. Scanning remaining open PRs..."
+            ACTIVE_TOKEN="${PAT_TOKEN:-$G_TOKEN}"
+            OPEN_PRS=$(GH_TOKEN="$ACTIVE_TOKEN" gh pr list --state open --base main --json number --jq '.[].number' || true)
+
+            if [ -z "$OPEN_PRS" ]; then
+              echo "No other open PRs targeting main."
+              exit 0
+            fi
+
+            echo "Found remaining open PRs: $OPEN_PRS"
+            for pr in $OPEN_PRS; do
+              echo "=================================================="
+              echo "Cascading update to open PR #$pr..."
+
+              # Update branch with newly merged main so checks re-run with latest code
+              echo "Updating branch for PR #$pr against latest main..."
+              GH_TOKEN="$ACTIVE_TOKEN" gh pr update-branch "$pr" --rebase || \
+              GH_TOKEN="$ACTIVE_TOKEN" gh pr update-branch "$pr" || {
+                echo "Notice: Could not automatically update branch for PR #$pr (may have conflicts or already up to date)."
+              }
+
+              # Ensure auto-merge remains active
+              enable_automerge_for_pr "$pr" || true
+            done
             exit 0
           fi
 
-          PR_URL="${{ github.event.pull_request.html_url }}"
-          if [ -z "$PR_URL" ] && [ -n "${{ inputs.pr_number }}" ]; then
-            PR_URL="https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number }}"
+          # CASE 2: Single PR event or targeted workflow dispatch
+          TARGET_PR="${{ github.event.pull_request.number }}"
+          if [ -z "$TARGET_PR" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            TARGET_PR="${{ inputs.pr_number }}"
           fi
 
-          if [ -n "${{ secrets.AUTO_MERGE_PAT }}" ]; then
-            echo "Using custom AUTO_MERGE_PAT token."
-          else
-            echo "WARNING: AUTO_MERGE_PAT secret is not set; falling back to default GITHUB_TOKEN."
+          if [ -n "$TARGET_PR" ]; then
+            enable_automerge_for_pr "$TARGET_PR"
+            exit 0
           fi
 
-          echo "Enabling auto-merge (squash with branch deletion) for $PR_URL..."
-          gh pr merge "$PR_URL" --auto --squash --delete-branch || {
-            echo "Auto-merge command returned non-zero. Ensure 'Allow auto-merge' is enabled in repo settings."
-          }
+          # CASE 3: Batch workflow dispatch across all open PRs
+          echo "Batch mode triggered: Processing all open PRs against main..."
+          ACTIVE_TOKEN="${PAT_TOKEN:-$G_TOKEN}"
+          ALL_PRS=$(GH_TOKEN="$ACTIVE_TOKEN" gh pr list --state open --base main --json number --jq '.[].number' || true)
+
+          if [ -z "$ALL_PRS" ]; then
+            echo "No open PRs found."
+            exit 0
+          fi
+
+          for pr in $ALL_PRS; do
+            echo "----------------------------------------"
+            enable_automerge_for_pr "$pr" || true
+          done
