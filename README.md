@@ -118,6 +118,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Ignore Rules:** `.minigitignore` file with glob pattern matching (wildcards, directory patterns, negation with `!`) to exclude files from `status` and `add`.
 - **Tagging:** Lightweight and annotated tags via `minigit tag`; annotated tags stored as first-class objects in the object database.
 - **History Rewriting & Undo:** Flexible history modification via `minigit reset` (`--soft`, `--mixed`, `--hard`) and non-destructive, history-safe commit inversion via `minigit revert`.
+- **Cherry-Pick & Linear Rebase:** Selective changeset transplantation via `minigit cherry-pick` and sequential linear history replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`).
 - **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation via DAG traversal, fast-forward detection, line-level three-way merging, conflict marker insertion (`<<<<<<<`, `=======`, `>>>>>>>`), and multi-parent merge commits via `minigit merge`.
 - **Stash Management:** Temporarily shelve uncommitted working-tree and staging changes with `minigit stash` (`push`, `list`, `pop`, `drop`, `show`).
 - **Object Compression:** Deflate compression with transparent backward compatibility via `zlib` for all loose objects in CAS storage.
@@ -178,7 +179,9 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit add (<file>\|<dir>\|.)...` | Porcelain | Stages one or more files, directories, or the entire working tree (`.`) into the index. |
 | `minigit commit -m <msg> [--author <a>]` | Porcelain | Records staged changes into a new commit object and advances HEAD. |
 | `minigit log` | Porcelain | Displays commit logs following parent commit hashes from HEAD. |
+| `minigit show [--stat\|--name-only] [<object>]` | Porcelain | Inspects commit metadata with parent diff, annotated tags, trees, or blobs. |
 | `minigit diff [--cached] [<path>...]` | Porcelain | Displays line-level unified diffs (unstaged or staged). |
+| `minigit clean [-f\|-n] [-d] [-x] [<path>...]` | Porcelain | Removes untracked files and directories from the working tree. |
 | `minigit branch [name] [-d name]` | Porcelain | Lists, creates, or deletes branches. |
 | `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
@@ -186,6 +189,8 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
 | `minigit revert <commit> [--author <a>]` | Porcelain | Creates a new commit that inverts the changes of a target commit. |
+| `minigit cherry-pick [-n] [--author <a>] [-m <p>] <c>` | Porcelain | Transplants changes from a commit onto current branch. |
+| `minigit rebase [-i] [--onto <nb>] <up> \| --continue \| --abort \| --skip` | Porcelain | Replays commits linearly onto upstream base. |
 | `minigit stash [push\|list\|pop\|drop\|show]` | Porcelain | Shelves uncommitted changes or restores saved working-tree state. |
 | `minigit remote [add\|remove\|-v]` | Porcelain | Manages tracked remote repositories in `.minigit/config`. |
 | `minigit clone <repository> [<directory>]` | Porcelain | Clones a repository, sets up `origin` tracking, and checks out HEAD. |
@@ -195,6 +200,8 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
+| `minigit ls-files [-s\|-c\|-d\|-m\|-o] [<path>...]` | Plumbing | Inspects staged files, cached status, modifications, deletions, and untracked entries. |
+| `minigit ls-tree [-d] [-r] [-t] [--name-only] <tree-ish>` | Plumbing | Traverses and inspects hierarchical tree CAS objects. |
 
 ---
 
@@ -784,7 +791,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 6: Networking & Remotes:** Local filesystem remotes protocol with `clone`, `remote`, `fetch`, `push`, and `pull`.
 - [ ] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression.
 - [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
-- [ ] **Phase 9: Interactive Rebase & Cherry-Pick:** History rewriting (`minigit rebase -i`), commit squashing, amending, and individual commit transplantation (`minigit cherry-pick`).
+- [x] **Phase 9: Linear Rebase & Cherry-Pick:** Linear history rewriting and replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`), and individual commit transplantation (`minigit cherry-pick`).
 - [ ] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) and nested repository tracking (`minigit submodule`).
 
 ---

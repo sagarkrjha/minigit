@@ -21,6 +21,7 @@
 #include "merge/merge.h"
 #include "merge/revert.h"
 #include "merge/cherry_pick.h"
+#include "merge/rebase.h"
 #include "stash/stash.h"
 #include "remotes/remote.h"
 #include "remotes/clone.h"
@@ -396,6 +397,11 @@ int cmd_cherry_pick(int argc, char const *argv[])
     return 0;
 }
 
+int cmd_rebase(int argc, char const *argv[])
+{
+    return rebase_command(argc, argv);
+}
+
 int cmd_stash(int argc, char const *argv[])
 {
     // minigit stash [push]            → save working state, restore HEAD
@@ -510,6 +516,7 @@ int run(int argc, char const *argv[])
         {"merge", cmd_merge},
         {"revert", cmd_revert},
         {"cherry-pick", cmd_cherry_pick},
+        {"rebase", cmd_rebase},
         {"stash", cmd_stash},
         {"remote", cmd_remote},
         {"clone", cmd_clone},

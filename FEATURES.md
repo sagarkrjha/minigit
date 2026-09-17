@@ -39,6 +39,9 @@ This document provides a comprehensive, production-grade technical specification
   - [2.24 `minigit cherry-pick`](#224-minigit-cherry-pick)
   - [2.25 `minigit show`](#225-minigit-show)
   - [2.26 `minigit clean`](#226-minigit-clean)
+  - [2.27 `minigit ls-files`](#227-minigit-ls-files)
+  - [2.28 `minigit ls-tree`](#228-minigit-ls-tree)
+  - [2.29 `minigit rebase`](#229-minigit-rebase)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1365,6 +1368,79 @@ f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb
 
 ---
 
+### 2.29 `minigit rebase`
+
+#### Synopsis
+```bash
+minigit rebase [-i | --interactive] [--onto <newbase>] <upstream>
+minigit rebase --continue
+minigit rebase --abort
+minigit rebase --skip
+```
+
+#### Purpose
+`minigit rebase` replays commits from the current branch onto an upstream reference (or an explicit `--onto` base) sequentially via three-way commit transplantation, producing a clean, linear project history without merge commits.
+
+#### Flags & Options
+| Flag / Option | Description |
+| :--- | :--- |
+| `<upstream>` | Target revision (branch name, tag, full SHA, short SHA, or ancestry `~N`/`^`) serving as the upstream boundary. |
+| `--onto <newbase>` | Specifies an alternative base commit to replay onto instead of `<upstream>`. |
+| `--continue` | Resumes replaying remaining commits after resolving conflict markers and staging changes with `add`. |
+| `--abort` | Cancels the rebase operation entirely and restores the branch, index, and working tree to their pre-rebase state. |
+| `--skip` | Discards the currently conflicted commit and continues replaying subsequent commits in the queue. |
+| `-i`, `--interactive` | Accepted for compatibility; executes the linear replay sequence. |
+
+#### Architectural Semantics & Execution Model
+1. **Pre-flight Cleanliness Safeguard:**
+   - MiniGit strictly verifies that the working tree and staging area have no uncommitted modifications to tracked files.
+   - If unstaged or staged changes exist, rebase aborts immediately to protect uncommitted work:
+     ```text
+     error: cannot rebase: You have unstaged changes.
+     error: Please commit or stash them.
+     ```
+2. **Commit Range & Convergence Detection:**
+   - Computes the Lowest Common Ancestor (LCA) between `HEAD` and `<upstream>` using DAG BFS traversal (`find_merge_base`).
+   - **Up-to-Date Check:** If `HEAD == upstream` or if `merge_base == upstream` (when `--onto` is not used), no rebase is required (`Current branch <branch> is up to date.`).
+   - **Fast-Forward:** If `merge_base == HEAD`, the current branch is a direct ancestor of upstream. The branch pointer and working tree are fast-forwarded directly to `<upstream>`.
+   - **Replay Range:** Collects all commits reachable from `HEAD` that are not ancestors of `<upstream>` in chronological (oldest-first) order.
+3. **Head Detachment & State Persistence:**
+   - HEAD is detached and rewound to the `<onto>` commit (defaulting to `<upstream>`), and the working tree and index are synchronized.
+   - State metadata is serialized in `.minigit/rebase-apply/`:
+     - `head-name`: Active branch reference (e.g. `refs/heads/feature`).
+     - `orig-head`: SHA-256 hash of `HEAD` before rebase started.
+     - `onto`: SHA-256 hash of the base commit.
+     - `current`: SHA-256 hash of the commit currently being applied.
+     - `current-author`: Original commit author identity.
+     - `current-message`: Original commit message.
+     - `todo`: Newline-separated list of subsequent commit SHAs awaiting replay.
+4. **Sequential Commit Transplantation:**
+   - For each commit in the queue, MiniGit performs a three-way line merge:
+     - **Base:** Parent of the target commit.
+     - **Ours:** Current detached HEAD.
+     - **Theirs:** Target commit.
+   - On clean merge: a new tree is created, a new commit is minted preserving the original author and message, and detached HEAD advances.
+   - On conflict: standard Git conflict markers (`<<<<<<< HEAD`, `=======`, `>>>>>>> <sha>... <msg>`) are written to conflicted files, and execution pauses with actionable resolution hints.
+5. **Conflict Resolution & Step-Through Recovery:**
+   - `--continue`: Verifies no unmerged conflict markers remain, commits the resolved index, and resumes the replay loop for remaining commits in `todo`.
+   - `--abort`: Restores the working tree and index from `orig-head`, resets the branch ref to `orig-head`, and deletes `.minigit/rebase-apply/`.
+   - `--skip`: Resets the working tree and index to the current HEAD (discarding the conflicted commit) and resumes the replay loop with remaining commits.
+6. **Reference Finalization:**
+   - Once all queued commits succeed, the original branch reference (`refs/heads/<branch>`) is updated to the final replayed commit SHA, `HEAD` is attached back to `ref: refs/heads/<branch>`, and `.minigit/rebase-apply/` is removed.
+
+#### Example
+```bash
+# Rebase feature branch onto main
+$ minigit switch feature
+$ minigit rebase main
+First, rewinding head to replay your work on top of it...
+Applying: Add user authentication service
+Applying: Add JWT validation middleware
+Successfully rebased and updated refs/heads/feature.
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1584,7 +1660,7 @@ flowchart LR
 10. ~~**Index and Tree Object Plumbing:** `minigit ls-files` (stage and working tree status filtering) and `minigit ls-tree` (tree-ish resolution and recursive tree traversal).~~ ✅ **Implemented in v1.2.1**
 11. **Packfiles (`.pack`) & Delta Compression (Phase 7 / v0.7.0):** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.
 9. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-10. **Interactive Rebase & Cherry-Pick (Phase 9 / v0.9.0):** Selective commit transplantation (`minigit cherry-pick`) ✅ **Implemented in v0.6.1**; Linear history rewriting (`minigit rebase -i`), commit squashing, and commit amending scheduled for subsequent phases.
+10. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
 11. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
 12. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
 
