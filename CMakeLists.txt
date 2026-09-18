@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(minigit
-    VERSION 1.7.0
+    VERSION 1.8.0
     DESCRIPTION "A simple Git implementation in C++"
     LANGUAGES CXX    
 )
@@ -17,6 +17,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR})
 
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(CURL REQUIRED)
 
 add_subdirectory(src)
 

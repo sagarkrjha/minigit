@@ -6,6 +6,10 @@ add_library(minigit_remotes STATIC
     fetch.cpp
     push.cpp
     pull.cpp
+    pkt_line.cpp
+    http_client.cpp
+    pack_unpack.cpp
+    smart_http.cpp
 )
 
 target_include_directories(minigit_remotes
@@ -19,4 +23,5 @@ target_link_libraries(minigit_remotes
         minigit_storage
         minigit_repository
         minigit_staging
+        CURL::libcurl
 )

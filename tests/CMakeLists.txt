@@ -14,6 +14,7 @@ add_executable(minigit_tests
     test_worktree.cpp
     test_submodule.cpp
     test_bisect.cpp
+    test_smart_http.cpp
 )
 
 target_include_directories(minigit_tests
@@ -34,6 +35,12 @@ target_link_libraries(minigit_tests
         minigit_worktree
         minigit_submodule
         minigit_bisect
+        minigit_remotes
+        CURL::libcurl
 )
+
+if(WIN32)
+    target_link_libraries(minigit_tests PRIVATE ws2_32)
+endif()
 
 add_test(NAME minigit_tests COMMAND minigit_tests)

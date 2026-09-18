@@ -70,9 +70,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           # Fast-path check: avoid slow apt-get update if packages already exist
-          if ! pkg-config --exists openssl zlib; then
+          if ! pkg-config --exists openssl zlib libcurl; then
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev ninja-build
+            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev libcurl4-openssl-dev ninja-build
           fi
 
       # --- macOS dependencies ---
@@ -97,14 +97,14 @@ jobs:
           path: |
             ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
             ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-vcpkg-openssl-zlib-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-vcpkg-openssl-zlib-curl-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-openssl-zlib-
+            ${{ runner.os }}-vcpkg-openssl-zlib-curl-
 
       - name: Install dependencies via vcpkg (Windows)
         if: runner.os == 'Windows'
         run: |
-          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
+          vcpkg install openssl:x64-windows-static zlib:x64-windows-static curl:x64-windows-static
 
       # --- Configure CMake ---
       - name: Configure CMake (Linux)

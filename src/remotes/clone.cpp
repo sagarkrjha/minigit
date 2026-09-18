@@ -1,4 +1,5 @@
 #include "clone.h"
+#include "smart_http.h"
 
 #include "config.h"
 #include "transfer.h"
@@ -81,6 +82,12 @@ static void checkout_tree(const fs::path &root,
 
 void clone_command(const std::string &src_path, const std::string &dest_dir_str)
 {
+    if (minigit::remotes::is_http_url(src_path))
+    {
+        minigit::remotes::clone_http(src_path, dest_dir_str);
+        return;
+    }
+
     // 1. Validate source.
     const fs::path src = fs::weakly_canonical(fs::absolute(src_path));
     const fs::path src_git = src / ".minigit";

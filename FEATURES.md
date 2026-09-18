@@ -45,6 +45,8 @@ This document provides a comprehensive, production-grade technical specification
   - [2.31 `minigit verify-pack`](#231-minigit-verify-pack)
   - [2.32 `minigit worktree`](#232-minigit-worktree)
   - [2.33 `minigit submodule`](#233-minigit-submodule)
+  - [2.34 `minigit bisect`](#234-minigit-bisect)
+  - [2.35 Smart HTTP Network Remotes](#235-smart-http-network-remotes)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1910,6 +1912,75 @@ bisect run success
 
 ---
 
+### 2.35 Smart HTTP Network Remotes
+
+#### Purpose
+Enables remote repository synchronization over HTTP and HTTPS using canonical Git Smart HTTP Transfer Protocol v1. MiniGit transparently detects network URLs (`http://`, `https://`) in `minigit clone`, `minigit fetch`, `minigit push`, and `minigit pull`, communicating with standard Git HTTP servers, Git daemons, GitHub, GitLab, and custom Git HTTP endpoints via libcurl.
+
+#### Protocol Flow & Sequence
+The Smart HTTP protocol uses two service endpoints:
+1. `git-upload-pack`: Used for fetching and cloning objects from the remote.
+2. `git-receive-pack`: Used for pushing commits and updating branch references on the remote.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as MiniGit Client
+    participant S as Git HTTP Server
+
+    Note over C,S: Fetch / Clone Exchange (git-upload-pack)
+    C->>S: GET /repo.git/info/refs?service=git-upload-pack
+    S-->>C: 200 OK (application/x-git-upload-pack-advertisement)<br/># service=git-upload-pack<br/>0000<br/>SHA HEAD\0symref=HEAD:refs/heads/main ...<br/>SHA refs/heads/main<br/>0000
+    C->>S: POST /repo.git/git-upload-pack<br/>want <sha> ofs-delta agent=minigit/1.8.0<br/>0000<br/>have <sha><br/>done
+    S-->>C: 200 OK (application/x-git-upload-pack-result)<br/>0008NAK\n + PACK<binary-stream>
+    Note over C: Demultiplex side-band & unpack objects directly to CAS
+
+    Note over C,S: Push Exchange (git-receive-pack)
+    C->>S: GET /repo.git/info/refs?service=git-receive-pack
+    S-->>C: 200 OK (application/x-git-receive-pack-advertisement)<br/># service=git-receive-pack<br/>0000<br/>old-SHA refs/heads/main\0report-status<br/>0000
+    Note over C: Fast-forward check & packfile generation
+    C->>S: POST /repo.git/git-receive-pack<br/>old-SHA new-SHA refs/heads/main\0report-status<br/>0000<br/>PACK<binary-stream>
+    S-->>C: 200 OK (application/x-git-receive-pack-result)<br/>unpack ok<br/>ok refs/heads/main
+```
+
+#### Protocol Specification Details
+
+1. **Packet-Line (pkt-line) Framing**:
+   - Every packet is prefixed with a 4-hex-digit length indicator (in ASCII hex) encoding the length of the entire packet (including the 4-byte header itself).
+   - `0000` represents a flush packet (`FLUSH-PKT`), used to terminate command lists and indicate end of transmission phases.
+   - `0001` represents a delimiter packet (`DELIM-PKT`).
+   - Line-oriented text records terminate with `\n`.
+   - The initial advertised ref line appends a null byte `\0` followed by space-separated capabilities (`symref=HEAD:refs/heads/main`, `ofs-delta`, `side-band-64k`, `report-status`, `agent=minigit/1.8.0`).
+
+2. **Reference Discovery (`info/refs`)**:
+   - Upload-pack discovery requests `GET <url>/info/refs?service=git-upload-pack`. The response begins with `# service=git-upload-pack\n` framed as a pkt-line followed by `0000`, then the list of reachable references (`<sha> <refname>\n`).
+   - Receive-pack discovery requests `GET <url>/info/refs?service=git-receive-pack` to ascertain the remote's current commit tip for ref validation.
+
+3. **Negotiation & Object Transfer (`git-upload-pack`)**:
+   - The client constructs a want list (`want <sha>`) for all advertised refs not already present in the local database.
+   - For incremental fetches, the client lists local branch tips via `have <sha>` commands.
+   - Client sends `0000` (flush) followed by `done\n`.
+   - The server responds with `NAK\n` (or `ACK <sha>`) followed by the raw packfile stream or multiplexed side-band stream.
+
+4. **Sideband Demultiplexing & In-Flight Unpacking**:
+   - When the server transmits multiplexed streams (`side-band` or `side-band-64k`), each packet payload contains a 1-byte channel prefix:
+     - Channel `\x01`: Packfile binary data stream.
+     - Channel `\x02`: Progress messages printed to console.
+     - Channel `\x03`: Server-side error messages.
+   - `extract_pack_stream` reassembles channel 1 payloads and validates the 4-byte `PACK` header signature and version 2 table.
+   - `unpack_pack_stream_to_db` scans all objects, applies base objects to loose storage, and iteratively resolves single and chained `OBJ_REF_DELTA` / `OBJ_OFS_DELTA` deltas against the local `ObjectDatabase`.
+
+5. **Push Transfer & Verification (`git-receive-pack`)**:
+   - Verifies that the update is a fast-forward: ancestors of local tip must include the current remote SHA.
+   - Generates a delta-compressed packfile containing only missing commits, trees, and blobs.
+   - Sends command line: `<old-sha> <new-sha> refs/heads/<branch>\0report-status agent=minigit/1.8.0\n` + `0000` + binary pack bytes.
+   - Parses the server's `unpack ok` and `ok <ref>` status confirmations.
+
+6. **Environment & Security Flags**:
+   - `GIT_SSL_NO_VERIFY=1` or `MINIGIT_SSL_NO_VERIFY=1`: Disables SSL peer and host verification for local self-signed development environments and internal corporate mirrors.
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -2118,7 +2189,7 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Object Header** | `<type> <size>\0<content>` | `<type> <size>\0<content>` |
 | **Object Compression** | zlib deflate compression | zlib deflate compression |
 | **Packfiles (`.pack`)** | Supported (v1.4.0, delta compression) | Full support (delta compression) |
-| **Remotes & Synchronization** | Local filesystem (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
+| **Remotes & Synchronization** | Local filesystem & Smart HTTP/HTTPS (`clone`, `fetch`, `push`, `pull` with pkt-line packet protocol) | Full local, SSH, Git, HTTP/S protocols |
 | **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file`, `verify-pack` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, `verify-pack`, and many more |
 | **Index Serialization** | Human-readable `<path> <sha256>` | Binary DIRC structure with stat cache |
 | **Diff Engine** | LCS DP Matrix | Eugene Myers $O(ND)$ Difference Algorithm |
@@ -2142,8 +2213,8 @@ flowchart LR
     B --> C["v1.4.0\nPackfiles & Delta Compression"]
     C --> D["v1.5.0\nLinked Worktrees"]
     D --> E["v1.6.0\nSubmodules"]
-    E --> F["v1.7.0 (Current)\nBisect Debugging"]
-    F --> G["Future\nSmart HTTP Remotes"]
+    E --> F["v1.7.0\nBisect Debugging"]
+    F --> G["v1.8.0 (Current)\nSmart HTTP Remotes"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -2161,6 +2232,5 @@ flowchart LR
 13. ~~**Multiple Worktrees (Phase 10 / v1.5.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.~~ ✅ **Implemented in v1.5.0**
 14. ~~**Submodule Support (Phase 11 / v1.6.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).~~ ✅ **Implemented in v1.6.0**
 15. ~~**Binary Search Debugging (Phase 12 / v1.7.0):** Binary search debugging (`minigit bisect`) to pinpoint regression-introducing commits across linear and branching DAG histories with automated test script execution (`bisect run`), session recording/replay, and customizable terms.~~ ✅ **Implemented in v1.7.0**
-16. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-
+16. ~~**Smart HTTP Network Remotes (Phase 13 / v1.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional pkt-line framing, ref advertisement discovery (`/info/refs?service=git-upload-pack|git-receive-pack`), want/have/done negotiation, packfile streaming & sideband demultiplexing, unpacked directly to CAS.~~ ✅ **Implemented in v1.8.0**
 

@@ -1027,15 +1027,23 @@ minigit bisect reset main
 
 ## 11. Remote Repositories & Synchronization
 
-MiniGit includes full local-filesystem synchronization protocol commands.
+MiniGit supports both **local-filesystem repositories** and **Smart HTTP / HTTPS network remotes** (using Git Smart HTTP Transfer Protocol v1 over `libcurl`).
 
 ### Clone a Repository (`minigit clone`)
 
-Clones an existing repository into a target directory, sets up `origin` tracking in `.minigit/config`, and checks out `HEAD`.
+Clones an existing repository into a target directory, sets up `origin` tracking in `.minigit/config`, and checks out `HEAD`. Accepts both local filesystem paths and remote `http://` / `https://` URLs:
 
 ```bash
+# Clone from local filesystem repository
 minigit clone C:/projects/upstream downstream_repo
 cd downstream_repo
+
+# Clone over Smart HTTP / HTTPS
+minigit clone https://github.com/example/sample-repo.git sample_repo
+cd sample_repo
+
+# Clone into a custom destination directory
+minigit clone http://git.internal.lan/team/core.git custom_dest
 ```
 
 ---
@@ -1051,8 +1059,11 @@ minigit remote
 # List remotes with URLs (verbose)
 minigit remote -v
 
-# Add a remote
+# Add a local filesystem remote
 minigit remote add backup C:/backups/minigit_repo
+
+# Add an HTTP / HTTPS remote
+minigit remote add origin https://github.com/example/sample-repo.git
 
 # Remove a remote
 minigit remote remove backup
@@ -1062,31 +1073,62 @@ minigit remote remove backup
 
 ### Fetch Updates (`minigit fetch`)
 
-Downloads missing commits, trees, and blobs from a remote and updates remote-tracking references under `.minigit/refs/remotes/<remote>/<branch>` without modifying local branches:
+Downloads missing commits, trees, and blobs from a local or HTTP/HTTPS remote and updates remote-tracking references under `.minigit/refs/remotes/<remote>/<branch>` without modifying local branches:
 
 ```bash
+# Fetch from origin remote (local or HTTP/HTTPS)
 minigit fetch origin
+
+# Output indicates new branches or fast-forward commit ranges:
+# From https://github.com/example/sample-repo.git
+#    1a2b3c4..5d6e7f8  main -> origin/main
+#  * [new branch]      feature-auth -> origin/feature-auth
 ```
 
 ---
 
 ### Push Commits (`minigit push`)
 
-Transfers missing objects to the remote and advances the remote branch reference using fast-forward verification:
+Transfers missing objects to the remote (using delta-compressed packfiles over Smart HTTP `/git-receive-pack`) and advances the remote branch reference using fast-forward verification:
 
 ```bash
-# Push current branch to origin
+# Push active branch to origin
 minigit push origin main
+
+# Push a specific topic branch
+minigit push origin feature-oauth
 ```
+
+> [!NOTE]
+> MiniGit enforces canonical Git safety rules: non-fast-forward updates are rejected if the remote contains commits you do not possess locally. Run `minigit pull` or `minigit rebase` before re-pushing.
 
 ---
 
 ### Pull & Fast-Forward (`minigit pull`)
 
-Fetches latest objects from the remote and fast-forwards the active branch:
+Fetches latest objects from the remote and merges or fast-forwards the tracking branch into the active local branch:
 
 ```bash
+# Pull changes from default tracking remote and branch
+minigit pull
+
+# Pull specific branch from origin
 minigit pull origin main
+```
+
+---
+
+### Test Environment SSL Verification
+
+For self-signed SSL certificates, internal staging servers, or automated test pipelines, disable SSL certificate validation using standard environment variables:
+
+```bash
+# Windows (PowerShell)
+$env:GIT_SSL_NO_VERIFY="1"
+.\minigit.exe clone https://self-signed.local/repo.git
+
+# Linux / macOS (Bash)
+GIT_SSL_NO_VERIFY=1 ./minigit clone https://self-signed.local/repo.git
 ```
 
 ---
