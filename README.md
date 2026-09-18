@@ -125,6 +125,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Remotes & Synchronization:** Full local remote synchronization workflow: clone repositories with `minigit clone`, manage remotes with `minigit remote`, fetch updates with `minigit fetch`, fast-forward push with `minigit push`, and pull latest changes with `minigit pull`.
 - **Linked Worktrees:** Check out and work on multiple branches simultaneously using isolated linked working directories (`minigit worktree`), sharing the central CAS object database and reference namespace while preventing branch checkout collisions.
 - **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
+- **Binary Search Debugging:** Pinpoint regression-introducing commits across linear and branching DAG histories using `minigit bisect` (`start`, `bad`/`new`, `good`/`old`, `skip`, `reset`, `terms`, `log`, `replay`, and automated `run`).
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -189,6 +190,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move]` | Porcelain | Manages multiple linked working directories attached to single repository. |
 | `minigit submodule [add\|status\|init\|update\|deinit\|summary\|foreach\|sync]` | Porcelain | Manages nested repositories, `.minigitmodules`, and mode 160000 gitlinks. |
+| `minigit bisect [help\|start\|bad\|good\|new\|old\|skip\|reset\|terms\|log\|replay\|run]` | Porcelain | Pinpoints regression-introducing commits using DAG-aware binary search. |
 | `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
@@ -764,6 +766,9 @@ minigit/
 │   │   ├── CMakeLists.txt
 │   │   ├── submodule_config.{h,cpp} # .minigitmodules & config INI manager
 │   │   └── submodule.{h,cpp}   # submodule add, status, init, update, deinit, summary, foreach, sync
+│   ├── bisect/                 # Binary Search Debugging Subsystem
+│   │   ├── CMakeLists.txt
+│   │   └── bisect.{h,cpp}      # bisect start, bad, good, skip, reset, terms, log, replay, run
 │   └── remotes/                # Remote Synchronization & Transport Protocol
 │       ├── CMakeLists.txt
 │       ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
@@ -789,6 +794,7 @@ minigit/
 | **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
 | **Linked Worktrees** | Full support (add, list, remove, prune, lock, unlock, move) | Full support |
 | **Submodules** | Full support (add, status, init, update, deinit, summary, foreach, sync, mode 160000 gitlinks) | Full support |
+| **Binary Search Debugging (bisect)** | Full support (DAG midpoint search, automated run, log/replay, terms) | Full support |
 | **Remotes & Transport**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
 | **Compression & Packing** | zlib deflate & Packfile v2 with delta compression | zlib deflate compression & Packfiles |
 
@@ -808,6 +814,7 @@ Planned milestones for future MiniGit development:
 - [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
 - [x] **Phase 9: Linear Rebase & Cherry-Pick:** Linear history rewriting and replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`), and individual commit transplantation (`minigit cherry-pick`).
 - [x] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) implemented in v1.5.0; nested repository tracking and gitlinks (`minigit submodule`) implemented in v1.6.0.
+- [x] **Phase 11: Binary Search Debugging:** DAG-aware binary search debugging (`minigit bisect`) with automated test execution (`bisect run`), session recording/replay, and customizable terms implemented in v1.7.0.
 
 ---
 

@@ -60,14 +60,21 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Deinitialize Submodules (`deinit`)](#deinitialize-submodules-minigit-submodule-deinit)
   - [Synchronize Remote URLs (`sync`)](#synchronize-remote-urls-minigit-submodule-sync)
   - [Inspect Differences (`summary`)](#inspect-submodule-commit-differences-minigit-submodule-summary)
-- [10. Remote Repositories & Synchronization](#10-remote-repositories--synchronization)
+- [10. Binary Search Debugging (`minigit bisect`)](#10-binary-search-debugging-minigit-bisect)
+  - [Start a Bisection Session (`start`)](#start-a-bisection-session-minigit-bisect-start)
+  - [Mark Commits as Bad, Good, or Skip (`bad` / `good` / `skip`)](#mark-commits-as-bad-good-or-skip-minigit-bisect-bad--good--skip)
+  - [Automated Bisection Runner (`run`)](#automated-bisection-runner-minigit-bisect-run)
+  - [Session History & Replay (`log` / `replay`)](#session-history--replay-minigit-bisect-log--replay)
+  - [Custom Terms (`terms`)](#custom-terms-minigit-bisect-terms)
+  - [Finish and Clean Up (`reset`)](#finish-and-clean-up-minigit-bisect-reset)
+- [11. Remote Repositories & Synchronization](#11-remote-repositories--synchronization)
   - [Clone a Repository (`minigit clone`)](#clone-a-repository-minigit-clone)
   - [Manage Remotes (`minigit remote`)](#manage-remotes-minigit-remote)
   - [Fetch Updates (`minigit fetch`)](#fetch-updates-minigit-fetch)
   - [Push Commits (`minigit push`)](#push-commits-minigit-push)
   - [Pull & Fast-Forward (`minigit pull`)](#pull--fast-forward-minigit-pull)
-- [11. Ignoring Files (`.minigitignore`)](#11-ignoring-files-minigitignore)
-- [12. Low-Level Plumbing Commands](#12-low-level-plumbing-commands)
+- [12. Ignoring Files (`.minigitignore`)](#12-ignoring-files-minigitignore)
+- [13. Low-Level Plumbing Commands](#13-low-level-plumbing-commands)
   - [Compute Object Hashes (`minigit hash-object`)](#compute-object-hashes-minigit-hash-object)
   - [Write Staging Area to Tree (`minigit write-tree`)](#write-staging-area-to-tree-minigit-write-tree)
   - [Inspect Stored Objects (`minigit cat-file`)](#inspect-stored-objects-minigit-cat-file)
@@ -75,7 +82,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Inspect Tree Objects (`minigit ls-tree`)](#inspect-tree-objects-minigit-ls-tree)
   - [Packfile Maintenance & Compaction (`minigit repack`)](#packfile-maintenance--compaction-minigit-repack)
   - [Verify Packfiles (`minigit verify-pack`)](#verify-packfiles-minigit-verify-pack)
-- [13. Command Summary & Cheat Sheet](#13-command-summary--cheat-sheet)
+- [14. Command Summary & Cheat Sheet](#14-command-summary--cheat-sheet)
 
 ---
 
@@ -905,7 +912,120 @@ minigit submodule summary
 
 ---
 
-## 10. Remote Repositories & Synchronization
+## 10. Binary Search Debugging (`minigit bisect`)
+
+MiniGit includes a full DAG-aware binary search engine to isolate the commit that introduced a bug or behavioral change.
+
+### Start a Bisection Session (`minigit bisect start`)
+
+Initializes a bisect session, saving the current HEAD or branch name to `.minigit/BISECT_START`:
+
+```bash
+# Start an interactive bisection session
+minigit bisect start
+
+# Start with known bad and good bounds directly
+minigit bisect start HEAD v1.0.0
+
+# Start without checking out files (useful for external scripts/tools)
+minigit bisect start --no-checkout
+```
+
+---
+
+### Mark Commits as Bad, Good, or Skip (`minigit bisect bad` / `good` / `skip`)
+
+Guide the bisection search by marking tested commits:
+
+```bash
+# Mark current commit (or specified SHA) as bad (has the bug)
+minigit bisect bad
+minigit bisect bad a1b2c3d
+
+# Mark current commit (or specified SHA) as good (clean / bug not present)
+minigit bisect good
+minigit bisect good v1.0.0
+
+# Mark current commit as untestable (e.g. broken build unrelated to bug)
+minigit bisect skip
+```
+
+At each step, MiniGit automatically chooses the optimal midpoint in the DAG, reports the remaining steps, and checks out the candidate commit:
+```text
+Bisecting: 6 revisions left to test after this (roughly 2 steps)
+[3e45b76] Refactor network socket buffers
+```
+
+---
+
+### Automated Bisection Runner (`minigit bisect run`)
+
+Automates the entire bisection process by running a test script at every midpoint:
+
+```bash
+# Run an automated test script or command
+minigit bisect run ./test_regression.sh
+
+# Run a test suite with arguments
+minigit bisect run ctest --output-on-failure
+```
+
+MiniGit interprets the exit code of your script:
+- `0`: Commit is good.
+- `125`: Commit cannot be tested (triggers `skip`).
+- `1` to `127` (except `125`): Commit is bad.
+
+---
+
+### Session History & Replay (`minigit bisect log` / `replay`)
+
+MiniGit maintains a complete audit log of all bisection actions in `.minigit/BISECT_LOG`:
+
+```bash
+# View the command log of the current bisect session
+minigit bisect log
+
+# Save the log to a file for team sharing or archiving
+minigit bisect log > bisect_session.log
+
+# Replay an exported bisect log to restore exact state
+minigit bisect replay bisect_session.log
+```
+
+---
+
+### Custom Terms (`minigit bisect terms`)
+
+When debugging changes that are not regressions (e.g. finding when a performance improvement was introduced), customize the terms:
+
+```bash
+# View current terms
+minigit bisect terms
+
+# Set custom terms when starting bisection
+minigit bisect start --term-new fixed --term-old broken
+
+# Or set custom terms explicitly
+minigit bisect terms --term-bad broken --term-good fixed
+```
+
+---
+
+### Finish and Clean Up (`minigit bisect reset`)
+
+Terminates bisection, deletes all temporary bisect references and log files, and returns to the original branch checked out before bisection:
+
+```bash
+# Reset to the starting branch (recorded in BISECT_START)
+minigit bisect reset
+
+# Or reset and checkout a specific commit/branch directly
+minigit bisect reset main
+```
+
+---
+
+## 11. Remote Repositories & Synchronization
 
 MiniGit includes full local-filesystem synchronization protocol commands.
 
@@ -971,7 +1091,7 @@ minigit pull origin main
 
 ---
 
-## 11. Ignoring Files (`.minigitignore`)
+## 12. Ignoring Files (`.minigitignore`)
 
 Place a `.minigitignore` file in your repository root to prevent untracked files from appearing in `minigit status` and `minigit add .`:
 
@@ -998,7 +1118,7 @@ temp/cache.json
 
 ---
 
-## 12. Low-Level Plumbing Commands
+## 13. Low-Level Plumbing Commands
 
 Plumbing commands provide low-level access to the Content-Addressable Storage (CAS) engine.
 
@@ -1141,7 +1261,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 
 ---
 
-## 13. Command Summary & Cheat Sheet
+## 14. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |
@@ -1160,6 +1280,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 | `checkout`| `minigit checkout <branch-or-sha>` | Restore working files and index to a branch or commit. |
 | `worktree`| `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move] [<args>]` | Manage multiple linked working trees sharing single CAS. |
 | `submodule`| `minigit submodule [add\|status\|init\|update\|deinit\|summary\|foreach\|sync] [<args>]` | Manage nested repositories and mode 160000 gitlinks. |
+| `bisect` | `minigit bisect [help\|start\|bad\|good\|new\|old\|skip\|reset\|terms\|log\|replay\|run] [<args>]` | Binary search debugging engine to pinpoint regression-introducing commits. |
 | `tag` | `minigit tag [-a -m msg \| -d] [<name>]` | List, create (lightweight / annotated), or delete tags. |
 | `reset` | `minigit reset [--soft\|--mixed\|--hard] <sha>`| Roll back HEAD, index, and/or working tree. |
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |

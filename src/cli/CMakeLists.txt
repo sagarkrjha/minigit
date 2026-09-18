@@ -21,4 +21,5 @@ target_link_libraries(minigit_cli
         minigit_remotes
         minigit_worktree
         minigit_submodule
+        minigit_bisect
 )
