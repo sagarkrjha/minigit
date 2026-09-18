@@ -523,6 +523,13 @@ int run(int argc, char const *argv[])
         return 1;
     }
 
+    const std::string command_in = argv[1];
+    if (command_in == "--version" || command_in == "-v" || command_in == "version")
+    {
+        std::cout << "minigit version 1.8.0\n";
+        return 0;
+    }
+
     static const std::unordered_map<std::string, CommandHandler> commands = {
         {"init", cmd_init},
         {"add", cmd_add},

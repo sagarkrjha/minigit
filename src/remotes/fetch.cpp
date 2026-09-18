@@ -1,4 +1,5 @@
 #include "fetch.h"
+#include "smart_http.h"
 
 #include "config.h"
 #include "transfer.h"
@@ -46,6 +47,12 @@ void fetch_command(const std::string &remote_name)
     {
         std::cerr << "error: no such remote '" << remote_name << "'\n";
         std::exit(1);
+    }
+
+    if (minigit::remotes::is_http_url(remote->url))
+    {
+        minigit::remotes::fetch_http(local, remote_name, remote->url);
+        return;
     }
 
     const fs::path remote_root   = fs::weakly_canonical(remote->url);

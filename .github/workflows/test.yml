@@ -67,9 +67,9 @@ jobs:
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
-          if ! pkg-config --exists openssl zlib; then
+          if ! pkg-config --exists openssl zlib libcurl; then
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev ninja-build
+            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev libcurl4-openssl-dev ninja-build
           fi
 
       # --- macOS dependencies ---
@@ -108,7 +108,7 @@ jobs:
       - name: Install dependencies via vcpkg (Windows)
         if: runner.os == 'Windows'
         run: |
-          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
+          vcpkg install openssl:x64-windows-static zlib:x64-windows-static curl:x64-windows-static
 
       # --- Configure CMake ---
       - name: Configure CMake (Linux)

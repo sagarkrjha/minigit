@@ -122,7 +122,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Three-Way Merge Engine:** Lowest Common Ancestor (LCA) merge-base computation via DAG traversal, fast-forward detection, line-level three-way merging, conflict marker insertion (`<<<<<<<`, `=======`, `>>>>>>>`), and multi-parent merge commits via `minigit merge`.
 - **Stash Management:** Temporarily shelve uncommitted working-tree and staging changes with `minigit stash` (`push`, `list`, `pop`, `drop`, `show`).
 - **Object Compression:** Deflate compression with transparent backward compatibility via `zlib` for all loose objects in CAS storage.
-- **Remotes & Synchronization:** Full local remote synchronization workflow: clone repositories with `minigit clone`, manage remotes with `minigit remote`, fetch updates with `minigit fetch`, fast-forward push with `minigit push`, and pull latest changes with `minigit pull`.
+- **Remotes & Network Synchronization:** Full local and Smart HTTP/HTTPS network remote synchronization workflow (`minigit clone`, `minigit remote`, `minigit fetch`, `minigit push`, `minigit pull`) implementing Git Smart HTTP Transfer Protocol v1 with pkt-line packet framing, transfer negotiation, and packfile streaming.
 - **Linked Worktrees:** Check out and work on multiple branches simultaneously using isolated linked working directories (`minigit worktree`), sharing the central CAS object database and reference namespace while preventing branch checkout collisions.
 - **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
 - **Binary Search Debugging:** Pinpoint regression-introducing commits across linear and branching DAG histories using `minigit bisect` (`start`, `bad`/`new`, `good`/`old`, `skip`, `reset`, `terms`, `log`, `replay`, and automated `run`).
@@ -771,13 +771,17 @@ minigit/
 │   │   └── bisect.{h,cpp}      # bisect start, bad, good, skip, reset, terms, log, replay, run
 │   └── remotes/                # Remote Synchronization & Transport Protocol
 │       ├── CMakeLists.txt
+│       ├── pkt_line.{h,cpp}    # 4-hex pkt-line framing, flush/delim, ref parsing
+│       ├── http_client.{h,cpp} # libcurl RAII client wrapper (GET/POST, SSL options)
+│       ├── pack_unpack.{h,cpp} # Packfile streaming, sideband extraction & CAS unpack
+│       ├── smart_http.{h,cpp}  # Smart HTTP discovery, clone_http, fetch_http, push_http
 │       ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
 │       ├── transfer.{h,cpp}    # BFS missing-object DAG traversal & ancestry checker
 │       ├── remote.{h,cpp}      # remote command: list, add, remove remotes
-│       ├── clone.{h,cpp}       # clone command
-│       ├── fetch.{h,cpp}       # fetch command
-│       ├── push.{h,cpp}        # push command
-│       └── pull.{h,cpp}        # pull command
+│       ├── clone.{h,cpp}       # clone command (local & Smart HTTP)
+│       ├── fetch.{h,cpp}       # fetch command (local & Smart HTTP)
+│       ├── push.{h,cpp}        # push command (local & Smart HTTP)
+│       └── pull.{h,cpp}        # pull command (local & Smart HTTP)
 ```
 
 ---
@@ -795,7 +799,7 @@ minigit/
 | **Linked Worktrees** | Full support (add, list, remove, prune, lock, unlock, move) | Full support |
 | **Submodules** | Full support (add, status, init, update, deinit, summary, foreach, sync, mode 160000 gitlinks) | Full support |
 | **Binary Search Debugging (bisect)** | Full support (DAG midpoint search, automated run, log/replay, terms) | Full support |
-| **Remotes & Transport**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
+| **Remotes & Transport**| Local filesystem & Smart HTTP/HTTPS (`clone`, `fetch`, `push`, `pull` with pkt-line) | Full local, SSH, Git, HTTP/S protocols |
 | **Compression & Packing** | zlib deflate & Packfile v2 with delta compression | zlib deflate compression & Packfiles |
 
 ---
@@ -811,7 +815,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 5: Stash & Compression:** `minigit stash` working-state shelving (`push`, `list`, `pop`, `drop`, `show`) and zlib deflate loose object compression.
 - [x] **Phase 6: Networking & Remotes:** Local filesystem remotes protocol with `clone`, `remote`, `fetch`, `push`, and `pull`.
 - [x] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression (`minigit repack`, `minigit verify-pack`).
-- [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
+- [x] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional packet-line (pkt-line) framing, ref discovery, packfile streaming, and transfer negotiation implemented in v1.8.0.
 - [x] **Phase 9: Linear Rebase & Cherry-Pick:** Linear history rewriting and replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`), and individual commit transplantation (`minigit cherry-pick`).
 - [x] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) implemented in v1.5.0; nested repository tracking and gitlinks (`minigit submodule`) implemented in v1.6.0.
 - [x] **Phase 11: Binary Search Debugging:** DAG-aware binary search debugging (`minigit bisect`) with automated test execution (`bisect run`), session recording/replay, and customizable terms implemented in v1.7.0.

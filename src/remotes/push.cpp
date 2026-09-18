@@ -1,4 +1,5 @@
 #include "push.h"
+#include "smart_http.h"
 
 #include "config.h"
 #include "transfer.h"
@@ -84,6 +85,12 @@ void push_command(const std::string &remote_name_in, const std::string &branch_n
     {
         std::cerr << "error: no such remote '" << remote_name << "'\n";
         std::exit(1);
+    }
+
+    if (minigit::remotes::is_http_url(remote->url))
+    {
+        minigit::remotes::push_http(local, remote_name, remote->url, branch);
+        return;
     }
 
     const fs::path remote_root    = fs::weakly_canonical(remote->url);
