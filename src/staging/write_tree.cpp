@@ -4,6 +4,7 @@
 #include "storage/object_database.h"
 #include "storage/tree.h"
 #include "repository/repository.h"
+#include "submodule/submodule_config.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -33,7 +34,8 @@ void write_tree()
 
     for (const auto &[path, blob_id] : index.entries())
     {
-        tree_entries.push_back({"100644", path, blob_id});
+        const std::string mode = SubmoduleConfig::is_submodule_path(repo.root(), path) ? "160000" : "100644";
+        tree_entries.push_back({mode, path, blob_id});
     }
 
     Tree tree(std::move(tree_entries));

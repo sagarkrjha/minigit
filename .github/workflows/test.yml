@@ -195,6 +195,21 @@ jobs:
             & $exe worktree list --porcelain
             & $exe worktree remove wt-smoke
             & $exe worktree prune
+            $subRepo = "$((Get-Item .).FullName)\..\smoke_sub_repo"
+            if (Test-Path $subRepo) { Remove-Item -Recurse -Force $subRepo }
+            New-Item -ItemType Directory -Path $subRepo | Out-Null
+            Push-Location $subRepo
+            & $exe init
+            "sub content" | Set-Content "sub.txt"
+            & $exe add sub.txt
+            & $exe commit -m "sub initial"
+            Pop-Location
+            & $exe submodule add $subRepo sub_dir
+            & $exe submodule status
+            & $exe submodule foreach echo submodule_ok
+            & $exe submodule deinit sub_dir
+            & $exe submodule update --init
+            Remove-Item -Recurse -Force $subRepo
             Write-Host "Windows CLI smoke tests passed successfully!"
           } finally {
             Pop-Location
@@ -245,6 +260,21 @@ jobs:
           "$EXE" worktree list --porcelain
           "$EXE" worktree remove wt-smoke
           "$EXE" worktree prune
+          SUB_REPO="$(pwd)/../smoke_sub_repo"
+          rm -rf "$SUB_REPO"
+          mkdir -p "$SUB_REPO"
+          cd "$SUB_REPO"
+          "$EXE" init
+          echo "sub content" > sub.txt
+          "$EXE" add sub.txt
+          "$EXE" commit -m "sub initial"
+          cd "$TEST_REPO"
+          "$EXE" submodule add "$SUB_REPO" sub_dir
+          "$EXE" submodule status
+          "$EXE" submodule foreach echo submodule_ok
+          "$EXE" submodule deinit sub_dir
+          "$EXE" submodule update --init
+          rm -rf "$SUB_REPO"
           cd -
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"

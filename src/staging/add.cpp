@@ -6,10 +6,13 @@
 #include "storage/blob.h"
 #include "storage/object_database.h"
 #include "repository/repository.h"
+#include "submodule/submodule_config.h"
 
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace {
 
@@ -163,7 +166,28 @@ bool add_files(const std::vector<std::string> &paths)
             continue;
         }
 
-        // Case 2: Path is a directory (e.g. `.` or a subfolder).
+        // Case 2: Path is a submodule directory specified directly.
+        if (std::filesystem::is_directory(abs_path, ec) &&
+            (fs::exists(abs_path / ".minigit") || fs::exists(abs_path / ".git") || SubmoduleConfig::is_submodule_path(repo.root(), rel_str)))
+        {
+            try
+            {
+                Repository sub_repo = Repository::discover(abs_path);
+                const std::string sub_head = Repository::resolve_head_from_dir(sub_repo.git_dir());
+                if (!sub_head.empty())
+                {
+                    index.add(rel_path, sub_head);
+                }
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "error: unable to stage submodule '" << raw_path << "': " << e.what() << '\n';
+                had_error = true;
+            }
+            continue;
+        }
+
+        // Case 3: Path is a regular directory (e.g. `.` or a subfolder).
         if (std::filesystem::is_directory(abs_path, ec))
         {
             const std::string dir_rel_str =
@@ -201,7 +225,32 @@ bool add_files(const std::vector<std::string> &paths)
                         ignore_rules.is_ignored(cur_dir_rel_str + "/"))
                     {
                         it.disable_recursion_pending();
+                        it.increment(ec);
+                        continue;
                     }
+
+                    // Check if directory is a submodule
+                    if (fs::exists(entry.path() / ".minigit") ||
+                        fs::exists(entry.path() / ".git") ||
+                        SubmoduleConfig::is_submodule_path(repo.root(), cur_dir_rel_str))
+                    {
+                        it.disable_recursion_pending();
+                        try
+                        {
+                            Repository sub_repo = Repository::discover(entry.path());
+                            const std::string sub_head = Repository::resolve_head_from_dir(sub_repo.git_dir());
+                            if (!sub_head.empty())
+                            {
+                                index.add(dir_rel, sub_head);
+                            }
+                        }
+                        catch (...)
+                        {
+                        }
+                        it.increment(ec);
+                        continue;
+                    }
+
                     it.increment(ec);
                     continue;
                 }
