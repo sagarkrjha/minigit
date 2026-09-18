@@ -11,6 +11,33 @@ ObjectDatabase::ObjectDatabase(
     const std::filesystem::path &objects_directory)
     : objects_directory_(objects_directory)
 {
+    if (!std::filesystem::exists(objects_directory_))
+    {
+        const auto commondir_file = objects_directory_.parent_path() / "commondir";
+        if (std::filesystem::exists(commondir_file))
+        {
+            std::ifstream f(commondir_file);
+            std::string rel;
+            if (std::getline(f, rel))
+            {
+                while (!rel.empty() && (rel.back() == '\r' || rel.back() == '\n' || rel.back() == ' '))
+                    rel.pop_back();
+                size_t cstart = 0;
+                while (cstart < rel.size() && rel[cstart] == ' ')
+                    cstart++;
+                rel = rel.substr(cstart);
+
+                std::filesystem::path cpath(rel);
+                auto common = cpath.is_relative()
+                    ? std::filesystem::weakly_canonical(objects_directory_.parent_path() / cpath)
+                    : std::filesystem::weakly_canonical(cpath);
+                if (std::filesystem::exists(common / "objects"))
+                {
+                    objects_directory_ = common / "objects";
+                }
+            }
+        }
+    }
 }
 
 void ObjectDatabase::write(

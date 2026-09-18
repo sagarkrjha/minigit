@@ -2,6 +2,7 @@
 
 #include "object_database.h"
 #include "object_parser.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <functional>
@@ -94,8 +95,18 @@ static void print_tag(const std::string& raw)
 
 void cat_file(const std::string& mode, const std::string& object_id)
 {
-    ObjectDatabase db(
-        std::filesystem::current_path() / ".minigit" / "objects");
+    std::filesystem::path objects_dir;
+    try
+    {
+        Repository repo = Repository::discover(std::filesystem::current_path());
+        objects_dir = repo.objects_dir();
+    }
+    catch (...)
+    {
+        objects_dir = std::filesystem::current_path() / ".minigit" / "objects";
+    }
+
+    ObjectDatabase db(objects_dir);
 
     std::string raw;
     try

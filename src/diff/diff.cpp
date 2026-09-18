@@ -41,12 +41,7 @@ static std::string trim_trailing(std::string s)
 
 static std::string resolve_head_sha(const fs::path &git_dir)
 {
-    const std::string raw = trim_trailing(read_text_file(git_dir / "HEAD"));
-    if (raw.empty())
-        return {};
-    if (raw.substr(0, 5) == "ref: ")
-        return trim_trailing(read_text_file(git_dir / raw.substr(5)));
-    return raw;
+    return Repository::resolve_head_from_dir(git_dir);
 }
 
 // Read a blob from the object DB and return its content (just the body).

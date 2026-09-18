@@ -8,6 +8,7 @@ add_subdirectory(branching)
 add_subdirectory(merge)
 add_subdirectory(stash)
 add_subdirectory(remotes)
+add_subdirectory(worktree)
 add_subdirectory(cli)
 
 add_executable(minigit

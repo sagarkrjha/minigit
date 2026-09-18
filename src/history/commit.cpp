@@ -39,20 +39,7 @@ static std::string trim(std::string s)
 // HEAD contains either "ref: refs/heads/<branch>" or a raw SHA.
 static std::string resolve_head(const std::filesystem::path &git_dir)
 {
-    const std::string raw = trim(read_text(git_dir / "HEAD"));
-    if (raw.empty())
-        return {};
-
-    // Symbolic ref: "ref: refs/heads/main"
-    if (raw.substr(0, 5) == "ref: ")
-    {
-        const std::string ref_path = raw.substr(5); // e.g. refs/heads/main
-        const std::string sha = trim(read_text(git_dir / ref_path));
-        return sha;
-    }
-
-    // Detached HEAD: raw SHA
-    return raw;
+    return Repository::resolve_head_from_dir(git_dir);
 }
 
 // Write `sha` to the branch that HEAD currently points to.
@@ -64,7 +51,7 @@ static void update_ref(const std::filesystem::path &git_dir,
     std::filesystem::path ref_path;
     if (raw.substr(0, 5) == "ref: ")
     {
-        ref_path = git_dir / raw.substr(5);
+        ref_path = Repository::resolve_path(git_dir, raw.substr(5));
         std::filesystem::create_directories(ref_path.parent_path());
     }
     else

@@ -32,17 +32,7 @@ static std::string trim(std::string s)
 
 static std::string resolve_head(const std::filesystem::path &git_dir)
 {
-    const std::string raw = trim(read_text(git_dir / "HEAD"));
-    if (raw.empty())
-        return {};
-
-    if (raw.substr(0, 5) == "ref: ")
-    {
-        const std::string ref_path = raw.substr(5);
-        return trim(read_text(git_dir / ref_path));
-    }
-
-    return raw;
+    return Repository::resolve_head_from_dir(git_dir);
 }
 
 // Parse the raw commit object body and pretty-print it.

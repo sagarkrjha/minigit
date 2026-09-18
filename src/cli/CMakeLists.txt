@@ -19,4 +19,5 @@ target_link_libraries(minigit_cli
         minigit_merge
         minigit_stash
         minigit_remotes
+        minigit_worktree
 )

@@ -45,20 +45,29 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Inspect Stash Contents (`show`)](#inspect-stash-contents-show)
   - [Restore Stashed Changes (`pop`)](#restore-stashed-changes-pop)
   - [Discard Stash Entries (`drop`)](#discard-stash-entries-drop)
-- [8. Remote Repositories & Synchronization](#8-remote-repositories--synchronization)
+- [8. Multiple Working Trees (`minigit worktree`)](#8-multiple-working-trees-minigit-worktree)
+  - [Add a Working Tree (`add`)](#add-a-working-tree-minigit-worktree-add)
+  - [List Active Working Trees (`list`)](#list-active-working-trees-minigit-worktree-list)
+  - [Lock and Unlock Working Trees (`lock` / `unlock`)](#lock-and-unlock-working-trees-minigit-worktree-lock--unlock)
+  - [Move a Working Tree (`move`)](#move-a-working-tree-minigit-worktree-move)
+  - [Remove a Working Tree (`remove`)](#remove-a-working-tree-minigit-worktree-remove)
+  - [Prune Stale Working Trees (`prune`)](#prune-stale-working-trees-minigit-worktree-prune)
+- [9. Remote Repositories & Synchronization](#9-remote-repositories--synchronization)
   - [Clone a Repository (`minigit clone`)](#clone-a-repository-minigit-clone)
   - [Manage Remotes (`minigit remote`)](#manage-remotes-minigit-remote)
   - [Fetch Updates (`minigit fetch`)](#fetch-updates-minigit-fetch)
   - [Push Commits (`minigit push`)](#push-commits-minigit-push)
   - [Pull & Fast-Forward (`minigit pull`)](#pull--fast-forward-minigit-pull)
-- [9. Ignoring Files (`.minigitignore`)](#9-ignoring-files-minigitignore)
-- [10. Low-Level Plumbing Commands](#10-low-level-plumbing-commands)
+- [10. Ignoring Files (`.minigitignore`)](#10-ignoring-files-minigitignore)
+- [11. Low-Level Plumbing Commands](#11-low-level-plumbing-commands)
   - [Compute Object Hashes (`minigit hash-object`)](#compute-object-hashes-minigit-hash-object)
   - [Write Staging Area to Tree (`minigit write-tree`)](#write-staging-area-to-tree-minigit-write-tree)
   - [Inspect Stored Objects (`minigit cat-file`)](#inspect-stored-objects-minigit-cat-file)
   - [List Staged & Working Tree Files (`minigit ls-files`)](#list-staged--working-tree-files-minigit-ls-files)
   - [Inspect Tree Objects (`minigit ls-tree`)](#inspect-tree-objects-minigit-ls-tree)
-- [11. Command Summary & Cheat Sheet](#11-command-summary--cheat-sheet)
+  - [Packfile Maintenance & Compaction (`minigit repack`)](#packfile-maintenance--compaction-minigit-repack)
+  - [Verify Packfiles (`minigit verify-pack`)](#verify-packfiles-minigit-verify-pack)
+- [12. Command Summary & Cheat Sheet](#12-command-summary--cheat-sheet)
 
 ---
 
@@ -662,7 +671,123 @@ minigit stash drop stash@{0}
 
 ---
 
-## 8. Remote Repositories & Synchronization
+## 8. Multiple Working Trees (`minigit worktree`)
+
+MiniGit allows maintaining multiple working directories attached to a single repository simultaneously. This eliminates the need to stash, commit incomplete work, or re-clone repositories when switching context to a hotfix or parallel feature branch.
+
+All linked worktrees share the central Content-Addressable Storage (`objects/`), packfiles, and reference namespace (`refs/heads/`, `refs/tags/`), while possessing an independent working tree directory, staging area (`index`), and active `HEAD`.
+
+### Add a Working Tree (`minigit worktree add`)
+
+Creates a new linked working tree at the specified path and checks out the requested branch or commit:
+
+```bash
+# 1. Create a worktree with a new branch (-b)
+minigit worktree add ../feature-auth -b feature/oauth2
+
+# 2. Reset and create a branch (-B)
+minigit worktree add ../hotfix -B hotfix/critical-fix
+
+# 3. Create a worktree with a detached HEAD (--detach)
+minigit worktree add --detach ../perf-test v1.4.0
+
+# 4. Create a worktree checking out an existing branch
+minigit worktree add ../staging-env staging
+```
+
+> [!IMPORTANT]
+> **Branch Exclusivity**: A local branch can only be checked out in one working tree at a time. If you attempt to check out a branch already active in another tree, MiniGit blocks the operation:
+> ```text
+> fatal: 'main' is already checked out at 'C:/projects/repo'
+> ```
+
+---
+
+### List Active Working Trees (`minigit worktree list`)
+
+Lists all attached working trees, their HEAD commits, active branches, and lock status:
+
+```bash
+# Human-readable table
+minigit worktree list
+```
+*Output:*
+```text
+C:/projects/myapp              8b4c291 [main]
+C:/projects/feature-auth       a1b2c3d [feature/oauth2]
+C:/projects/hotfix             8b4c291 (detached HEAD)
+```
+
+```bash
+# Machine-readable porcelain output
+minigit worktree list --porcelain
+```
+*Output:*
+```text
+worktree C:/projects/myapp
+HEAD 8b4c2910daed6132b0e6aeddc76117eb385dce51c015bbad1e25e28751801577
+branch refs/heads/main
+
+worktree C:/projects/feature-auth
+HEAD a1b2c3d4e5f6...
+branch refs/heads/feature/oauth2
+```
+
+---
+
+### Lock and Unlock Working Trees (`minigit worktree lock / unlock`)
+
+Prevents linked worktree metadata from being pruned if the working tree directory is located on a removable drive, temporary network share, or undergoing maintenance:
+
+```bash
+# 1. Lock a worktree with an optional explanation
+minigit worktree lock --reason "Mounted on external SSD" feature-auth
+
+# 2. Unlock a worktree
+minigit worktree unlock feature-auth
+```
+
+---
+
+### Move a Working Tree (`minigit worktree move`)
+
+Relocates an existing linked working tree to a new filesystem path without losing administrative linkage or uncommitted files:
+
+```bash
+minigit worktree move feature-auth ../feature-auth-v2
+```
+
+---
+
+### Remove a Working Tree (`minigit worktree remove`)
+
+Deletes the working tree files and cleans up the administrative metadata in the main repository:
+
+```bash
+# 1. Remove clean worktree
+minigit worktree remove ../feature-auth
+
+# 2. Force removal if untracked or uncommitted changes exist
+minigit worktree remove -f ../feature-auth
+```
+
+---
+
+### Prune Stale Working Trees (`minigit worktree prune`)
+
+Scans the administrative directory (`.minigit/worktrees/`) and removes records for worktree directories that have been manually deleted from disk (unless locked):
+
+```bash
+# 1. Dry run: preview what would be pruned
+minigit worktree prune -n
+
+# 2. Verbose pruning
+minigit worktree prune -v
+```
+
+---
+
+## 9. Remote Repositories & Synchronization
 
 MiniGit includes full local-filesystem synchronization protocol commands.
 
@@ -728,7 +853,7 @@ minigit pull origin main
 
 ---
 
-## 9. Ignoring Files (`.minigitignore`)
+## 10. Ignoring Files (`.minigitignore`)
 
 Place a `.minigitignore` file in your repository root to prevent untracked files from appearing in `minigit status` and `minigit add .`:
 
@@ -755,7 +880,7 @@ temp/cache.json
 
 ---
 
-## 10. Low-Level Plumbing Commands
+## 11. Low-Level Plumbing Commands
 
 Plumbing commands provide low-level access to the Content-Addressable Storage (CAS) engine.
 
@@ -898,7 +1023,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 
 ---
 
-## 11. Command Summary & Cheat Sheet
+## 12. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |
@@ -915,6 +1040,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 | `branch` | `minigit branch [-d <name>] [<name>]` | List, create, or delete branches. |
 | `switch` | `minigit switch [-c] <branch>` | Switch active branch, optionally creating it first with `-c`. |
 | `checkout`| `minigit checkout <branch-or-sha>` | Restore working files and index to a branch or commit. |
+| `worktree`| `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move] [<args>]` | Manage multiple linked working trees sharing single CAS. |
 | `tag` | `minigit tag [-a -m msg \| -d] [<name>]` | List, create (lightweight / annotated), or delete tags. |
 | `reset` | `minigit reset [--soft\|--mixed\|--hard] <sha>`| Roll back HEAD, index, and/or working tree. |
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |
