@@ -1204,21 +1204,21 @@ int worktree_command(int argc, char const* argv[])
         return 1;
     }
 
+    using WorktreeHandler = int (*)(int, char const*[]);
+    static const std::unordered_map<std::string, WorktreeHandler> handlers = {
+        {"add",    worktree_add},
+        {"list",   worktree_list},
+        {"remove", worktree_remove},
+        {"prune",  worktree_prune},
+        {"lock",   worktree_lock},
+        {"unlock", worktree_unlock},
+        {"move",   worktree_move}
+    };
+
     const std::string subcmd = argv[2];
-    if (subcmd == "add")
-        return worktree_add(argc, argv);
-    if (subcmd == "list")
-        return worktree_list(argc, argv);
-    if (subcmd == "remove")
-        return worktree_remove(argc, argv);
-    if (subcmd == "prune")
-        return worktree_prune(argc, argv);
-    if (subcmd == "lock")
-        return worktree_lock(argc, argv);
-    if (subcmd == "unlock")
-        return worktree_unlock(argc, argv);
-    if (subcmd == "move")
-        return worktree_move(argc, argv);
+    const auto it = handlers.find(subcmd);
+    if (it != handlers.end())
+        return it->second(argc, argv);
 
     std::cerr << "fatal: unknown subcommand: '" << subcmd << "'\n";
     return 1;

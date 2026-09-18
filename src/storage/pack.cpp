@@ -771,11 +771,14 @@ std::string PackReader::read_object(uint64_t offset, const ObjectDatabase& db) c
         size_t consumed = 0;
         std::string payload = decompress_pack_stream(ptr, end - ptr, &consumed);
 
-        std::string type_name;
-        if (type == OBJ_COMMIT) type_name = "commit";
-        else if (type == OBJ_TREE) type_name = "tree";
-        else if (type == OBJ_BLOB) type_name = "blob";
-        else if (type == OBJ_TAG) type_name = "tag";
+        static const std::unordered_map<int, std::string> type_names = {
+            {OBJ_COMMIT, "commit"},
+            {OBJ_TREE, "tree"},
+            {OBJ_BLOB, "blob"},
+            {OBJ_TAG, "tag"}
+        };
+        const auto it = type_names.find(type);
+        const std::string type_name = (it != type_names.end()) ? it->second : "";
 
         return type_name + " " + std::to_string(unpacked_size) + '\0' + payload;
     }

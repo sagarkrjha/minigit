@@ -820,6 +820,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) implemented in v1.5.0; nested repository tracking and gitlinks (`minigit submodule`) implemented in v1.6.0.
 - [x] **Phase 11: Binary Search Debugging:** DAG-aware binary search debugging (`minigit bisect`) with automated test execution (`bisect run`), session recording/replay, and customizable terms implemented in v1.7.0.
 - [x] **Phase 12: Security Hardening & Performance Profiling:** Path traversal prevention across checkout/clone/pull, hardened network pkt-line and packfile decoders, RAII resource lifecycle guards for libcurl, and dedicated empirical performance benchmarks (`minigit_benchmarks`) implemented in v1.8.1.
+- [x] **Phase 13: Lookup & Dispatch Optimization:** Replaced linear sequential conditional checks and command/subcommand parsing with constant-time `std::unordered_map` dispatch tables across worktree, submodule, bisect, show, dispatcher, and pack storage subsystem handlers in v1.8.2.
 
 ---
 

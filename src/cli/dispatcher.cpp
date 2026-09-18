@@ -511,6 +511,12 @@ int cmd_bisect(int argc, char const *argv[])
     return minigit::bisect::bisect_command(argc, argv);
 }
 
+int cmd_version(int /*argc*/, char const * /*argv*/[])
+{
+    std::cout << "minigit version 1.8.2\n";
+    return 0;
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -523,14 +529,10 @@ int run(int argc, char const *argv[])
         return 1;
     }
 
-    const std::string command_in = argv[1];
-    if (command_in == "--version" || command_in == "-v" || command_in == "version")
-    {
-        std::cout << "minigit version 1.8.1\n";
-        return 0;
-    }
-
     static const std::unordered_map<std::string, CommandHandler> commands = {
+        {"version", cmd_version},
+        {"--version", cmd_version},
+        {"-v", cmd_version},
         {"init", cmd_init},
         {"add", cmd_add},
         {"hash-object", cmd_hash_object},

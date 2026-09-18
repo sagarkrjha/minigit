@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <queue>
@@ -1163,26 +1164,31 @@ int bisect_command(int argc, const char *argv[])
 
     BisectTerms terms = get_terms(repo.git_dir());
 
-    if (subcmd == "start")
-        return bisect_start(repo, db, argc, argv);
-    if (subcmd == "bad" || subcmd == "new" || subcmd == terms.term_bad)
-        return bisect_bad(repo, db, argc, argv);
-    if (subcmd == "good" || subcmd == "old" || subcmd == terms.term_good)
-        return bisect_good(repo, db, argc, argv);
-    if (subcmd == "skip")
-        return bisect_skip(repo, db, argc, argv);
-    if (subcmd == "reset")
-        return bisect_reset(repo, db, argc, argv);
-    if (subcmd == "terms")
-        return bisect_terms(repo, argc, argv);
-    if (subcmd == "log")
-        return bisect_log(repo);
-    if (subcmd == "replay")
-        return bisect_replay(repo, db, argc, argv);
-    if (subcmd == "run")
-        return bisect_run(repo, db, argc, argv);
-    if (subcmd == "visualize" || subcmd == "view")
-        return bisect_log(repo);
+    using BisectHandler = std::function<int(Repository &, ObjectDatabase &, int, const char *[])>;
+    std::unordered_map<std::string, BisectHandler> handlers = {
+        {"start",     [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_start(r, d, ac, av); }},
+        {"bad",       [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_bad(r, d, ac, av); }},
+        {"new",       [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_bad(r, d, ac, av); }},
+        {"good",      [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_good(r, d, ac, av); }},
+        {"old",       [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_good(r, d, ac, av); }},
+        {"skip",      [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_skip(r, d, ac, av); }},
+        {"reset",     [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_reset(r, d, ac, av); }},
+        {"terms",     [](Repository &r, ObjectDatabase &/*d*/, int ac, const char *av[]) { return bisect_terms(r, ac, av); }},
+        {"log",       [](Repository &r, ObjectDatabase &/*d*/, int /*ac*/, const char * /*av*/[]) { return bisect_log(r); }},
+        {"replay",    [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_replay(r, d, ac, av); }},
+        {"run",       [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_run(r, d, ac, av); }},
+        {"visualize", [](Repository &r, ObjectDatabase &/*d*/, int /*ac*/, const char * /*av*/[]) { return bisect_log(r); }},
+        {"view",      [](Repository &r, ObjectDatabase &/*d*/, int /*ac*/, const char * /*av*/[]) { return bisect_log(r); }}
+    };
+
+    if (!terms.term_bad.empty())
+        handlers[terms.term_bad] = [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_bad(r, d, ac, av); };
+    if (!terms.term_good.empty())
+        handlers[terms.term_good] = [](Repository &r, ObjectDatabase &d, int ac, const char *av[]) { return bisect_good(r, d, ac, av); };
+
+    const auto it = handlers.find(subcmd);
+    if (it != handlers.end())
+        return it->second(repo, db, argc, argv);
 
     std::cerr << "error: unknown subcommand: '" << subcmd << "'\n";
     print_help();

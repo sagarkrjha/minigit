@@ -14,6 +14,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace minigit::storage {
@@ -332,13 +333,22 @@ bool verify_pack_file(const std::filesystem::path& path, bool verbose)
 
         if (verbose)
         {
+            static const std::unordered_map<int, std::string> type_names = {
+                {OBJ_COMMIT, "commit"},
+                {OBJ_TREE, "tree"},
+                {OBJ_BLOB, "blob"},
+                {OBJ_TAG, "tag"}
+            };
             std::string t_name;
-            if (info.is_delta) t_name = "ref-delta";
-            else if (info.type == OBJ_COMMIT) t_name = "commit";
-            else if (info.type == OBJ_TREE)   t_name = "tree";
-            else if (info.type == OBJ_BLOB)   t_name = "blob";
-            else if (info.type == OBJ_TAG)    t_name = "tag";
-            else t_name = "unknown";
+            if (info.is_delta)
+            {
+                t_name = "ref-delta";
+            }
+            else
+            {
+                auto it = type_names.find(info.type);
+                t_name = (it != type_names.end()) ? it->second : "unknown";
+            }
 
             std::cout << entry.sha << " "
                       << std::left << std::setw(10) << t_name << " "

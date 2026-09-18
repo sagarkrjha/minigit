@@ -9,11 +9,13 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -274,269 +276,263 @@ ShowResult perform_show(
 
     std::ostringstream out;
 
-    // 1. Tag object: Show tag metadata and dereference to target object
-    if (type == "tag")
-    {
-        const size_t null_pos = raw.find('\0');
-        std::string tag_name, tagger, timestamp, message, target_obj;
-        if (null_pos != std::string::npos)
-        {
-            std::istringstream body(raw.substr(null_pos + 1));
-            std::string line;
-            bool past_blank = false;
-            while (std::getline(body, line))
-            {
-                if (!line.empty() && line.back() == '\r')
-                    line.pop_back();
+    using TypeHandler = std::function<void(const fs::path&, const std::string&, const std::string&,
+                                          ShowFormat, ObjectDatabase&, ShowResult&, std::ostringstream&)>;
 
-                if (!past_blank)
+    static const std::unordered_map<std::string, TypeHandler> type_handlers = {
+        {"tag", [](const fs::path& repo_root, const std::string& /*sha*/, const std::string& raw,
+                   ShowFormat format, ObjectDatabase& /*db*/, ShowResult& /*result*/, std::ostringstream& out) {
+            const size_t null_pos = raw.find('\0');
+            std::string tag_name, tagger, timestamp, message, target_obj;
+            if (null_pos != std::string::npos)
+            {
+                std::istringstream body(raw.substr(null_pos + 1));
+                std::string line;
+                bool past_blank = false;
+                while (std::getline(body, line))
                 {
-                    if (line.empty())
+                    if (!line.empty() && line.back() == '\r')
+                        line.pop_back();
+
+                    if (!past_blank)
                     {
-                        past_blank = true;
-                        continue;
+                        if (line.empty())
+                        {
+                            past_blank = true;
+                            continue;
+                        }
+                        if (line.rfind("object ", 0) == 0)
+                            target_obj = line.substr(7);
+                        else if (line.rfind("tag ", 0) == 0)
+                            tag_name = line.substr(4);
+                        else if (line.rfind("tagger ", 0) == 0)
+                        {
+                            const auto last_sp = line.rfind(' ');
+                            if (last_sp != std::string::npos)
+                            {
+                                timestamp = line.substr(last_sp + 1);
+                                tagger = line.substr(7, last_sp - 7);
+                            }
+                            else
+                            {
+                                tagger = line.substr(7);
+                            }
+                        }
                     }
-                    if (line.rfind("object ", 0) == 0)
-                        target_obj = line.substr(7);
-                    else if (line.rfind("tag ", 0) == 0)
-                        tag_name = line.substr(4);
-                    else if (line.rfind("tagger ", 0) == 0)
+                    else
                     {
-                        const auto last_sp = line.rfind(' ');
-                        if (last_sp != std::string::npos)
-                        {
-                            timestamp = line.substr(last_sp + 1);
-                            tagger = line.substr(7, last_sp - 7);
-                        }
-                        else
-                        {
-                            tagger = line.substr(7);
-                        }
+                        if (!message.empty())
+                            message += '\n';
+                        message += line;
                     }
-                }
-                else
-                {
-                    if (!message.empty())
-                        message += '\n';
-                    message += line;
                 }
             }
-        }
 
-        out << "tag " << tag_name << '\n';
-        if (!tagger.empty())
-            out << "Tagger: " << tagger << '\n';
-        if (!timestamp.empty())
-            out << "Date:   " << timestamp << '\n';
-        out << '\n';
-        if (!message.empty())
-            out << "    " << message << "\n\n";
+            out << "tag " << tag_name << '\n';
+            if (!tagger.empty())
+                out << "Tagger: " << tagger << '\n';
+            if (!timestamp.empty())
+                out << "Date:   " << timestamp << '\n';
+            out << '\n';
+            if (!message.empty())
+                out << "    " << message << "\n\n";
 
-        // Now recursively show the target object
-        if (!target_obj.empty())
-        {
-            ShowResult inner = perform_show(repo_root, target_obj, format);
-            if (inner.success)
-                out << inner.output;
-            else
-                out << "error showing tagged object: " << inner.error_message << '\n';
-        }
+            // Now recursively show the target object
+            if (!target_obj.empty())
+            {
+                ShowResult inner = perform_show(repo_root, target_obj, format);
+                if (inner.success)
+                    out << inner.output;
+                else
+                    out << "error showing tagged object: " << inner.error_message << '\n';
+            }
+        }},
+        {"commit", [](const fs::path& /*repo_root*/, const std::string& sha, const std::string& raw,
+                      ShowFormat format, ObjectDatabase& db, ShowResult& /*result*/, std::ostringstream& out) {
+            const ParsedCommit c = parse_commit(raw);
 
-        result.output = out.str();
-        result.success = true;
-        return result;
-    }
+            out << "commit " << sha << '\n';
+            out << "Author: " << c.author << '\n';
+            out << "Date:   " << c.timestamp << '\n';
+            out << '\n';
 
-    // 2. Commit object: print commit header and diff against parent
-    if (type == "commit")
-    {
-        const ParsedCommit c = parse_commit(raw);
+            std::istringstream msg_ss(c.message);
+            std::string mline;
+            while (std::getline(msg_ss, mline))
+            {
+                if (!mline.empty() && mline.back() == '\r')
+                    mline.pop_back();
+                out << "    " << mline << '\n';
+            }
+            out << '\n';
 
-        out << "commit " << sha << '\n';
-        out << "Author: " << c.author << '\n';
-        out << "Date:   " << c.timestamp << '\n';
-        out << '\n';
+            // Load parent tree
+            std::map<std::string, std::string> parent_tree;
+            if (!c.parent_ids.empty())
+            {
+                try
+                {
+                    const std::string parent_raw = db.read(c.parent_ids[0]);
+                    const ParsedCommit parent_commit = parse_commit(parent_raw);
+                    const ParsedTree ptree = parse_tree(db.read(parent_commit.tree_id));
+                    for (const auto& entry : ptree.entries)
+                        parent_tree[entry.name] = entry.id;
+                }
+                catch (...) {}
+            }
 
-        std::istringstream msg_ss(c.message);
-        std::string mline;
-        while (std::getline(msg_ss, mline))
-        {
-            if (!mline.empty() && mline.back() == '\r')
-                mline.pop_back();
-            out << "    " << mline << '\n';
-        }
-        out << '\n';
-
-        // Load parent tree
-        std::map<std::string, std::string> parent_tree;
-        if (!c.parent_ids.empty())
-        {
+            // Load commit tree
+            std::map<std::string, std::string> current_tree;
             try
             {
-                const std::string parent_raw = db.read(c.parent_ids[0]);
-                const ParsedCommit parent_commit = parse_commit(parent_raw);
-                const ParsedTree ptree = parse_tree(db.read(parent_commit.tree_id));
-                for (const auto& entry : ptree.entries)
-                    parent_tree[entry.name] = entry.id;
+                const ParsedTree ctree = parse_tree(db.read(c.tree_id));
+                for (const auto& entry : ctree.entries)
+                    current_tree[entry.name] = entry.id;
             }
             catch (...) {}
-        }
 
-        // Load commit tree
-        std::map<std::string, std::string> current_tree;
-        try
-        {
-            const ParsedTree ctree = parse_tree(db.read(c.tree_id));
-            for (const auto& entry : ctree.entries)
-                current_tree[entry.name] = entry.id;
-        }
-        catch (...) {}
+            // Collect all distinct paths in sorted order
+            std::map<std::string, bool> all_paths;
+            for (const auto& [p, _] : parent_tree)
+                all_paths[p] = true;
+            for (const auto& [p, _] : current_tree)
+                all_paths[p] = true;
 
-        // Collect all distinct paths in sorted order
-        std::map<std::string, bool> all_paths;
-        for (const auto& [p, _] : parent_tree)
-            all_paths[p] = true;
-        for (const auto& [p, _] : current_tree)
-            all_paths[p] = true;
+            std::vector<FileDiffStat> stats;
+            std::string patches;
 
-        std::vector<FileDiffStat> stats;
-        std::string patches;
-
-        for (const auto& [path, _] : all_paths)
-        {
-            const auto it_old = parent_tree.find(path);
-            const auto it_new = current_tree.find(path);
-
-            const bool in_old = (it_old != parent_tree.end());
-            const bool in_new = (it_new != current_tree.end());
-
-            if (in_old && in_new && it_old->second == it_new->second)
-                continue; // unchanged
-
-            if (format == ShowFormat::NameOnly)
+            for (const auto& [path, _] : all_paths)
             {
-                out << path << '\n';
-                continue;
-            }
+                const auto it_old = parent_tree.find(path);
+                const auto it_new = current_tree.find(path);
 
-            std::string old_content;
-            std::string new_content;
+                const bool in_old = (it_old != parent_tree.end());
+                const bool in_new = (it_new != current_tree.end());
 
-            if (in_old)
-            {
-                try { old_content = strip_object_header(db.read(it_old->second)); }
-                catch (...) {}
-            }
-            if (in_new)
-            {
-                try { new_content = strip_object_header(db.read(it_new->second)); }
-                catch (...) {}
-            }
+                if (in_old && in_new && it_old->second == it_new->second)
+                    continue; // unchanged
 
-            const auto edits = lcs_diff(split_lines(old_content), split_lines(new_content));
+                if (format == ShowFormat::NameOnly)
+                {
+                    out << path << '\n';
+                    continue;
+                }
+
+                std::string old_content;
+                std::string new_content;
+
+                if (in_old)
+                {
+                    try { old_content = strip_object_header(db.read(it_old->second)); }
+                    catch (...) {}
+                }
+                if (in_new)
+                {
+                    try { new_content = strip_object_header(db.read(it_new->second)); }
+                    catch (...) {}
+                }
+
+                const auto edits = lcs_diff(split_lines(old_content), split_lines(new_content));
+
+                if (format == ShowFormat::Stat)
+                {
+                    FileDiffStat fstat;
+                    fstat.path = path;
+                    for (const auto& e : edits)
+                    {
+                        if (e.type == EditType::Add)    ++fstat.insertions;
+                        if (e.type == EditType::Remove) ++fstat.deletions;
+                    }
+                    stats.push_back(fstat);
+                }
+                else // Default unified diff
+                {
+                    std::string patch;
+                    if (!in_old)
+                        patch = format_unified_diff("/dev/null", path, edits);
+                    else if (!in_new)
+                        patch = format_unified_diff(path, "/dev/null", edits);
+                    else
+                        patch = format_unified_diff(path, path, edits);
+
+                    patches += patch;
+                }
+            }
 
             if (format == ShowFormat::Stat)
             {
-                FileDiffStat fstat;
-                fstat.path = path;
-                for (const auto& e : edits)
+                int total_ins = 0;
+                int total_del = 0;
+                size_t max_path_len = 0;
+
+                for (const auto& s : stats)
                 {
-                    if (e.type == EditType::Add)    ++fstat.insertions;
-                    if (e.type == EditType::Remove) ++fstat.deletions;
+                    max_path_len = std::max(max_path_len, s.path.size());
+                    total_ins += s.insertions;
+                    total_del += s.deletions;
                 }
-                stats.push_back(fstat);
-            }
-            else // Default unified diff
-            {
-                std::string patch;
-                if (!in_old)
-                    patch = format_unified_diff("/dev/null", path, edits);
-                else if (!in_new)
-                    patch = format_unified_diff(path, "/dev/null", edits);
-                else
-                    patch = format_unified_diff(path, path, edits);
 
-                patches += patch;
-            }
-        }
-
-        if (format == ShowFormat::Stat)
-        {
-            int total_ins = 0;
-            int total_del = 0;
-            size_t max_path_len = 0;
-
-            for (const auto& s : stats)
-            {
-                max_path_len = std::max(max_path_len, s.path.size());
-                total_ins += s.insertions;
-                total_del += s.deletions;
-            }
-
-            for (const auto& s : stats)
-            {
-                const int total_changes = s.insertions + s.deletions;
-                std::string graph;
-                // Generate up to 20 graph symbols
-                const int max_graph = 20;
-                int ins_bar = s.insertions;
-                int del_bar = s.deletions;
-                if (total_changes > max_graph)
+                for (const auto& s : stats)
                 {
-                    ins_bar = (s.insertions * max_graph) / total_changes;
-                    del_bar = max_graph - ins_bar;
+                    const int total_changes = s.insertions + s.deletions;
+                    std::string graph;
+                    // Generate up to 20 graph symbols
+                    const int max_graph = 20;
+                    int ins_bar = s.insertions;
+                    int del_bar = s.deletions;
+                    if (total_changes > max_graph)
+                    {
+                        ins_bar = (s.insertions * max_graph) / total_changes;
+                        del_bar = max_graph - ins_bar;
+                    }
+                    graph.append(ins_bar, '+');
+                    graph.append(del_bar, '-');
+
+                    out << " " << std::left << std::setw(static_cast<int>(max_path_len)) << s.path
+                        << " | " << std::right << std::setw(3) << total_changes << " "
+                        << graph << '\n';
                 }
-                graph.append(ins_bar, '+');
-                graph.append(del_bar, '-');
 
-                out << " " << std::left << std::setw(static_cast<int>(max_path_len)) << s.path
-                    << " | " << std::right << std::setw(3) << total_changes << " "
-                    << graph << '\n';
+                if (!stats.empty())
+                {
+                    out << " " << stats.size() << " file" << (stats.size() == 1 ? "" : "s") << " changed";
+                    if (total_ins > 0)
+                        out << ", " << total_ins << " insertion" << (total_ins == 1 ? "" : "s") << "(+)";
+                    if (total_del > 0)
+                        out << ", " << total_del << " deletion" << (total_del == 1 ? "" : "s") << "(-)";
+                    out << '\n';
+                }
             }
-
-            if (!stats.empty())
+            else if (format == ShowFormat::Default)
             {
-                out << " " << stats.size() << " file" << (stats.size() == 1 ? "" : "s") << " changed";
-                if (total_ins > 0)
-                    out << ", " << total_ins << " insertion" << (total_ins == 1 ? "" : "s") << "(+)";
-                if (total_del > 0)
-                    out << ", " << total_del << " deletion" << (total_del == 1 ? "" : "s") << "(-)";
-                out << '\n';
+                out << patches;
             }
-        }
-        else if (format == ShowFormat::Default)
-        {
-            out << patches;
-        }
+        }},
+        {"tree", [](const fs::path& /*repo_root*/, const std::string& /*sha*/, const std::string& raw,
+                    ShowFormat /*format*/, ObjectDatabase& /*db*/, ShowResult& /*result*/, std::ostringstream& out) {
+            const ParsedTree tree = parse_tree(raw);
+            for (const auto& entry : tree.entries)
+            {
+                const std::string entry_type = (entry.mode == "040000") ? "tree" : "blob";
+                out << entry.mode << ' ' << entry_type << ' ' << entry.id << "    " << entry.name << '\n';
+            }
+        }},
+        {"blob", [](const fs::path& /*repo_root*/, const std::string& /*sha*/, const std::string& raw,
+                    ShowFormat /*format*/, ObjectDatabase& /*db*/, ShowResult& /*result*/, std::ostringstream& out) {
+            out << strip_object_header(raw);
+        }}
+    };
 
-        result.output = out.str();
-        result.success = true;
-        return result;
-    }
-
-    // 3. Tree object: Print tree entries
-    if (type == "tree")
+    const auto it = type_handlers.find(type);
+    if (it == type_handlers.end())
     {
-        const ParsedTree tree = parse_tree(raw);
-        for (const auto& entry : tree.entries)
-        {
-            const std::string entry_type = (entry.mode == "040000") ? "tree" : "blob";
-            out << entry.mode << ' ' << entry_type << ' ' << entry.id << "    " << entry.name << '\n';
-        }
-        result.output = out.str();
-        result.success = true;
+        result.error_message = "fatal: unknown object type '" + type + "' for " + sha;
         return result;
     }
 
-    // 4. Blob object: Print content
-    if (type == "blob")
-    {
-        result.output = strip_object_header(raw);
-        result.success = true;
-        return result;
-    }
-
-    result.error_message = "fatal: unknown object type '" + type + "' for " + sha;
+    it->second(repo_root, sha, raw, format, db, result, out);
+    result.output = out.str();
+    result.success = true;
     return result;
 }
 
@@ -554,16 +550,18 @@ int show_command(int argc, char const *argv[])
     std::string target = "HEAD";
     ShowFormat format = ShowFormat::Default;
 
+    static const std::unordered_map<std::string, ShowFormat> format_options = {
+        {"--stat",      ShowFormat::Stat},
+        {"--name-only", ShowFormat::NameOnly}
+    };
+
     for (int i = 2; i < argc; ++i)
     {
         const std::string arg = argv[i];
-        if (arg == "--stat")
+        const auto it = format_options.find(arg);
+        if (it != format_options.end())
         {
-            format = ShowFormat::Stat;
-        }
-        else if (arg == "--name-only")
-        {
-            format = ShowFormat::NameOnly;
+            format = it->second;
         }
         else if (!arg.empty() && arg[0] != '-')
         {

@@ -20,6 +20,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -908,23 +909,22 @@ int submodule_command(int argc, char const *argv[])
         return submodule_status(argc, argv);
     }
 
+    using SubmoduleHandler = int (*)(int, char const *[]);
+    static const std::unordered_map<std::string, SubmoduleHandler> handlers = {
+        {"add",     submodule_add},
+        {"status",  submodule_status},
+        {"init",    submodule_init},
+        {"update",  submodule_update},
+        {"deinit",  submodule_deinit},
+        {"summary", submodule_summary},
+        {"foreach", submodule_foreach},
+        {"sync",    submodule_sync}
+    };
+
     std::string sub = argv[2];
-    if (sub == "add")
-        return submodule_add(argc, argv);
-    if (sub == "status")
-        return submodule_status(argc, argv);
-    if (sub == "init")
-        return submodule_init(argc, argv);
-    if (sub == "update")
-        return submodule_update(argc, argv);
-    if (sub == "deinit")
-        return submodule_deinit(argc, argv);
-    if (sub == "summary")
-        return submodule_summary(argc, argv);
-    if (sub == "foreach")
-        return submodule_foreach(argc, argv);
-    if (sub == "sync")
-        return submodule_sync(argc, argv);
+    const auto it = handlers.find(sub);
+    if (it != handlers.end())
+        return it->second(argc, argv);
 
     // If first argument after 'submodule' is an option (e.g. '--cached'), run status
     if (sub.starts_with("-"))
