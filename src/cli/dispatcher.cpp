@@ -526,7 +526,7 @@ int run(int argc, char const *argv[])
     const std::string command_in = argv[1];
     if (command_in == "--version" || command_in == "-v" || command_in == "version")
     {
-        std::cout << "minigit version 1.8.0\n";
+        std::cout << "minigit version 1.8.1\n";
         return 0;
     }
 

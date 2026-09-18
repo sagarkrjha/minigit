@@ -2214,7 +2214,8 @@ flowchart LR
     C --> D["v1.5.0\nLinked Worktrees"]
     D --> E["v1.6.0\nSubmodules"]
     E --> F["v1.7.0\nBisect Debugging"]
-    F --> G["v1.8.0 (Current)\nSmart HTTP Remotes"]
+    F --> G["v1.8.0\nSmart HTTP Remotes"]
+    G --> H["v1.8.1 (Current)\nSecurity & Performance Hardening"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -2233,4 +2234,5 @@ flowchart LR
 14. ~~**Submodule Support (Phase 11 / v1.6.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).~~ ✅ **Implemented in v1.6.0**
 15. ~~**Binary Search Debugging (Phase 12 / v1.7.0):** Binary search debugging (`minigit bisect`) to pinpoint regression-introducing commits across linear and branching DAG histories with automated test script execution (`bisect run`), session recording/replay, and customizable terms.~~ ✅ **Implemented in v1.7.0**
 16. ~~**Smart HTTP Network Remotes (Phase 13 / v1.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional pkt-line framing, ref advertisement discovery (`/info/refs?service=git-upload-pack|git-receive-pack`), want/have/done negotiation, packfile streaming & sideband demultiplexing, unpacked directly to CAS.~~ ✅ **Implemented in v1.8.0**
+17. ~~**Security Hardening, Memory Safety & Performance Profiling (Phase 14 / v1.8.1):** Traversal prevention (`resolve_safe_repo_path`) across clone/pull/checkout, hardened pkt-line hex and packfile bitshift decoding, RAII guards for libcurl network resources, and automated empirical benchmark suite (`minigit_benchmarks`).~~ ✅ **Implemented in v1.8.1**
 

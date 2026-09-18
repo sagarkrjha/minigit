@@ -266,7 +266,7 @@ private:
         if (!main_sha.empty())
         {
             using namespace std::string_literals;
-            std::string line = main_sha + " HEAD\0symref=HEAD:refs/heads/main ofs-delta agent=minigit/1.8.0\n"s;
+            std::string line = main_sha + " HEAD\0symref=HEAD:refs/heads/main ofs-delta agent=minigit/1.8.1\n"s;
             payload += pkt_line(line);
             payload += pkt_line(main_sha + " refs/heads/main\n");
         }
@@ -287,7 +287,7 @@ private:
         if (!main_sha.empty())
         {
             using namespace std::string_literals;
-            std::string line = main_sha + " refs/heads/main\0report-status agent=minigit/1.8.0\n"s;
+            std::string line = main_sha + " refs/heads/main\0report-status agent=minigit/1.8.1\n"s;
             payload += pkt_line(line);
         }
         payload += pkt_flush();
@@ -480,7 +480,7 @@ TEST_CASE(SmartHttp, AdvertisedRefsParsing)
     std::string valid_response =
         pkt_line("# service=git-upload-pack\n") +
         pkt_flush() +
-        pkt_line("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 HEAD\0symref=HEAD:refs/heads/main ofs-delta agent=minigit/1.8.0\n"s) +
+        pkt_line("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 HEAD\0symref=HEAD:refs/heads/main ofs-delta agent=minigit/1.8.1\n"s) +
         pkt_line("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 refs/heads/main\n") +
         pkt_line("1111111111111111111111111111111111111111111111111111111111111111 refs/tags/v1.0\n") +
         pkt_flush();
