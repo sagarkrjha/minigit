@@ -6,6 +6,7 @@
 #include <random>
 #include <filesystem>
 #include <sstream>
+#include <algorithm>
 
 #include "core/sha256.h"
 #include "core/zlib_compress.h"
@@ -15,6 +16,12 @@
 #include "diff/diff_engine.h"
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <psapi.h>
 #endif
@@ -48,7 +55,7 @@ std::string generate_text(size_t target_bytes)
     result.reserve(target_bytes);
     while (result.size() < target_bytes)
     {
-        size_t chunk = std::min(sample_len, target_bytes - result.size());
+        size_t chunk = (std::min)(sample_len, target_bytes - result.size());
         result.append(sample_words, chunk);
     }
     return result;
