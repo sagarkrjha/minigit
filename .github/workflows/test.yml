@@ -219,7 +219,8 @@ jobs:
       - name: Run CLI Smoke Test (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
-          TEST_REPO="$(pwd)/build/smoke_test_repo"
+          ROOT_DIR="$(pwd)"
+          TEST_REPO="$ROOT_DIR/build/smoke_test_repo"
           rm -rf "$TEST_REPO"
           mkdir -p "$TEST_REPO"
           EXE=$(find build -type f -name "${{ matrix.binary }}" -not -path "*/CMakeFiles/*" -not -path "*/smoke_test_repo/*" | head -n 1)
@@ -260,7 +261,7 @@ jobs:
           "$EXE" worktree list --porcelain
           "$EXE" worktree remove wt-smoke
           "$EXE" worktree prune
-          SUB_REPO="$(pwd)/../smoke_sub_repo"
+          SUB_REPO="$ROOT_DIR/build/smoke_sub_repo"
           rm -rf "$SUB_REPO"
           mkdir -p "$SUB_REPO"
           cd "$SUB_REPO"
@@ -275,7 +276,7 @@ jobs:
           "$EXE" submodule deinit sub_dir
           "$EXE" submodule update --init
           rm -rf "$SUB_REPO"
-          cd -
+          cd "$ROOT_DIR"
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"
 
