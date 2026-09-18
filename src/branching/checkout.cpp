@@ -112,6 +112,11 @@ void checkout_command(const std::string &target)
     // Restore each file in the tree.
     for (const auto &entry : tree.entries)
     {
+        if (entry.mode == "160000")
+        {
+            // Submodule gitlink: do not overwrite directory with blob
+            continue;
+        }
         std::string content;
         try
         {

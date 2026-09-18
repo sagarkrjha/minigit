@@ -12,6 +12,7 @@ add_executable(minigit_tests
     test_rebase.cpp
     test_pack.cpp
     test_worktree.cpp
+    test_submodule.cpp
 )
 
 target_include_directories(minigit_tests
@@ -30,6 +31,7 @@ target_link_libraries(minigit_tests
         minigit_merge
         minigit_history
         minigit_worktree
+        minigit_submodule
 )
 
 add_test(NAME minigit_tests COMMAND minigit_tests)

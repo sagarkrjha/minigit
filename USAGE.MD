@@ -52,14 +52,22 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Move a Working Tree (`move`)](#move-a-working-tree-minigit-worktree-move)
   - [Remove a Working Tree (`remove`)](#remove-a-working-tree-minigit-worktree-remove)
   - [Prune Stale Working Trees (`prune`)](#prune-stale-working-trees-minigit-worktree-prune)
-- [9. Remote Repositories & Synchronization](#9-remote-repositories--synchronization)
+- [9. Submodules (`minigit submodule`)](#9-submodules-minigit-submodule)
+  - [Add a Submodule (`add`)](#add-a-submodule-minigit-submodule-add)
+  - [Check Submodule Status (`status`)](#check-submodule-status-minigit-submodule-status)
+  - [Initialize and Update (`init` / `update`)](#initialize-and-update-submodules-minigit-submodule-init--update)
+  - [Run Commands in Submodules (`foreach`)](#run-commands-in-all-submodules-minigit-submodule-foreach)
+  - [Deinitialize Submodules (`deinit`)](#deinitialize-submodules-minigit-submodule-deinit)
+  - [Synchronize Remote URLs (`sync`)](#synchronize-remote-urls-minigit-submodule-sync)
+  - [Inspect Differences (`summary`)](#inspect-submodule-commit-differences-minigit-submodule-summary)
+- [10. Remote Repositories & Synchronization](#10-remote-repositories--synchronization)
   - [Clone a Repository (`minigit clone`)](#clone-a-repository-minigit-clone)
   - [Manage Remotes (`minigit remote`)](#manage-remotes-minigit-remote)
   - [Fetch Updates (`minigit fetch`)](#fetch-updates-minigit-fetch)
   - [Push Commits (`minigit push`)](#push-commits-minigit-push)
   - [Pull & Fast-Forward (`minigit pull`)](#pull--fast-forward-minigit-pull)
-- [10. Ignoring Files (`.minigitignore`)](#10-ignoring-files-minigitignore)
-- [11. Low-Level Plumbing Commands](#11-low-level-plumbing-commands)
+- [11. Ignoring Files (`.minigitignore`)](#11-ignoring-files-minigitignore)
+- [12. Low-Level Plumbing Commands](#12-low-level-plumbing-commands)
   - [Compute Object Hashes (`minigit hash-object`)](#compute-object-hashes-minigit-hash-object)
   - [Write Staging Area to Tree (`minigit write-tree`)](#write-staging-area-to-tree-minigit-write-tree)
   - [Inspect Stored Objects (`minigit cat-file`)](#inspect-stored-objects-minigit-cat-file)
@@ -67,7 +75,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Inspect Tree Objects (`minigit ls-tree`)](#inspect-tree-objects-minigit-ls-tree)
   - [Packfile Maintenance & Compaction (`minigit repack`)](#packfile-maintenance--compaction-minigit-repack)
   - [Verify Packfiles (`minigit verify-pack`)](#verify-packfiles-minigit-verify-pack)
-- [12. Command Summary & Cheat Sheet](#12-command-summary--cheat-sheet)
+- [13. Command Summary & Cheat Sheet](#13-command-summary--cheat-sheet)
 
 ---
 
@@ -787,7 +795,117 @@ minigit worktree prune -v
 
 ---
 
-## 9. Remote Repositories & Synchronization
+## 9. Submodules (`minigit submodule`)
+
+Submodules allow keeping a MiniGit repository as a subdirectory of another MiniGit repository. The submodule has its own commit history, branches, and working tree, while the parent repository tracks the exact commit SHA of the submodule using Git-standard mode `160000` gitlinks.
+
+### Add a Submodule (`minigit submodule add`)
+
+Clones an external repository into a specified path inside your repository, records the mapping in `.minigitmodules` and `.minigit/config`, and stages the submodule gitlink into the parent index:
+
+```bash
+# Add a repository into libs/math
+minigit submodule add https://github.com/example/math.git libs/math
+
+# Specify a tracking branch and custom submodule name
+minigit submodule add -b main --name math_lib https://github.com/example/math.git libs/math
+
+# Stage and commit the new submodule gitlink and .minigitmodules
+minigit commit -m "Add math submodule"
+```
+
+---
+
+### Check Submodule Status (`minigit submodule status`)
+
+Displays the status of all registered submodules. Each line begins with a status indicator:
+- ` ` (space): Clean and in sync with the parent commit.
+- `-` (minus): Submodule is uninitialized (working tree not populated).
+- `+` (plus): Submodule working tree HEAD differs from the commit recorded in the parent index/tree.
+- `U`: Unmerged merge conflict on the submodule entry.
+
+```bash
+minigit submodule status
+```
+*Output:*
+```text
+ a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0 libs/math (main)
+```
+
+---
+
+### Initialize and Update Submodules (`minigit submodule init` / `update`)
+
+When cloning a repository with submodules, submodules start uninitialized. Use `init` and `update` to populate them:
+
+```bash
+# 1. Register submodules into local .minigit/config
+minigit submodule init
+
+# 2. Clone and checkout the recorded commits
+minigit submodule update
+
+# Or initialize and update in a single command:
+minigit submodule update --init
+
+# Recursively update nested submodules
+minigit submodule update --init --recursive
+```
+
+---
+
+### Run Commands in All Submodules (`minigit submodule foreach`)
+
+Evaluates a command inside the working directory of each registered submodule. Useful for running builds, testing, or checking status across dependencies:
+
+```bash
+# Check status in every submodule
+minigit submodule foreach minigit status
+
+# Pull upstream changes across submodules
+minigit submodule foreach minigit pull origin main
+```
+
+---
+
+### Deinitialize Submodules (`minigit submodule deinit`)
+
+Unregisters a submodule, removes its working directory to free disk space, while safely keeping its repository storage intact inside `.minigit/modules/`:
+
+```bash
+# Deinitialize a specific submodule
+minigit submodule deinit libs/math
+
+# Deinitialize all submodules
+minigit submodule deinit --all
+
+# Force deinitialization even if local modifications exist
+minigit submodule deinit -f libs/math
+```
+
+---
+
+### Synchronize Remote URLs (`minigit submodule sync`)
+
+Updates local `.minigit/config` and internal submodule remote URLs if the URL in `.minigitmodules` was changed:
+
+```bash
+minigit submodule sync
+```
+
+---
+
+### Inspect Submodule Commit Differences (`minigit submodule summary`)
+
+Displays commit differences between the commit recorded in the parent repository and the current submodule HEAD:
+
+```bash
+minigit submodule summary
+```
+
+---
+
+## 10. Remote Repositories & Synchronization
 
 MiniGit includes full local-filesystem synchronization protocol commands.
 
@@ -853,7 +971,7 @@ minigit pull origin main
 
 ---
 
-## 10. Ignoring Files (`.minigitignore`)
+## 11. Ignoring Files (`.minigitignore`)
 
 Place a `.minigitignore` file in your repository root to prevent untracked files from appearing in `minigit status` and `minigit add .`:
 
@@ -880,7 +998,7 @@ temp/cache.json
 
 ---
 
-## 11. Low-Level Plumbing Commands
+## 12. Low-Level Plumbing Commands
 
 Plumbing commands provide low-level access to the Content-Addressable Storage (CAS) engine.
 
@@ -1023,7 +1141,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 
 ---
 
-## 12. Command Summary & Cheat Sheet
+## 13. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |
@@ -1041,6 +1159,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 | `switch` | `minigit switch [-c] <branch>` | Switch active branch, optionally creating it first with `-c`. |
 | `checkout`| `minigit checkout <branch-or-sha>` | Restore working files and index to a branch or commit. |
 | `worktree`| `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move] [<args>]` | Manage multiple linked working trees sharing single CAS. |
+| `submodule`| `minigit submodule [add\|status\|init\|update\|deinit\|summary\|foreach\|sync] [<args>]` | Manage nested repositories and mode 160000 gitlinks. |
 | `tag` | `minigit tag [-a -m msg \| -d] [<name>]` | List, create (lightweight / annotated), or delete tags. |
 | `reset` | `minigit reset [--soft\|--mixed\|--hard] <sha>`| Roll back HEAD, index, and/or working tree. |
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |

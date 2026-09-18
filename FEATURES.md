@@ -44,6 +44,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.30 `minigit repack`](#230-minigit-repack)
   - [2.31 `minigit verify-pack`](#231-minigit-verify-pack)
   - [2.32 `minigit worktree`](#232-minigit-worktree)
+  - [2.33 `minigit submodule`](#233-minigit-submodule)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1620,6 +1621,138 @@ $ minigit worktree remove ../feature-auth
 
 ---
 
+### 2.33 `minigit submodule`
+
+#### Synopsis
+```bash
+minigit submodule add [-b <branch>] [--name <name>] [-f | --force] <repository> [<path>]
+minigit submodule status [--cached] [--recursive] [<path>...]
+minigit submodule init [<path>...]
+minigit submodule update [--init] [--recursive] [-f | --force] [<path>...]
+minigit submodule deinit [-f | --force] (--all | <path>...)
+minigit submodule summary [<commit>] [--cached] [<path>...]
+minigit submodule foreach [--recursive] <command>...
+minigit submodule sync [--recursive] [<path>...]
+```
+
+#### Purpose
+Enables managing nested repositories as distinct working trees within a parent repository. MiniGit tracks submodules using Git-compatible mode `160000` (gitlink) entries in tree and index objects, recording the exact commit SHA of each submodule without bloating the parent repository's content-addressable storage with the child repository's loose objects or history.
+
+#### Architecture & Gitlink Mechanics
+
+1. **Gitlinks (Mode `160000`)**:
+   - In parent trees and the staging index, a submodule is registered with file mode `160000` and the 64-character SHA-256 commit hash of the checked-out submodule `HEAD`.
+   - The commit hash references an object residing in the *submodule's* repository database (`.minigit/modules/<name>/objects`), keeping the parent repository CAS strictly isolated.
+2. **Repository Separation & Indirection**:
+   - Submodule repository metadata is stored in the parent repository at `.minigit/modules/<name>/`.
+   - The submodule directory in the parent working tree contains a `.minigit` file containing:
+     ```text
+     gitdir: ../../.minigit/modules/<name>
+     ```
+   - MiniGit repository discovery (`Repository::discover`) automatically parses this `gitdir:` indirection, allowing full MiniGit commands (`add`, `commit`, `log`, etc.) to run natively from within any submodule working tree.
+3. **Configuration Tracking**:
+   - `.minigitmodules`: Committed configuration file tracking version-controlled submodule mappings:
+     ```ini
+     [submodule "libs/engine"]
+         path = libs/engine
+         url = ../engine.git
+         branch = main
+     ```
+   - `.minigit/config`: Local repository configuration recording active registration and local clone URLs:
+     ```ini
+     [submodule "libs/engine"]
+         url = C:/projects/engine.git
+     ```
+
+```mermaid
+flowchart TD
+    subgraph ParentRepo ["Parent Repository"]
+        P_ROOT["Parent Working Tree"]
+        P_INDEX[".minigit/index (mode 160000 -> Submodule HEAD)"]
+        P_TREE["Tree Objects (mode 160000 commit <sha> <path>)"]
+        P_MOD[".minigitmodules (INI config: name, path, url, branch)"]
+        P_CONF[".minigit/config (active registration)"]
+        P_STORE[".minigit/modules/libs_engine/ (CAS & refs)"]
+    end
+
+    subgraph SubmoduleWT ["Submodule Working Tree (libs/engine)"]
+        S_FILE[".minigit (gitdir: ../../.minigit/modules/libs_engine)"]
+        S_WORK["Submodule Tracked Files"]
+    end
+
+    P_ROOT --> P_MOD
+    P_ROOT --> SubmoduleWT
+    S_FILE -->|gitdir indirection| P_STORE
+    P_INDEX -.->|gitlink pointer| P_STORE
+    P_TREE -.->|gitlink pointer| P_STORE
+```
+
+#### Subcommands & Flags
+
+| Subcommand | Flags | Description |
+| :--- | :--- | :--- |
+| `add` | `-b <branch>`, `--name <name>`, `-f`, `--force` | Clones `<repository>` into `<path>`, writes configuration to `.minigitmodules` and `.minigit/config`, registers the submodule in the parent index as a mode `160000` gitlink, and sets up `.minigit` pointer file. |
+| `status` | `--cached`, `--recursive` | Shows the status of registered submodules. Prefixes: ` ` (in sync), `-` (uninitialized), `+` (working tree commit differs from staged gitlink), `U` (merge conflict). |
+| `init` | `[<path>...]` | Copies submodule registration settings from `.minigitmodules` into local `.minigit/config` for specified paths (or all registered submodules if omitted). |
+| `update` | `--init`, `--recursive`, `-f`, `--force` | Updates registered submodules to match the parent commit tree. Clones missing repositories when `--init` is supplied and checks out recorded commit IDs. |
+| `deinit` | `-f`, `--force`, `--all` | Unregisters specified submodules from `.minigit/config` and removes their working directory contents while safely preserving module storage in `.minigit/modules/`. |
+| `summary` | `[<commit>]`, `--cached` | Displays commit difference summaries between the commit recorded in the parent tree and the current submodule HEAD or working tree. |
+| `foreach` | `--recursive` | Evaluates an arbitrary shell or CLI command inside the working directory of each checked-out submodule, setting `$name`, `$path`, and `$sha1`. |
+| `sync` | `--recursive` | Synchronizes remote URL configuration from `.minigitmodules` into local `.minigit/config` and submodule remote references. |
+
+#### Invariants & Subsystem Integration
+
+1. **Staging & Status Integration**:
+   - `minigit status`: Compares the committed tree gitlink SHA with the current submodule working tree HEAD SHA. If they differ, reports:
+     ```text
+     modified:   libs/engine (new commits)
+     ```
+   - Interior files inside submodule working directories are strictly ignored during parent `working_tree_files` scanning, preventing accidental recursive untracked file pollution.
+2. **`minigit add`**:
+   - Running `minigit add libs/engine` or `minigit add .` detects that `libs/engine` is a submodule directory and stages the submodule's current `HEAD` commit SHA directly as a mode `160000` index entry.
+3. **`minigit diff`**:
+   - When a submodule commit pointer changes between commits or the stage, `minigit diff` outputs canonical gitlink differences without attempting to read the commit object from parent CAS:
+     ```diff
+     -Subproject commit 1a2b3c4d...
+     +Subproject commit 5e6f7a8b...
+     ```
+4. **`minigit checkout`**:
+   - During branch switches or tree checkouts, mode `160000` gitlink entries are preserved without attempting to read commit hashes as blob objects.
+5. **Plumbing (`ls-tree`, `ls-files`)**:
+   - `minigit ls-tree` displays `160000 commit <sha> <path>`.
+   - `minigit ls-files --stage` outputs `160000 <sha> 0\t<path>`.
+
+#### Examples
+```bash
+# Add a third-party library as a submodule
+$ minigit submodule add https://github.com/example/engine.git libs/engine
+Cloning into 'C:/projects/myapp/libs/engine'...
+done.
+[a1b2c3d] Add submodule 'libs/engine'
+
+# Check submodule status
+$ minigit submodule status
+ a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0 libs/engine (main)
+
+# Execute command across all submodules
+$ minigit submodule foreach minigit status
+Entering 'libs/engine'
+On branch main
+nothing to commit, working tree clean
+
+# Deinitialize when not in use
+$ minigit submodule deinit libs/engine
+Cleared directory for submodule 'libs/engine'
+Submodule 'libs/engine' unregistered for path 'libs/engine'
+
+# Initialize and update on a fresh clone
+$ minigit submodule update --init
+Submodule 'libs/engine' (https://github.com/example/engine.git) registered for path 'libs/engine'
+Submodule path 'libs/engine': checked out 'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0'
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1836,6 +1969,7 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Detached HEAD** | Supported | Supported |
 | **Branch Deletion Safeguard** | Prevents active branch deletion | Prevents active branch deletion |
 | **Linked Worktrees** | Supported (v1.5.0, add, list, remove, prune, lock, unlock, move) | Full support |
+| **Submodules** | Supported (v1.6.0, add, status, init, update, deinit, summary, foreach, sync, mode `160000` gitlinks) | Full support |
 | **Cross-Platform CRLF** | Normalizes `\r` across comparisons | Handled via `core.autocrlf` |
 
 ---
@@ -1848,8 +1982,9 @@ The following features are scheduled for subsequent development phases:
 flowchart LR
     A["v0.5.0\nzlib Compression"] --> B["v0.6.0\nRemotes Protocol"]
     B --> C["v1.4.0\nPackfiles & Delta Compression"]
-    C --> D["v1.5.0 (Current)\nLinked Worktrees"]
-    D --> E["Future\nSmart HTTP Remotes & Submodules"]
+    C --> D["v1.5.0\nLinked Worktrees"]
+    D --> E["v1.6.0 (Current)\nSubmodules"]
+    E --> F["Future\nSmart HTTP Remotes"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -1865,7 +2000,7 @@ flowchart LR
 11. ~~**Packfiles (`.pack`) & Delta Compression:** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.~~ ✅ **Implemented in v1.4.0**
 12. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
 13. ~~**Multiple Worktrees (Phase 10 / v1.5.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.~~ ✅ **Implemented in v1.5.0**
-14. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-15. **Submodule Support:** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
+14. ~~**Submodule Support (Phase 11 / v1.6.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).~~ ✅ **Implemented in v1.6.0**
+15. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
 
 

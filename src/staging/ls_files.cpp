@@ -4,6 +4,7 @@
 #include "index.h"
 #include "repository/repository.h"
 #include "storage/blob.h"
+#include "submodule/submodule_config.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -74,6 +75,21 @@ std::set<std::string> scan_working_tree_files(const fs::path& root, const Ignore
             continue;
 
         if (rel_str == ".minigitignore")
+            continue;
+
+        // Skip files inside submodules
+        bool in_submodule = false;
+        fs::path p_scan = entry.path().parent_path();
+        while (p_scan != root && p_scan.has_relative_path())
+        {
+            if (fs::exists(p_scan / ".minigit") || fs::exists(p_scan / ".git"))
+            {
+                in_submodule = true;
+                break;
+            }
+            p_scan = p_scan.parent_path();
+        }
+        if (in_submodule)
             continue;
 
         if (ignore_rules.is_ignored(rel_str))
@@ -181,7 +197,7 @@ LsFilesResult perform_ls_files(
             // Format: <mode> <sha256> <stage>\t<path>
             const auto it = staged.find(path);
             const std::string sha = (it != staged.end()) ? it->second : "0000000000000000000000000000000000000000000000000000000000000000";
-            const std::string mode = "100644";
+            const std::string mode = SubmoduleConfig::is_submodule_path(repo_root, path) ? "160000" : "100644";
             out << mode << " " << sha << " 0\t" << path << '\n';
         }
         else

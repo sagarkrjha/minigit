@@ -124,6 +124,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Object Compression:** Deflate compression with transparent backward compatibility via `zlib` for all loose objects in CAS storage.
 - **Remotes & Synchronization:** Full local remote synchronization workflow: clone repositories with `minigit clone`, manage remotes with `minigit remote`, fetch updates with `minigit fetch`, fast-forward push with `minigit push`, and pull latest changes with `minigit pull`.
 - **Linked Worktrees:** Check out and work on multiple branches simultaneously using isolated linked working directories (`minigit worktree`), sharing the central CAS object database and reference namespace while preventing branch checkout collisions.
+- **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
 - **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 
 ---
@@ -187,6 +188,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move]` | Porcelain | Manages multiple linked working directories attached to single repository. |
+| `minigit submodule [add\|status\|init\|update\|deinit\|summary\|foreach\|sync]` | Porcelain | Manages nested repositories, `.minigitmodules`, and mode 160000 gitlinks. |
 | `minigit tag [name] [-a -m msg] [-d]` | Porcelain | Lists, creates (lightweight or annotated), or deletes tags. |
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
@@ -758,6 +760,10 @@ minigit/
 │   ├── worktree/               # Multiple Linked Working Trees
 │   │   ├── CMakeLists.txt
 │   │   └── worktree.{h,cpp}    # worktree add, list, remove, prune, lock, unlock, move
+│   ├── submodule/              # Nested Repositories & Gitlink Management
+│   │   ├── CMakeLists.txt
+│   │   ├── submodule_config.{h,cpp} # .minigitmodules & config INI manager
+│   │   └── submodule.{h,cpp}   # submodule add, status, init, update, deinit, summary, foreach, sync
 │   └── remotes/                # Remote Synchronization & Transport Protocol
 │       ├── CMakeLists.txt
 │       ├── config.{h,cpp}      # .minigit/config INI parser and remote manager
@@ -782,7 +788,8 @@ minigit/
 | **Diff Engine** | Dynamic programming LCS (`O(M * N)`) | Myers diff algorithm (`O(N * D)`) |
 | **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
 | **Linked Worktrees** | Full support (add, list, remove, prune, lock, unlock, move) | Full support |
-| **Submodules & Remotes**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
+| **Submodules** | Full support (add, status, init, update, deinit, summary, foreach, sync, mode 160000 gitlinks) | Full support |
+| **Remotes & Transport**| Local remotes protocol (`clone`, `fetch`, `push`, `pull`) | Full local, SSH, Git, HTTP/S protocols |
 | **Compression & Packing** | zlib deflate & Packfile v2 with delta compression | zlib deflate compression & Packfiles |
 
 ---
@@ -800,7 +807,7 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 7: Packfiles & Delta Compression:** Object database consolidation into binary packfiles (`.pack`), `.idx` fan-out index, and sliding-window byte-level delta compression (`minigit repack`, `minigit verify-pack`).
 - [ ] **Phase 8: Smart HTTP Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol.
 - [x] **Phase 9: Linear Rebase & Cherry-Pick:** Linear history rewriting and replay via `minigit rebase` (`--onto`, `--continue`, `--abort`, `--skip`), and individual commit transplantation (`minigit cherry-pick`).
-- [x] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) implemented in v1.5.0; nested repository tracking (`minigit submodule`).
+- [x] **Phase 10: Worktrees & Submodules:** Multiple linked working trees (`minigit worktree`) implemented in v1.5.0; nested repository tracking and gitlinks (`minigit submodule`) implemented in v1.6.0.
 
 ---
 

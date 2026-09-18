@@ -7,6 +7,7 @@
 #include "storage/object_database.h"
 #include "storage/object_parser.h"
 #include "repository/repository.h"
+#include "submodule/submodule_config.h"
 
 #include <filesystem>
 #include <fstream>
@@ -96,6 +97,32 @@ void diff_command(bool cached, const std::vector<std::string> &paths)
 
             const fs::path abs_path = repo.root() / rel_path;
 
+            if (SubmoduleConfig::is_submodule_path(repo.root(), rel_path))
+            {
+                if (fs::exists(abs_path))
+                {
+                    try
+                    {
+                        Repository sub_repo = Repository::discover(abs_path);
+                        std::string cur_head = Repository::resolve_head_from_dir(sub_repo.git_dir());
+                        if (!cur_head.empty() && cur_head != blob_id)
+                        {
+                            std::cout << "diff --minigit a/" << rel_path << " b/" << rel_path << '\n';
+                            std::cout << "--- a/" << rel_path << '\n';
+                            std::cout << "+++ b/" << rel_path << '\n';
+                            std::cout << "@@ -1 +1 @@\n";
+                            std::cout << "-Subproject commit " << blob_id << '\n';
+                            std::cout << "+Subproject commit " << cur_head << '\n';
+                            any_diff = true;
+                        }
+                    }
+                    catch (...)
+                    {
+                    }
+                }
+                continue;
+            }
+
             if (!fs::exists(abs_path))
             {
                 // File deleted from working tree but still staged.
@@ -169,6 +196,19 @@ void diff_command(bool cached, const std::vector<std::string> &paths)
             const bool is_new = (it == committed.end());
             if (!is_new && it->second == blob_id)
                 continue; // unchanged
+
+            if (SubmoduleConfig::is_submodule_path(repo.root(), rel_path))
+            {
+                std::cout << "diff --minigit a/" << rel_path << " b/" << rel_path << '\n';
+                std::cout << "--- " << (is_new ? "a//dev/null" : ("a/" + rel_path)) << '\n';
+                std::cout << "+++ b/" << rel_path << '\n';
+                std::cout << "@@ -1 +1 @@\n";
+                if (!is_new)
+                    std::cout << "-Subproject commit " << it->second << '\n';
+                std::cout << "+Subproject commit " << blob_id << '\n';
+                any_diff = true;
+                continue;
+            }
 
             const std::string new_content = read_blob_content(db, blob_id);
             const std::string old_content =

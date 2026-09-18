@@ -6,6 +6,7 @@
 #include "storage/blob.h"
 #include "storage/object_database.h"
 #include "repository/repository.h"
+#include "submodule/submodule_config.h"
 
 #include <filesystem>
 #include <fstream>
@@ -54,6 +55,21 @@ static std::set<std::string> working_tree_files(const fs::path& root,
 
         // Skip .minigit internals and any real .git directory.
         if (rel_str.starts_with(".minigit") || rel_str.starts_with(".git"))
+            continue;
+
+        // Skip files inside submodules
+        bool in_submodule = false;
+        fs::path p_scan = entry.path().parent_path();
+        while (p_scan != root && p_scan.has_relative_path())
+        {
+            if (fs::exists(p_scan / ".minigit") || fs::exists(p_scan / ".git"))
+            {
+                in_submodule = true;
+                break;
+            }
+            p_scan = p_scan.parent_path();
+        }
+        if (in_submodule)
             continue;
 
         // Never show .minigitignore as untracked (it is a config file).
@@ -108,6 +124,23 @@ void status()
         if (!fs::exists(abs))
         {
             deleted_staged.push_back(path);
+            continue;
+        }
+
+        if (SubmoduleConfig::is_submodule_path(repo.root(), path))
+        {
+            try
+            {
+                Repository sub_repo = Repository::discover(abs);
+                const std::string sub_head = Repository::resolve_head_from_dir(sub_repo.git_dir());
+                if (!sub_head.empty() && sub_head != blob_id)
+                {
+                    modified.push_back(path + " (new commits)");
+                }
+            }
+            catch (...)
+            {
+            }
             continue;
         }
 

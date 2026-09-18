@@ -294,7 +294,8 @@ void traverse_tree(
     for (const auto& entry : tree.entries)
     {
         const bool is_dir = (entry.mode == "040000");
-        const std::string type = is_dir ? "tree" : "blob";
+        const bool is_submodule = (entry.mode == "160000");
+        const std::string type = is_dir ? "tree" : (is_submodule ? "commit" : "blob");
         const std::string full_path = current_prefix.empty() ? entry.name : (current_prefix + entry.name);
 
         if (is_dir)
