@@ -210,6 +210,12 @@ jobs:
             & $exe submodule deinit sub_dir
             & $exe submodule update --init
             Remove-Item -Recurse -Force $subRepo
+            & $exe bisect help
+            & $exe bisect start
+            & $exe bisect bad HEAD
+            & $exe bisect good HEAD~1
+            & $exe bisect log
+            & $exe bisect reset
             Write-Host "Windows CLI smoke tests passed successfully!"
           } finally {
             Pop-Location
@@ -276,6 +282,12 @@ jobs:
           "$EXE" submodule deinit sub_dir
           "$EXE" submodule update --init
           rm -rf "$SUB_REPO"
+          "$EXE" bisect help
+          "$EXE" bisect start
+          "$EXE" bisect bad HEAD
+          "$EXE" bisect good HEAD~1
+          "$EXE" bisect log
+          "$EXE" bisect reset
           cd "$ROOT_DIR"
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"

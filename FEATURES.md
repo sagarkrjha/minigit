@@ -1753,6 +1753,163 @@ Submodule path 'libs/engine': checked out 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345
 
 ---
 
+### 2.34 `minigit bisect`
+
+#### Synopsis
+```bash
+minigit bisect help
+minigit bisect start [<bad> [<good>...]] [--no-checkout] [--term-{new,bad} <term>] [--term-{old,good} <term>]
+minigit bisect (bad|new) [<rev>]
+minigit bisect (good|old) [<rev>...]
+minigit bisect skip [(<rev>|<range>)...]
+minigit bisect reset [<commit>]
+minigit bisect terms [--term-bad | --term-good]
+minigit bisect log
+minigit bisect replay <logfile>
+minigit bisect run <cmd> [<arg>...]
+```
+
+#### Purpose
+`minigit bisect` uses a DAG-aware binary search algorithm to pinpoint the exact commit that introduced a bug, regression, or behavioral change. By halving the search space at each step, bisection locates the faulty revision in $O(\log N)$ evaluations rather than $O(N)$ manual checks.
+
+#### DAG Bisection Mechanics & Midpoint Selection
+
+Unlike naive linear bisection, MiniGit supports arbitrary Directed Acyclic Graphs (DAGs) containing merges, multi-parent histories, and divergent feature branches:
+
+1. **Reachability Analysis**:
+   - Computes $R(B)$: The set of all commits reachable from the bad revision $B$ via parent traversals.
+   - Computes $R(G)$: The union of all commits reachable from any declared good revisions $\{G_1, G_2, \dots\}$.
+   - **Inversion Detection**: If any good commit is reachable from $B$, or if $B \in R(G)$, the bisection aborts immediately with `fatal: cannot bisect: good commit(s) include the bad commit`.
+2. **Candidate Revision Set**:
+   - The set of testable candidates is defined as:
+     $$C = R(B) \setminus R(G)$$
+   - If $|C| = 1$ and $C[0] = B$, the bisection has successfully converged: commit $B$ is isolated as the first bad commit.
+3. **Weight Computation & Optimal Midpoint Selection**:
+   - For every candidate $c \in C$, MiniGit calculates its sub-DAG reachability weight:
+     $$w(c) = |\{u \in C \mid u \text{ is reachable from } c\}|$$
+   - MiniGit chooses the candidate $c^*$ that minimizes the distance to the exact midpoint $\frac{|C|}{2}$:
+     $$c^* = \arg\min_{c \in C} \left| w(c) - \frac{|C|}{2} \right|$$
+   - **Skip Penalty Avoidance**: Revisions explicitly marked with `bisect skip` have their selection distance penalized ($+10^6$) to steer the search towards unskipped, testable commits whenever possible.
+4. **Logarithmic Step Estimation**:
+   - Before checking out the next candidate, MiniGit calculates and reports the remaining revisions and estimated steps:
+     $$\text{revisions left} = |C| - 1, \quad \text{roughly } \lfloor \log_2(|C|) \rfloor \text{ steps}$$
+     ```text
+     Bisecting: 6 revisions left to test after this (roughly 2 steps)
+     [a1b2c3d] Commit message summary
+     ```
+
+```mermaid
+flowchart TD
+    subgraph DAG ["DAG Commit History"]
+        C0["C0 (Initial: Good)"]
+        C1["C1 (Good)"]
+        C2["C2 (Untested)"]
+        C3["C3 (First Bad Commit: Bug Introduced)"]
+        C4["C4 (Untested)"]
+        C5["C5 (Merge: Bad)"]
+    end
+
+    C0 --> C1
+    C1 --> C2
+    C2 --> C3
+    C3 --> C4
+    C1 --> C5
+    C4 --> C5
+
+    classDef good fill:#2ea44f,stroke:#22863a,color:#fff
+    classDef bad fill:#cb2431,stroke:#b31d28,color:#fff
+    classDef target fill:#d73a49,stroke:#b31d28,color:#fff,stroke-width:3px
+    classDef untested fill:#0366d6,stroke:#005cc5,color:#fff
+
+    class C0,C1 good
+    class C5 bad
+    class C3 target
+    class C2,C4 untested
+```
+
+#### Subcommands & Flags
+
+| Subcommand | Flags / Arguments | Description |
+| :--- | :--- | :--- |
+| `start` | `[<bad> [<good>...]] [--no-checkout]` | Initializes a bisection session. Records starting branch/HEAD in `.minigit/BISECT_START`, resets prior state, and optionally accepts starting bad/good bounds. |
+| `bad` / `new` | `[<rev>]` | Marks a revision (default `HEAD`) as bad / regression-containing ($B$). Writes SHA to `.minigit/refs/bisect/bad`. |
+| `good` / `old` | `[<rev>...]` | Marks one or more revisions as good / clean ($G_i$). Writes SHAs to `.minigit/refs/bisect/good-<sha>`. |
+| `skip` | `[(<rev>|<range>)...]` | Marks current or specified revisions as untestable (e.g. build failure unrelated to bug). Excludes them from testing while retaining reachability. |
+| `reset` | `[<commit>]` | Terminates the bisection session, removes all `.minigit/BISECT_*` and `refs/bisect/*` state, and restores the original branch or specified commit. |
+| `terms` | `[--term-bad \| --term-good]` | Displays or configures custom bisection terms (e.g. `--term-bad broken --term-good fixed`), serialized in `.minigit/BISECT_TERMS`. |
+| `log` | *(none)* | Outputs the sequence of bisection steps taken so far in replayable command format. |
+| `replay` | `<logfile>` | Reads an exported bisect log file and replays each command sequentially to restore exact bisection state. |
+| `run` | `<cmd> [<arg>...]` | Automates the bisection session by executing `<cmd>` at each step and interpreting its process exit code. |
+
+#### Automated Bisection Runner (`minigit bisect run`)
+
+The `run` subcommand evaluates an automated test script at each midpoint step:
+- **Exit Code `0`**: The commit is clean / good. Automatically invokes `minigit bisect good`.
+- **Exit Code `125`**: The commit cannot be tested (e.g. compilation error). Automatically invokes `minigit bisect skip`.
+- **Exit Code `1` to `127` (except `125`)**: The commit exhibits the failure. Automatically invokes `minigit bisect bad`.
+- **Any Other Code**: Aborts `bisect run` immediately and reports the failing command and exit code.
+- Halts automatically and prints the first bad commit when candidate count converges to 1.
+
+#### Invariants & Subsystem Integration
+
+1. **Clean Tree Checkout & Pruning (`checkout_commit_clean`)**:
+   - When switching between candidate commits during bisection, files tracked in the previous index that do not exist in the new commit's tree are pruned from disk and removed from the index.
+   - Preserves submodule gitlinks (`mode 160000`) and working tree integrity across diverse commit structures.
+2. **Persistent State Invariants**:
+   - `.minigit/BISECT_START`: Contains the branch name or commit SHA checked out when bisection started, ensuring safe restoration on `reset`.
+   - `.minigit/BISECT_TERMS`: Stores custom bad/good terms (defaults to `bad` and `good`).
+   - `.minigit/BISECT_LOG`: Append-only audit log recording every `git bisect start`, `bad`, `good`, and `skip` invocation.
+   - `.minigit/BISECT_EXPECTED_REV`: Records the expected midpoint revision to detect manual HEAD modifications.
+   - `.minigit/BISECT_NO_CHECKOUT`: Set when `--no-checkout` is passed, suppressing working tree changes and allowing external bisect runners.
+   - `.minigit/refs/bisect/`: Stores `bad`, `good-<sha>`, and `skip-<sha>` reference files.
+3. **First Bad Commit Isolation**:
+   - When bisection completes, MiniGit prints the commit hash, author, timestamp, commit message, and a unified file modification summary comparing the commit against its first parent.
+
+#### Examples
+```bash
+# 1. Interactive Bisection Session
+$ minigit bisect start
+$ minigit bisect bad HEAD
+$ minigit bisect good v1.0.0
+Bisecting: 14 revisions left to test after this (roughly 3 steps)
+[3e45b76] Refactor database connector pool
+
+$ make test  # Test fails
+$ minigit bisect bad
+Bisecting: 6 revisions left to test after this (roughly 2 steps)
+[8d75414] Add query cache buffer
+
+$ make test  # Test passes
+$ minigit bisect good
+Bisecting: 2 revisions left to test after this (roughly 1 steps)
+[52e4c1a] Optimize connection timeout
+
+$ make test  # Test fails
+$ minigit bisect bad
+52e4c1a9cc6b7553c711715f8655cc39fa51d75ffdf6b70dc85e8a0a2e8f5f4c is the first bad commit
+commit 52e4c1a9cc6b7553c711715f8655cc39fa51d75ffdf6b70dc85e8a0a2e8f5f4c
+Author: Sagar Jha <sagar@example.com>
+Date:   Wed Sep 18 10:00:00 2026 +0530
+
+    Optimize connection timeout
+
+ modified: src/net/pool.cpp
+
+$ minigit bisect reset
+Switched to branch 'main'
+
+# 2. Fully Automated Bisection
+$ minigit bisect start HEAD v1.0.0
+$ minigit bisect run ./scripts/test_regression.sh
+running ./scripts/test_regression.sh
+Bisecting: 6 revisions left to test after this (roughly 2 steps)
+...
+52e4c1a9cc6b7553c711715f8655cc39fa51d75ffdf6b70dc85e8a0a2e8f5f4c is the first bad commit
+bisect run success
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1970,6 +2127,7 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Branch Deletion Safeguard** | Prevents active branch deletion | Prevents active branch deletion |
 | **Linked Worktrees** | Supported (v1.5.0, add, list, remove, prune, lock, unlock, move) | Full support |
 | **Submodules** | Supported (v1.6.0, add, status, init, update, deinit, summary, foreach, sync, mode `160000` gitlinks) | Full support |
+| **Binary Search Debugging (`bisect`)** | Supported (v1.7.0, DAG midpoint binary search, automated run, log/replay, terms) | Full support |
 | **Cross-Platform CRLF** | Normalizes `\r` across comparisons | Handled via `core.autocrlf` |
 
 ---
@@ -1983,8 +2141,9 @@ flowchart LR
     A["v0.5.0\nzlib Compression"] --> B["v0.6.0\nRemotes Protocol"]
     B --> C["v1.4.0\nPackfiles & Delta Compression"]
     C --> D["v1.5.0\nLinked Worktrees"]
-    D --> E["v1.6.0 (Current)\nSubmodules"]
-    E --> F["Future\nSmart HTTP Remotes"]
+    D --> E["v1.6.0\nSubmodules"]
+    E --> F["v1.7.0 (Current)\nBisect Debugging"]
+    F --> G["Future\nSmart HTTP Remotes"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -2001,6 +2160,7 @@ flowchart LR
 12. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
 13. ~~**Multiple Worktrees (Phase 10 / v1.5.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.~~ ✅ **Implemented in v1.5.0**
 14. ~~**Submodule Support (Phase 11 / v1.6.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).~~ ✅ **Implemented in v1.6.0**
-15. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
+15. ~~**Binary Search Debugging (Phase 12 / v1.7.0):** Binary search debugging (`minigit bisect`) to pinpoint regression-introducing commits across linear and branching DAG histories with automated test script execution (`bisect run`), session recording/replay, and customizable terms.~~ ✅ **Implemented in v1.7.0**
+16. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
 
 

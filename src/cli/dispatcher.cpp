@@ -31,6 +31,7 @@
 #include "storage/repack.h"
 #include "worktree/worktree.h"
 #include "submodule/submodule.h"
+#include "bisect/bisect.h"
 
 #include <functional>
 #include <iostream>
@@ -505,6 +506,11 @@ int cmd_submodule(int argc, char const *argv[])
     return submodule_command(argc, argv);
 }
 
+int cmd_bisect(int argc, char const *argv[])
+{
+    return minigit::bisect::bisect_command(argc, argv);
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -549,7 +555,8 @@ int run(int argc, char const *argv[])
         {"repack", cmd_repack},
         {"verify-pack", cmd_verify_pack},
         {"worktree", cmd_worktree},
-        {"submodule", cmd_submodule}
+        {"submodule", cmd_submodule},
+        {"bisect", cmd_bisect}
     };
 
     const std::string command = argv[1];
