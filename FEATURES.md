@@ -40,8 +40,10 @@ This document provides a comprehensive, production-grade technical specification
   - [2.25 `minigit show`](#225-minigit-show)
   - [2.26 `minigit clean`](#226-minigit-clean)
   - [2.27 `minigit ls-files`](#227-minigit-ls-files)
-  - [2.28 `minigit ls-tree`](#228-minigit-ls-tree)
   - [2.29 `minigit rebase`](#229-minigit-rebase)
+  - [2.30 `minigit repack`](#230-minigit-repack)
+  - [2.31 `minigit verify-pack`](#231-minigit-verify-pack)
+  - [2.32 `minigit worktree`](#232-minigit-worktree)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1516,6 +1518,108 @@ chain length = 1: 0 objects
 
 ---
 
+### 2.32 `minigit worktree`
+
+#### Synopsis
+```bash
+minigit worktree add [-b <branch> | -B <branch>] [--detach] [-f] <path> [<commit-ish>]
+minigit worktree list [--porcelain]
+minigit worktree remove [-f] <worktree>
+minigit worktree prune [-n] [-v]
+minigit worktree lock [--reason <string>] <worktree>
+minigit worktree unlock <worktree>
+minigit worktree move <worktree> <new-path>
+```
+
+#### Purpose
+Enables managing multiple linked working trees attached to the same repository. Each worktree has its own private working directory, private index (`.minigit/worktrees/<name>/index`), private `HEAD`, and administrative metadata, while transparently sharing the central Content-Addressable Storage (`objects/`), packfiles, and reference hierarchy (`refs/heads/`, `refs/tags/`).
+
+#### Architecture & Commondir Indirection
+A linked worktree contains a `.minigit` **file** (rather than a directory) containing a pointer:
+```text
+gitdir: <path-to-central-repo>/.minigit/worktrees/<name>
+```
+The worktree's administrative directory in the main repository contains:
+- `gitdir`: Points back to the linked working tree root's `.minigit` file.
+- `commondir`: Points back to the main repository `.minigit` directory.
+- `HEAD`: Private symbolic ref or detached commit hash.
+- `index`: Private staging area for this worktree.
+- `locked`: Optional file containing the lock reason if locked against pruning.
+
+```mermaid
+flowchart TD
+    subgraph MainRepo ["Main Working Tree (repo)"]
+        MR_MG[".minigit/ (Common Repository)"]
+        MR_OBJ[".minigit/objects/ (CAS & Packfiles)"]
+        MR_REFS[".minigit/refs/ (Shared Branches & Tags)"]
+        MR_WT[".minigit/worktrees/wt1/"]
+        MR_HEAD[".minigit/HEAD"]
+        MR_INDEX[".minigit/index"]
+    end
+
+    subgraph LinkedWT ["Linked Working Tree (repo-wt1)"]
+        WT_FILE[".minigit (gitdir: repo/.minigit/worktrees/wt1)"]
+        WT_FILES["Working Directory Files"]
+    end
+
+    WT_FILE -->|Indirection| MR_WT
+    MR_WT -->|commondir| MR_MG
+    MR_WT --> MR_OBJ
+    MR_WT --> MR_REFS
+```
+
+#### Subcommands & Flags
+
+| Subcommand | Flags | Description |
+| :--- | :--- | :--- |
+| `add` | `-b <branch>`, `-B <branch>`, `--detach`, `-f` | Creates a new linked worktree at `<path>` checking out `<branch>` or `<commit-ish>`. Enforces that the branch is not already checked out elsewhere unless detached or forced. |
+| `list` | `--porcelain` | Lists all linked worktrees along with their HEAD hash, active branch, and status (detached, locked, prunable). Porcelain mode emits machine-readable multi-line records. |
+| `remove` | `-f`, `--force` | Removes a linked worktree directory and cleans up its administrative state. Fails if the tree has uncommitted modifications or untracked files unless `-f` is provided. |
+| `prune` | `-n` (dry-run), `-v` (verbose) | Scans `.minigit/worktrees/` and purges administrative metadata for working directories that were deleted from disk (unless locked). |
+| `lock` | `--reason <string>` | Locks a linked worktree to prevent automatic or accidental pruning (e.g. when located on removable media or a shared network mount). |
+| `unlock` | *(none)* | Clears the lock on a worktree, allowing it to be pruned or removed. |
+| `move` | *(none)* | Relocates a linked worktree from its current path to `<new-path>`, updating internal `gitdir` references and the working tree root `.minigit` pointer. |
+
+#### Invariants & Collision Safeguards
+1. **Branch Exclusivity**: A local branch (`refs/heads/<branch>`) can only be checked out in at most one working tree at any time. Attempting to check out or switch to an active branch in another worktree yields:
+   ```text
+   fatal: '<branch>' is already checked out at '<path>'
+   ```
+2. **Safe Branch Deletion**: Deleting a branch with `minigit branch -d <branch>` or `-D` is blocked if that branch is currently checked out in any linked worktree.
+3. **Transparent CAS & Packs**: All plumbing and porcelain commands executed inside a linked worktree seamlessly resolve and write objects to the common database (`commondir / objects`), including packfiles and loose objects.
+
+#### Examples
+```bash
+# Create a new feature worktree in a sibling folder
+$ minigit worktree add ../feature-auth -b feature/oauth2
+Preparing worktree (new branch 'feature/oauth2')
+HEAD is now at 8b4c291 Add initial login template
+
+# List all active working trees
+$ minigit worktree list
+C:/projects/myapp              8b4c291 [main]
+C:/projects/feature-auth       8b4c291 [feature/oauth2]
+
+# Machine-readable porcelain output
+$ minigit worktree list --porcelain
+worktree C:/projects/myapp
+HEAD 8b4c291...
+branch refs/heads/main
+
+worktree C:/projects/feature-auth
+HEAD 8b4c291...
+branch refs/heads/feature/oauth2
+
+# Lock worktree while backing up or unmounted
+$ minigit worktree lock --reason "Offline backup in progress" feature-auth
+
+# Remove worktree after merge
+$ minigit worktree unlock feature-auth
+$ minigit worktree remove ../feature-auth
+```
+
+---
+
 ## 3. Storage & Object Internals
 
 ### 3.1 Object Envelope Format
@@ -1731,6 +1835,7 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 | **Symbolic HEAD Ref** | Supported (`ref: refs/heads/...`) | Supported (`ref: refs/heads/...`) |
 | **Detached HEAD** | Supported | Supported |
 | **Branch Deletion Safeguard** | Prevents active branch deletion | Prevents active branch deletion |
+| **Linked Worktrees** | Supported (v1.5.0, add, list, remove, prune, lock, unlock, move) | Full support |
 | **Cross-Platform CRLF** | Normalizes `\r` across comparisons | Handled via `core.autocrlf` |
 
 ---
@@ -1741,11 +1846,10 @@ The following features are scheduled for subsequent development phases:
 
 ```mermaid
 flowchart LR
-    A["v0.5.0\nzlib Compression"] --> B["v0.6.0 (Current)\nRemotes Protocol\n(clone, remote, fetch, push, pull)"]
-    B --> C["v0.7.0 (Phase 7)\nPackfiles & Delta Compression"]
-    C --> D["v0.8.0 (Phase 8)\nSmart HTTP Remotes"]
-    D --> E["v0.9.0 (Phase 9)\nInteractive Rebase & Cherry-Pick"]
-    E --> F["v1.0.0 (Phase 10)\nWorktrees & Submodules"]
+    A["v0.5.0\nzlib Compression"] --> B["v0.6.0\nRemotes Protocol"]
+    B --> C["v1.4.0\nPackfiles & Delta Compression"]
+    C --> D["v1.5.0 (Current)\nLinked Worktrees"]
+    D --> E["Future\nSmart HTTP Remotes & Submodules"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -1759,8 +1863,9 @@ flowchart LR
 9. ~~**Working Tree Cleanup & Hygiene:** `minigit clean` (untracked files and directory deletion with `-f`, `-d`, `-n`, and `-x`).~~ ✅ **Implemented in v1.2.0**
 10. ~~**Index and Tree Object Plumbing:** `minigit ls-files` (stage and working tree status filtering) and `minigit ls-tree` (tree-ish resolution and recursive tree traversal).~~ ✅ **Implemented in v1.2.1**
 11. ~~**Packfiles (`.pack`) & Delta Compression:** Object database consolidation into binary packfiles with accompanying `.idx` fan-out tables and sliding-window byte-level delta compression to minimize storage footprint.~~ ✅ **Implemented in v1.4.0**
-12. **Smart HTTP Network Remotes (Phase 8 / v0.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
-13. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
-14. **Multiple Worktrees (Phase 10 / v1.0.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.
-15. **Submodule Support (Phase 10 / v1.0.0):** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
+12. ~~**Linear Rebase & Cherry-Pick (Phase 9 / v1.3.0):** Selective commit transplantation (`minigit cherry-pick`) and linear history replay with conflict resolution (`minigit rebase`, `--onto`, `--continue`, `--abort`, `--skip`).~~ ✅ **Implemented in v1.3.0**
+13. ~~**Multiple Worktrees (Phase 10 / v1.5.0):** Checking out and working on multiple branches simultaneously using isolated linked working directories (`minigit worktree`) referencing a single central object repository.~~ ✅ **Implemented in v1.5.0**
+14. **Smart HTTP Network Remotes:** Remote synchronization over HTTP/HTTPS with bidirectional discover-negotiate-transfer protocol and transfer progress streaming.
+15. **Submodule Support:** Nested repository tracking within tree objects, `.minigitmodules` configuration parsing, and recursive cloning/updating (`minigit submodule`).
+
 

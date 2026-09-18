@@ -29,6 +29,7 @@
 #include "remotes/push.h"
 #include "remotes/pull.h"
 #include "storage/repack.h"
+#include "worktree/worktree.h"
 
 #include <functional>
 #include <iostream>
@@ -493,6 +494,11 @@ int cmd_verify_pack(int argc, char const *argv[])
     return minigit::storage::verify_pack_command(argc, argv);
 }
 
+int cmd_worktree(int argc, char const *argv[])
+{
+    return minigit::worktree::worktree_command(argc, argv);
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -535,7 +541,8 @@ int run(int argc, char const *argv[])
         {"push", cmd_push},
         {"pull", cmd_pull},
         {"repack", cmd_repack},
-        {"verify-pack", cmd_verify_pack}
+        {"verify-pack", cmd_verify_pack},
+        {"worktree", cmd_worktree}
     };
 
     const std::string command = argv[1];

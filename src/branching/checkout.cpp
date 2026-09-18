@@ -36,7 +36,7 @@ static std::string resolve_to_commit_sha(const fs::path &git_dir,
                                          const std::string &target,
                                          bool &is_branch)
 {
-    const fs::path branch_ref = git_dir / "refs" / "heads" / target;
+    const fs::path branch_ref = Repository::resolve_path(git_dir, "refs/heads/" + target);
     if (fs::exists(branch_ref))
     {
         is_branch = true;
@@ -82,6 +82,17 @@ void checkout_command(const std::string &target)
         std::cerr << "error: pathspec '" << target
                   << "' did not match any branch or commit\n";
         std::exit(1);
+    }
+
+    if (is_branch)
+    {
+        auto match = repo.find_branch_worktree(target);
+        if (match.is_checked_out && !match.is_current_worktree)
+        {
+            std::cerr << "fatal: '" << target << "' is already checked out at '"
+                      << match.worktree_path.generic_string() << "'\n";
+            std::exit(1);
+        }
     }
 
     // Read commit → tree.

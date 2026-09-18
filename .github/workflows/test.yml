@@ -190,6 +190,11 @@ jobs:
             & $exe ls-tree HEAD
             & $exe clean -n
             & $exe clean -f
+            & $exe worktree add wt-smoke -b smoke-wt-branch
+            & $exe worktree list
+            & $exe worktree list --porcelain
+            & $exe worktree remove wt-smoke
+            & $exe worktree prune
             Write-Host "Windows CLI smoke tests passed successfully!"
           } finally {
             Pop-Location
@@ -235,6 +240,11 @@ jobs:
           "$EXE" ls-tree HEAD
           "$EXE" clean -n
           "$EXE" clean -f
+          "$EXE" worktree add wt-smoke -b smoke-wt-branch
+          "$EXE" worktree list
+          "$EXE" worktree list --porcelain
+          "$EXE" worktree remove wt-smoke
+          "$EXE" worktree prune
           cd -
           rm -rf "$TEST_REPO"
           echo "POSIX CLI smoke tests passed successfully!"

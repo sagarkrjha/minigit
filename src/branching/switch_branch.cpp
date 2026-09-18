@@ -38,7 +38,7 @@ void switch_command(const std::string &branch, bool create)
         }
     }();
 
-    const fs::path branch_ref = repo.git_dir() / "refs" / "heads" / branch;
+    const fs::path branch_ref = repo.common_dir() / "refs" / "heads" / branch;
 
     if (create)
     {
@@ -51,12 +51,7 @@ void switch_command(const std::string &branch, bool create)
         }
 
         // Read current HEAD commit SHA.
-        const std::string raw = trim_trailing(read_text(repo.git_dir() / "HEAD"));
-        std::string head_sha;
-        if (raw.substr(0, 5) == "ref: ")
-            head_sha = trim_trailing(read_text(repo.git_dir() / raw.substr(5)));
-        else
-            head_sha = raw;
+        const std::string head_sha = Repository::resolve_head_from_dir(repo.git_dir());
 
         if (head_sha.empty())
         {
@@ -66,6 +61,7 @@ void switch_command(const std::string &branch, bool create)
         }
 
         // Write new branch ref.
+        fs::create_directories(branch_ref.parent_path());
         std::ofstream f(branch_ref);
         if (!f)
         {
@@ -82,6 +78,22 @@ void switch_command(const std::string &branch, bool create)
             std::cerr << "error: pathspec '" << branch
                       << "' did not match any branch known to minigit\n";
             std::exit(1);
+        }
+
+        auto match = repo.find_branch_worktree(branch);
+        if (match.is_checked_out)
+        {
+            if (match.is_current_worktree)
+            {
+                std::cout << "Already on '" << branch << "'\n";
+                return;
+            }
+            else
+            {
+                std::cerr << "fatal: '" << branch << "' is already checked out at '"
+                          << match.worktree_path.generic_string() << "'\n";
+                std::exit(1);
+            }
         }
     }
 

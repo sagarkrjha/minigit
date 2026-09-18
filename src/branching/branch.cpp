@@ -45,11 +45,7 @@ static std::string current_branch(const fs::path &git_dir)
 // Resolve HEAD to a commit SHA.
 static std::string resolve_head(const fs::path &git_dir)
 {
-    const std::string raw = trim_trailing(read_text(git_dir / "HEAD"));
-    if (raw.empty()) return {};
-    if (raw.substr(0, 5) == "ref: ")
-        return trim_trailing(read_text(git_dir / raw.substr(5)));
-    return raw;
+    return Repository::resolve_head_from_dir(git_dir);
 }
 
 void branch_command(const std::string &name, bool delete_branch)
@@ -63,7 +59,7 @@ void branch_command(const std::string &name, bool delete_branch)
         }
     }();
 
-    const fs::path heads_dir = repo.git_dir() / "refs" / "heads";
+    const fs::path heads_dir = repo.common_dir() / "refs" / "heads";
 
     // -----------------------------------------------------------------------
     // No name: list branches.
@@ -101,9 +97,11 @@ void branch_command(const std::string &name, bool delete_branch)
             std::cerr << "error: branch '" << name << "' not found\n";
             std::exit(1);
         }
-        if (name == current_branch(repo.git_dir()))
+        auto match = repo.find_branch_worktree(name);
+        if (match.is_checked_out)
         {
-            std::cerr << "error: cannot delete the currently checked-out branch\n";
+            std::cerr << "error: cannot delete branch '" << name
+                      << "' checked out at '" << match.worktree_path.generic_string() << "'\n";
             std::exit(1);
         }
         fs::remove(ref_path);
