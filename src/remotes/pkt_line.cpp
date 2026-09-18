@@ -43,12 +43,26 @@ PktLineResult read_pkt_line(const std::string &buffer, size_t &offset)
     }
 
     std::string len_str = buffer.substr(offset, 4);
+    for (char c : len_str)
+    {
+        if (!std::isxdigit(static_cast<unsigned char>(c)))
+        {
+            res.is_eof = true;
+            return res;
+        }
+    }
     offset += 4;
 
     size_t length = 0;
     try
     {
-        length = std::stoul(len_str, nullptr, 16);
+        size_t idx = 0;
+        length = std::stoul(len_str, &idx, 16);
+        if (idx != 4)
+        {
+            res.is_eof = true;
+            return res;
+        }
     }
     catch (...)
     {
@@ -66,15 +80,15 @@ PktLineResult read_pkt_line(const std::string &buffer, size_t &offset)
         res.is_delim = true;
         return res;
     }
-    if (length < 4)
+    if (length < 4 || length > 65524)
     {
-        // Malformed
+        // Malformed or exceeds Git protocol limit
         res.is_eof = true;
         return res;
     }
 
     size_t payload_len = length - 4;
-    if (offset + payload_len > buffer.size())
+    if (payload_len > buffer.size() - offset)
     {
         payload_len = buffer.size() - offset;
     }

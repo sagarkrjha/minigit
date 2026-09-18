@@ -39,7 +39,10 @@ int decode_pack_object_header(const char *&ptr, const char *end, uint64_t &size)
     {
         if (ptr >= end) break;
         c = static_cast<unsigned char>(*ptr++);
-        size |= static_cast<uint64_t>(c & 0x7F) << shift;
+        if (shift < 64)
+        {
+            size |= static_cast<uint64_t>(c & 0x7F) << shift;
+        }
         shift += 7;
     }
     return type;
@@ -54,6 +57,8 @@ uint64_t decode_ofs_delta_offset(const char *&ptr, const char *end)
     {
         if (ptr >= end) break;
         c = static_cast<unsigned char>(*ptr++);
+        if (offset > (UINT64_MAX >> 7) - 1)
+            break; // Overflow prevention
         offset = ((offset + 1) << 7) | (c & 0x7F);
     }
     return offset;

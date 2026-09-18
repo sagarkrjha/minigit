@@ -4,6 +4,7 @@
 #include "storage/object_database.h"
 #include "storage/object_parser.h"
 #include "repository/repository.h"
+#include "core/path_safety.h"
 
 #include <filesystem>
 #include <fstream>
@@ -52,7 +53,7 @@ static void restore_file(const fs::path &root,
                           const std::string &rel_path,
                           const std::string &content)
 {
-    const fs::path abs = root / rel_path;
+    const fs::path abs = minigit::core::resolve_safe_repo_path(root, rel_path);
     fs::create_directories(abs.parent_path());
     std::ofstream f(abs, std::ios::binary | std::ios::trunc);
     if (!f)

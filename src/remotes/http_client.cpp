@@ -45,6 +45,26 @@ void ensure_curl_initialized()
     static CurlGlobalInitializer init;
 }
 
+struct SlistGuard
+{
+    struct curl_slist *list{nullptr};
+    ~SlistGuard()
+    {
+        if (list)
+            curl_slist_free_all(list);
+    }
+};
+
+struct CurlGuard
+{
+    CURL *curl{nullptr};
+    ~CurlGuard()
+    {
+        if (curl)
+            curl_easy_cleanup(curl);
+    }
+};
+
 } // namespace
 
 HttpClient::HttpClient()
@@ -64,17 +84,18 @@ HttpResponse HttpClient::get(
     const std::vector<std::string> &headers)
 {
     HttpResponse response;
-    CURL *curl = curl_easy_init();
+    CurlGuard curl_guard{curl_easy_init()};
+    CURL *curl = curl_guard.curl;
     if (!curl)
     {
         response.error = "Failed to initialize CURL easy handle";
         return response;
     }
 
-    struct curl_slist *chunk = nullptr;
+    SlistGuard chunk_guard;
     for (const auto &h : headers)
     {
-        chunk = curl_slist_append(chunk, h.c_str());
+        chunk_guard.list = curl_slist_append(chunk_guard.list, h.c_str());
     }
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -84,9 +105,9 @@ HttpResponse HttpClient::get(
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.body);
 
-    if (chunk)
+    if (chunk_guard.list)
     {
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk_guard.list);
     }
 
     if (should_skip_ssl_verify())
@@ -109,12 +130,6 @@ HttpResponse HttpClient::get(
             response.content_type = ct;
     }
 
-    if (chunk)
-    {
-        curl_slist_free_all(chunk);
-    }
-    curl_easy_cleanup(curl);
-
     return response;
 }
 
@@ -125,22 +140,23 @@ HttpResponse HttpClient::post(
     const std::vector<std::string> &headers)
 {
     HttpResponse response;
-    CURL *curl = curl_easy_init();
+    CurlGuard curl_guard{curl_easy_init()};
+    CURL *curl = curl_guard.curl;
     if (!curl)
     {
         response.error = "Failed to initialize CURL easy handle";
         return response;
     }
 
-    struct curl_slist *chunk = nullptr;
+    SlistGuard chunk_guard;
     if (!content_type.empty())
     {
         std::string ct_hdr = "Content-Type: " + content_type;
-        chunk = curl_slist_append(chunk, ct_hdr.c_str());
+        chunk_guard.list = curl_slist_append(chunk_guard.list, ct_hdr.c_str());
     }
     for (const auto &h : headers)
     {
-        chunk = curl_slist_append(chunk, h.c_str());
+        chunk_guard.list = curl_slist_append(chunk_guard.list, h.c_str());
     }
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -153,9 +169,9 @@ HttpResponse HttpClient::post(
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.body);
 
-    if (chunk)
+    if (chunk_guard.list)
     {
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk_guard.list);
     }
 
     if (should_skip_ssl_verify())
@@ -177,12 +193,6 @@ HttpResponse HttpClient::post(
         if (ct)
             response.content_type = ct;
     }
-
-    if (chunk)
-    {
-        curl_slist_free_all(chunk);
-    }
-    curl_easy_cleanup(curl);
 
     return response;
 }

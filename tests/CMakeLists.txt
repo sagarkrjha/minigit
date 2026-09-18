@@ -44,3 +44,25 @@ if(WIN32)
 endif()
 
 add_test(NAME minigit_tests COMMAND minigit_tests)
+
+add_executable(minigit_benchmarks
+    benchmark_metrics.cpp
+)
+
+target_include_directories(minigit_benchmarks
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(minigit_benchmarks
+    PRIVATE
+        minigit_core
+        minigit_storage
+        minigit_diff
+        minigit_repository
+)
+
+if(WIN32)
+    target_link_libraries(minigit_benchmarks PRIVATE ws2_32 psapi)
+endif()

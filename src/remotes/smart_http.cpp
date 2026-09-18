@@ -10,6 +10,7 @@
 #include "storage/object_parser.h"
 #include "storage/pack.h"
 #include "staging/index.h"
+#include "core/path_safety.h"
 
 #include <algorithm>
 #include <chrono>
@@ -84,7 +85,7 @@ void populate_working_tree(
         }
 
         std::string content = strip_object_header(db.read(entry.id));
-        fs::path abs_path = root / rel_path;
+        fs::path abs_path = minigit::core::resolve_safe_repo_path(root, rel_path);
         fs::create_directories(abs_path.parent_path());
         std::ofstream out(abs_path, std::ios::binary | std::ios::trunc);
         if (!out)

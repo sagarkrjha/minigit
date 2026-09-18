@@ -7,6 +7,7 @@
 #include "storage/object_database.h"
 #include "storage/object_parser.h"
 #include "staging/index.h"
+#include "core/path_safety.h"
 
 #include <filesystem>
 #include <fstream>
@@ -57,7 +58,7 @@ static void apply_tree(const fs::path &root,
     for (const auto &entry : tree.entries)
     {
         const std::string content = strip_object_header(db.read(entry.id));
-        const fs::path    abs     = root / entry.name;
+        const fs::path    abs     = minigit::core::resolve_safe_repo_path(root, entry.name);
         fs::create_directories(abs.parent_path());
         std::ofstream f(abs, std::ios::binary | std::ios::trunc);
         if (!f) throw std::runtime_error("Cannot write: " + abs.string());
