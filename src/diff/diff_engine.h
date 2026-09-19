@@ -25,7 +25,11 @@ struct Edit
 std::vector<std::string> split_lines(const std::string &text);
 
 // Compute the edit sequence (Keep/Add/Remove) between `old_lines` and
-// `new_lines` using LCS dynamic programming.
+// `new_lines` using Eugene Myers' O(ND) greedy difference algorithm.
+std::vector<Edit> myers_diff(const std::vector<std::string> &old_lines,
+                             const std::vector<std::string> &new_lines);
+
+// Alias for backwards compatibility across callers
 std::vector<Edit> lcs_diff(const std::vector<std::string> &old_lines,
                             const std::vector<std::string> &new_lines);
 

@@ -40,39 +40,40 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Transplant Commits with Cherry-Pick (`minigit cherry-pick`)](#transplant-commits-with-cherry-pick-minigit-cherry-pick)
   - [Replay Linear History with Rebase (`minigit rebase`)](#replay-linear-history-with-rebase-minigit-rebase)
 - [7. Shelving Work with Stash (`minigit stash`)](#7-shelving-work-with-stash-minigit-stash)
-  - [Save Uncommitted Work (`push`)](#save-uncommitted-work-push)
-  - [List Stashes (`list`)](#list-stashes-list)
-  - [Inspect Stash Contents (`show`)](#inspect-stash-contents-show)
-  - [Restore Stashed Changes (`pop`)](#restore-stashed-changes-pop)
-  - [Discard Stash Entries (`drop`)](#discard-stash-entries-drop)
+  - [Save Uncommitted Work (`minigit stash push`)](#save-uncommitted-work-minigit-stash-push)
+  - [List Stashes (`minigit stash list`)](#list-stashes-minigit-stash-list)
+  - [Inspect Stash Contents (`minigit stash show`)](#inspect-stash-contents-minigit-stash-show)
+  - [Restore Stashed Changes (`minigit stash pop`)](#restore-stashed-changes-minigit-stash-pop)
+  - [Discard Stash Entries (`minigit stash drop`)](#discard-stash-entries-minigit-stash-drop)
 - [8. Multiple Working Trees (`minigit worktree`)](#8-multiple-working-trees-minigit-worktree)
-  - [Add a Working Tree (`add`)](#add-a-working-tree-minigit-worktree-add)
-  - [List Active Working Trees (`list`)](#list-active-working-trees-minigit-worktree-list)
-  - [Lock and Unlock Working Trees (`lock` / `unlock`)](#lock-and-unlock-working-trees-minigit-worktree-lock--unlock)
-  - [Move a Working Tree (`move`)](#move-a-working-tree-minigit-worktree-move)
-  - [Remove a Working Tree (`remove`)](#remove-a-working-tree-minigit-worktree-remove)
-  - [Prune Stale Working Trees (`prune`)](#prune-stale-working-trees-minigit-worktree-prune)
+  - [Add a Working Tree (`minigit worktree add`)](#add-a-working-tree-minigit-worktree-add)
+  - [List Active Working Trees (`minigit worktree list`)](#list-active-working-trees-minigit-worktree-list)
+  - [Lock and Unlock Working Trees (`minigit worktree lock` / `unlock`)](#lock-and-unlock-working-trees-minigit-worktree-lock--unlock)
+  - [Move a Working Tree (`minigit worktree move`)](#move-a-working-tree-minigit-worktree-move)
+  - [Remove a Working Tree (`minigit worktree remove`)](#remove-a-working-tree-minigit-worktree-remove)
+  - [Prune Stale Working Trees (`minigit worktree prune`)](#prune-stale-working-trees-minigit-worktree-prune)
 - [9. Submodules (`minigit submodule`)](#9-submodules-minigit-submodule)
-  - [Add a Submodule (`add`)](#add-a-submodule-minigit-submodule-add)
-  - [Check Submodule Status (`status`)](#check-submodule-status-minigit-submodule-status)
-  - [Initialize and Update (`init` / `update`)](#initialize-and-update-submodules-minigit-submodule-init--update)
-  - [Run Commands in Submodules (`foreach`)](#run-commands-in-all-submodules-minigit-submodule-foreach)
+  - [Add a Submodule (`minigit submodule add`)](#add-a-submodule-minigit-submodule-add)
+  - [Check Submodule Status (`minigit submodule status`)](#check-submodule-status-minigit-submodule-status)
+  - [Initialize and Update Submodules (`minigit submodule init` / `update`)](#initialize-and-update-submodules-minigit-submodule-init--update)
+  - [Run Commands in All Submodules (`minigit submodule foreach`)](#run-commands-in-all-submodules-minigit-submodule-foreach)
   - [Deinitialize Submodules (`deinit`)](#deinitialize-submodules-minigit-submodule-deinit)
-  - [Synchronize Remote URLs (`sync`)](#synchronize-remote-urls-minigit-submodule-sync)
-  - [Inspect Differences (`summary`)](#inspect-submodule-commit-differences-minigit-submodule-summary)
+  - [Synchronize Remote URLs (`minigit submodule sync`)](#synchronize-remote-urls-minigit-submodule-sync)
+  - [Inspect Differences (`minigit submodule summary`)](#inspect-submodule-commit-differences-minigit-submodule-summary)
 - [10. Binary Search Debugging (`minigit bisect`)](#10-binary-search-debugging-minigit-bisect)
-  - [Start a Bisection Session (`start`)](#start-a-bisection-session-minigit-bisect-start)
+  - [Start a Bisection Session (`minigit bisect start`)](#start-a-bisection-session-minigit-bisect-start)
   - [Mark Commits as Bad, Good, or Skip (`bad` / `good` / `skip`)](#mark-commits-as-bad-good-or-skip-minigit-bisect-bad--good--skip)
-  - [Automated Bisection Runner (`run`)](#automated-bisection-runner-minigit-bisect-run)
+  - [Automated Bisection Runner (`minigit bisect run`)](#automated-bisection-runner-minigit-bisect-run)
   - [Session History & Replay (`log` / `replay`)](#session-history--replay-minigit-bisect-log--replay)
-  - [Custom Terms (`terms`)](#custom-terms-minigit-bisect-terms)
-  - [Finish and Clean Up (`reset`)](#finish-and-clean-up-minigit-bisect-reset)
+  - [Custom Terms (`minigit bisect terms`)](#custom-terms-minigit-bisect-terms)
+  - [Finish and Clean Up (`minigit bisect reset`)](#finish-and-clean-up-minigit-bisect-reset)
 - [11. Remote Repositories & Synchronization](#11-remote-repositories--synchronization)
   - [Clone a Repository (`minigit clone`)](#clone-a-repository-minigit-clone)
   - [Manage Remotes (`minigit remote`)](#manage-remotes-minigit-remote)
   - [Fetch Updates (`minigit fetch`)](#fetch-updates-minigit-fetch)
   - [Push Commits (`minigit push`)](#push-commits-minigit-push)
   - [Pull & Fast-Forward (`minigit pull`)](#pull--fast-forward-minigit-pull)
+  - [Test Environment SSL Verification](#test-environment-ssl-verification)
 - [12. Ignoring Files (`.minigitignore`)](#12-ignoring-files-minigitignore)
 - [13. Low-Level Plumbing Commands](#13-low-level-plumbing-commands)
   - [Compute Object Hashes (`minigit hash-object`)](#compute-object-hashes-minigit-hash-object)
@@ -82,6 +83,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Inspect Tree Objects (`minigit ls-tree`)](#inspect-tree-objects-minigit-ls-tree)
   - [Packfile Maintenance & Compaction (`minigit repack`)](#packfile-maintenance--compaction-minigit-repack)
   - [Verify Packfiles (`minigit verify-pack`)](#verify-packfiles-minigit-verify-pack)
+  - [Display Version Information (`minigit version`)](#display-version-information-minigit-version)
 - [14. Command Summary & Cheat Sheet](#14-command-summary--cheat-sheet)
 
 ---
@@ -100,7 +102,7 @@ Pre-compiled native standalone executables are automatically built, verified, an
 
 ### Build from Source
 
-Prerequisites: CMake 3.20+, C++20 compiler (GCC 11+, Clang 13+, MSVC 2019+), OpenSSL, zlib.
+Prerequisites: CMake 3.20+, C++20 compiler (GCC 11+, Clang 13+, MSVC 2019+), OpenSSL, zlib, libcurl.
 
 ```bash
 # Clone the repository
@@ -111,7 +113,7 @@ cd minigit
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 
-# Executable is built in ./build/minigit (or ./build/Release/minigit.exe on Windows)
+# Executable is built in ./build/minigit (or ./build/minigit.exe on Windows)
 ```
 
 ---
@@ -663,24 +665,51 @@ hint: To abort and get back to the state before "minigit rebase", run "minigit r
 
 Temporarily shelves uncommitted changes (both staged and unstaged) into a stash stack, reverting the working directory back to `HEAD`.
 
-```bash
-# 1. Save uncommitted changes
-minigit stash
-# or
-minigit stash push
+### Save Uncommitted Work (`minigit stash push`)
 
-# 2. List all saved stashes
+Shelve local changes and restore a clean HEAD working tree:
+
+```bash
+# Save uncommitted changes (push is the default)
+minigit stash
+# or explicitly
+minigit stash push
+```
+
+### List Stashes (`minigit stash list`)
+
+Inspect saved stashes in the stash stack:
+
+```bash
 minigit stash list
 # Output: stash@{0}: WIP on main: 7e9a12c Add unit tests
+```
 
-# 3. Inspect files modified in a stash entry
+### Inspect Stash Contents (`minigit stash show`)
+
+Inspect files modified inside a stash entry:
+
+```bash
 minigit stash show stash@{0}
+```
 
-# 4. Restore stashed changes and remove entry from stash stack
+### Restore Stashed Changes (`minigit stash pop`)
+
+Restore modifications from a stash and remove the entry from the stash stack:
+
+```bash
+# Pop most recent stash (stash@{0})
 minigit stash pop
-minigit stash pop stash@{0}
 
-# 5. Discard a stash entry without applying it
+# Or pop a specific stash entry
+minigit stash pop stash@{0}
+```
+
+### Discard Stash Entries (`minigit stash drop`)
+
+Discard a stash entry without applying it to the working directory:
+
+```bash
 minigit stash drop stash@{0}
 ```
 
@@ -1301,22 +1330,39 @@ minigit verify-pack .minigit/objects/pack/pack-*.pack
 minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 ```
 
+### Display Version Information (`minigit version`)
+
+Prints the current MiniGit version string:
+
+```bash
+minigit version
+# or standard flags
+minigit --version
+minigit -v
+```
+
+*Output:*
+```text
+minigit version 1.8.2
+```
+
 ---
 
 ## 14. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |
+| `version` | `minigit version` \| `--version` \| `-v` | Display MiniGit version information. |
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
-| `clean` | `minigit clean [-f\|-n] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |
+| `clean` | `minigit clean [-f\|--force] [-n\|--dry-run] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |
 | `ls-files` | `minigit ls-files [-s\|-c\|-d\|-m\|-o] [<path>...]` | Inspect index entries and working-tree status. |
-| `ls-tree` | `minigit ls-tree [-d] [-r] [-t] [--name-only] <tree-ish>` | Inspect contents of a tree CAS object. |
+| `ls-tree` | `minigit ls-tree [-d] [-r] [-t] [--name-only\|--object-only] <tree-ish> [<path>...]` | Inspect contents of a tree CAS object. |
 | `add` | `minigit add (<file>\|<dir>\|.) ...` | Stage files, directories, or entire working tree into index. |
 | `commit` | `minigit commit -m <msg> [--author <a>]` | Record staged snapshot into an immutable commit object. |
 | `log` | `minigit log` | Traverse linear commit history backward from HEAD. |
 | `show` | `minigit show [--stat\|--name-only] [<obj>]` | Inspect commit metadata with parent diff, tags, trees, or blobs. |
-| `diff` | `minigit diff [--cached] [<path>...]` | Show line-level unified diffs (unstaged or staged). |
+| `diff` | `minigit diff [--cached\|--staged] [<path>...]` | Show line-level unified diffs (unstaged or staged). |
 | `branch` | `minigit branch [-d <name>] [<name>]` | List, create, or delete branches. |
 | `switch` | `minigit switch [-c] <branch>` | Switch active branch, optionally creating it first with `-c`. |
 | `checkout`| `minigit checkout <branch-or-sha>` | Restore working files and index to a branch or commit. |
@@ -1327,7 +1373,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 | `reset` | `minigit reset [--soft\|--mixed\|--hard] <sha>`| Roll back HEAD, index, and/or working tree. |
 | `merge` | `minigit merge <branch> [--author <a>]` | Merge a branch into HEAD with LCA 3-way merge engine. |
 | `revert` | `minigit revert <commit> [--author <a>]` | Create a new commit inverting changes of a previous commit. |
-| `cherry-pick` | `minigit cherry-pick [-n] [--author <a>] [-m <p>] <c>` | Transplant changes from a commit onto current branch. |
+| `cherry-pick` | `minigit cherry-pick [-n\|--no-commit] [--author <a>] [-m <p>] <c>` | Transplant changes from a commit onto current branch. |
 | `rebase` | `minigit rebase [-i] [--onto <nb>] <up> \| --continue \| --abort \| --skip` | Replay commits linearly onto upstream base. |
 | `stash` | `minigit stash [push\|list\|pop\|drop\|show]` | Shelve uncommitted modifications without committing. |
 | `remote` | `minigit remote [add\|remove\|-v] [<args>]` | Inspect or manage remote repository aliases. |
@@ -1336,7 +1382,7 @@ minigit verify-pack -v .minigit/objects/pack/pack-*.pack
 | `push` | `minigit push [<remote> [<branch>]]` | Upload objects and advance remote branch references. |
 | `pull` | `minigit pull [<remote> [<branch>]]` | Fetch and fast-forward the current branch with remote updates. |
 | `repack` | `minigit repack [-a] [-d] [-w <n>]` | Consolidate loose objects into binary packfile with delta compression. |
-| `verify-pack` | `minigit verify-pack [-v] <pack>...` | Validate cryptographic integrity and CRC-32 of packfiles. |
+| `verify-pack` | `minigit verify-pack [-v\|--verbose] <pack>...` | Validate cryptographic integrity and CRC-32 of packfiles. |
 | `hash-object` | `minigit hash-object [-w] <file>` | Compute SHA-256 for a file; optionally persist as blob. |
 | `write-tree` | `minigit write-tree` | Serialize current index entries into a tree object. |
 | `cat-file` | `minigit cat-file (-t\|-s\|-p) <sha>` | Inspect object type, size, or pretty-print contents. |

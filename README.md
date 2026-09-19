@@ -3,6 +3,8 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
 [![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C.svg?style=flat-square&logo=cmake)](https://cmake.org/)
 [![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%2B-721412.svg?style=flat-square&logo=openssl)](https://www.openssl.org/)
+[![zlib](https://img.shields.io/badge/zlib-1.2.11%2B-green.svg?style=flat-square)](https://zlib.net/)
+[![libcurl](https://img.shields.io/badge/libcurl-7.68%2B-orange.svg?style=flat-square)](https://curl.se/libcurl/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](#building-and-installation)
 [![Architecture](https://img.shields.io/badge/Architecture-Content--Addressable%20Storage-success.svg?style=flat-square)](#storage-architecture)
 [![Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/total.svg?style=flat-square&logo=github&color=blue)](https://github.com/sagarkrjha/minigit/releases)
@@ -10,7 +12,7 @@
 
 **MiniGit** is a lightweight, educational, yet architecturally authentic version control system built from scratch in modern **C++20**. Designed as a clean-room behavioral recreation of Git internals, it implements content-addressable object storage, DAG-based commit histories, a two-phase staging index, dynamic programming diff calculation, and full branch management.
 
-> 📖 For practical CLI usage examples, workflows, and recipes, see [USAGE.MD](USAGE.MD). For architectural and technical specifications, see [FEATURES.md](FEATURES.md).
+> 📖 For practical CLI usage examples, workflows, and recipes, see [USAGE.md](USAGE.md). For architectural and technical specifications, see [FEATURES.md](FEATURES.md).
 
 ---
 
@@ -84,6 +86,13 @@ chmod +x minigit-macos
   - [11. Shelving Work with Stash](#11-shelving-work-with-stash)
   - [12. Remote Repositories and Synchronization](#12-remote-repositories-and-synchronization)
   - [13. Low-Level Plumbing Commands](#13-low-level-plumbing-commands)
+  - [14. Linear Rebase and Cherry-Pick](#14-linear-rebase-and-cherry-pick)
+  - [15. Working Tree Hygiene with Clean](#15-working-tree-hygiene-with-clean)
+  - [16. Multiple Linked Worktrees](#16-multiple-linked-worktrees)
+  - [17. Nested Submodules](#17-nested-submodules)
+  - [18. Binary Search Debugging with Bisect](#18-binary-search-debugging-with-bisect)
+  - [19. Packfile Maintenance and Verification](#19-packfile-maintenance-and-verification)
+  - [20. Stage and Tree Object Inspection](#20-stage-and-tree-object-inspection)
 - [Internal Repository Layout](#internal-repository-layout)
 - [Codebase Structure](#codebase-structure)
 - [MiniGit vs Standard Git](#minigit-vs-standard-git)
@@ -126,13 +135,14 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Linked Worktrees:** Check out and work on multiple branches simultaneously using isolated linked working directories (`minigit worktree`), sharing the central CAS object database and reference namespace while preventing branch checkout collisions.
 - **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
 - **Binary Search Debugging:** Pinpoint regression-introducing commits across linear and branching DAG histories using `minigit bisect` (`start`, `bad`/`new`, `good`/`old`, `skip`, `reset`, `terms`, `log`, `replay`, and automated `run`).
-- **Defensive Engineering:** Path traversal protection (`..` escape checks), automatic Windows CRLF line-ending normalization, and directory tree discovery.
+- **Defensive Engineering:** Path traversal protection (`resolve_safe_repo_path`), internal directory protection (`.minigit`/`.git`), automatic Windows CRLF line-ending normalization, and directory tree discovery.
+- **Version Reporting:** Command-line version inspection via `minigit version`, `minigit --version`, or `minigit -v`.
 
 ---
 
 ## Storage Architecture
 
-MiniGit models your project using three primary object types stored under `.minigit/objects/`:
+MiniGit models your project using four primary object types stored under `.minigit/objects/`:
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -148,12 +158,13 @@ MiniGit models your project using three primary object types stored under `.mini
 │                       TREE OBJECT                      │
 │  100644 src/main.cpp 4a5e1e5823...                     │
 │  100644 CMakeLists.txt 9b2d8f1430...                   │
+│  160000 libs/submod 5c2d8f1430...                      │
 └───────────────┬────────────────────────┬───────────────┘
                 │ points to              │ points to
                 ▼                        ▼
       ┌──────────────────┐      ┌──────────────────┐
-      │   BLOB OBJECT    │      │   BLOB OBJECT    │
-      │ (File Content A) │      │ (File Content B) │
+      │   BLOB OBJECT    │      │ ANNOTATED TAG    │
+      │ (File Content)   │      │ (object, tag, msg)│
       └──────────────────┘      └──────────────────┘
 ```
 
@@ -177,15 +188,16 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 
 | Command | Category | Description |
 | :--- | :--- | :--- |
+| `minigit version` \| `--version` \| `-v` | Porcelain | Prints the compiled MiniGit executable version string. |
 | `minigit init` | Porcelain | Initializes a new repository or reinitializes an existing one. |
 | `minigit status` | Porcelain | Shows working tree, staging area, and untracked file status. |
 | `minigit add (<file>\|<dir>\|.)...` | Porcelain | Stages one or more files, directories, or the entire working tree (`.`) into the index. |
 | `minigit commit -m <msg> [--author <a>]` | Porcelain | Records staged changes into a new commit object and advances HEAD. |
 | `minigit log` | Porcelain | Displays commit logs following parent commit hashes from HEAD. |
 | `minigit show [--stat\|--name-only] [<object>]` | Porcelain | Inspects commit metadata with parent diff, annotated tags, trees, or blobs. |
-| `minigit diff [--cached] [<path>...]` | Porcelain | Displays line-level unified diffs (unstaged or staged). |
-| `minigit clean [-f\|-n] [-d] [-x] [<path>...]` | Porcelain | Removes untracked files and directories from the working tree. |
-| `minigit branch [name] [-d name]` | Porcelain | Lists, creates, or deletes branches. |
+| `minigit diff [--cached\|--staged] [<path>...]` | Porcelain | Displays line-level unified diffs (unstaged or staged). |
+| `minigit clean [-f\|--force] [-n\|--dry-run] [-d] [-x] [<path>...]` | Porcelain | Removes untracked files and directories from the working tree. |
+| `minigit branch [-d <name> \| <name>]` | Porcelain | Lists, creates, or deletes branches. |
 | `minigit switch [-c] <branch>` | Porcelain | Switches to a branch, optionally creating it first with `-c`. |
 | `minigit checkout <branch-or-sha>` | Porcelain | Checks out a branch or specific commit, restoring working files. |
 | `minigit worktree [add\|list\|remove\|prune\|lock\|unlock\|move]` | Porcelain | Manages multiple linked working directories attached to single repository. |
@@ -195,7 +207,7 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit reset [--soft\|--mixed\|--hard] <sha>` | Porcelain | Rolls back HEAD (and optionally index/working tree) to a target commit. |
 | `minigit merge <branch> [--author <a>]` | Porcelain | Performs a three-way merge or fast-forward of a branch into HEAD. |
 | `minigit revert <commit> [--author <a>]` | Porcelain | Creates a new commit that inverts the changes of a target commit. |
-| `minigit cherry-pick [-n] [--author <a>] [-m <p>] <c>` | Porcelain | Transplants changes from a commit onto current branch. |
+| `minigit cherry-pick [-n\|--no-commit] [--author <a>] [-m <p>] <c>` | Porcelain | Transplants changes from a commit onto current branch. |
 | `minigit rebase [-i] [--onto <nb>] <up> \| --continue \| --abort \| --skip` | Porcelain | Replays commits linearly onto upstream base. |
 | `minigit stash [push\|list\|pop\|drop\|show]` | Porcelain | Shelves uncommitted changes or restores saved working-tree state. |
 | `minigit remote [add\|remove\|-v]` | Porcelain | Manages tracked remote repositories in `.minigit/config`. |
@@ -204,12 +216,12 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit push [<remote> [<branch>]]` | Porcelain | Pushes local branch commits and objects to a remote with fast-forward safety checks. |
 | `minigit pull [<remote> [<branch>]]` | Porcelain | Fetches and fast-forwards the active branch to match the remote. |
 | `minigit repack [-a] [-d] [-w <n>]` | Porcelain | Consolidates loose objects into binary packfiles with delta compression. |
-| `minigit verify-pack [-v] <pack>...` | Plumbing | Validates cryptographic integrity, CRC-32 checksums, and delta chains. |
+| `minigit verify-pack [-v\|--verbose] <pack>...` | Plumbing | Validates cryptographic integrity, CRC-32 checksums, and delta chains. |
 | `minigit hash-object [-w] <file>` | Plumbing | Computes SHA-256 for a file; optionally persists as a blob. |
 | `minigit write-tree` | Plumbing | Serializes current index state into a tree object and prints its SHA. |
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
 | `minigit ls-files [-s\|-c\|-d\|-m\|-o] [<path>...]` | Plumbing | Inspects staged files, cached status, modifications, deletions, and untracked entries. |
-| `minigit ls-tree [-d] [-r] [-t] [--name-only] <tree-ish>` | Plumbing | Traverses and inspects hierarchical tree CAS objects. |
+| `minigit ls-tree [-d] [-r] [-t] [--name-only\|--object-only] <tree-ish> [<path>...]` | Plumbing | Traverses and inspects hierarchical tree CAS objects. |
 
 ---
 
@@ -222,7 +234,9 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
   - Clang 13+
   - MSVC 2019 / 2022 (Visual Studio 16.10+)
 - **Build System:** CMake 3.20 or newer
-- **Cryptographic Library:** OpenSSL (`OpenSSL::Crypto` with SHA-256 support)
+- **Cryptographic Library:** OpenSSL 3.0+ (`OpenSSL::Crypto` with SHA-256 support)
+- **Compression Library:** zlib (`ZLIB::ZLIB` deflate/inflate compression)
+- **Network Client Library:** libcurl (`CURL::libcurl` Smart HTTP client)
 
 ---
 
@@ -230,14 +244,15 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 
 #### 1. Clone repository
 ```powershell
-git clone https://github.com/your-username/minigit.git
+git clone https://github.com/sagarkrjha/minigit.git
 cd minigit
 ```
 
 #### 2. Configure with CMake
-If OpenSSL is installed via vcpkg or system path:
+Install dependencies via vcpkg:
 ```powershell
-cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+vcpkg install openssl zlib curl:x64-windows
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 ```
 *(Or omit `-G "Ninja"` to use the default Visual Studio generator)*
 
@@ -258,13 +273,13 @@ The executable will be located at:
 #### 1. Install dependencies
 ```bash
 # Ubuntu / Debian
-sudo apt-get update && sudo apt-get install -y build-essential cmake libssl-dev
+sudo apt-get update && sudo apt-get install -y build-essential cmake libssl-dev zlib1g-dev libcurl4-openssl-dev
 
 # Fedora
-sudo dnf install -y gcc-c++ cmake openssl-devel
+sudo dnf install -y gcc-c++ cmake openssl-devel zlib-devel libcurl-devel
 
 # macOS (Homebrew)
-brew install cmake openssl
+brew install cmake openssl zlib curl
 ```
 
 #### 2. Build
@@ -651,13 +666,158 @@ minigit cat-file -p $SHA
 # Hello, MiniGit!
 ```
 
-Works on all three object types:
+Works on all four object types:
 
-| Flag | blob | tree | commit |
-| :--- | :--- | :--- | :--- |
-| `-t` | `blob` | `tree` | `commit` |
-| `-s` | byte count of file content | byte count of entry list | byte count of commit body |
-| `-p` | raw file bytes | `<mode> <type> <sha>    <name>` per entry | formatted headers + blank line + message |
+| Flag | blob | tree | commit | tag |
+| :--- | :--- | :--- | :--- | :--- |
+| `-t` | `blob` | `tree` | `commit` | `tag` |
+| `-s` | byte count of file content | byte count of entry list | byte count of commit body | byte count of tag payload |
+| `-p` | raw file bytes | `<mode> <type> <sha>    <name>` per entry | formatted headers + blank line + message | tag metadata + blank line + message |
+
+---
+
+### 14. Linear Rebase and Cherry-Pick
+
+#### Cherry-Pick Specific Commits
+Transplant an individual commit onto the active branch:
+```bash
+# Cherry-pick a commit by SHA or branch name
+minigit cherry-pick feature/analytics
+
+# Apply changes to staging without creating a commit
+minigit cherry-pick -n hotfix/db-patch
+```
+
+#### Replay Linear History with Rebase
+Rebase current branch commits onto an upstream base:
+```bash
+# Rebase feature branch onto main
+minigit switch feature/payment
+minigit rebase main
+
+# Rebase onto a specific base
+minigit rebase --onto main feature/legacy-auth
+
+# Resolve conflicts, stage files, and continue or abort
+minigit add src/payment.cpp
+minigit rebase --continue
+# or: minigit rebase --abort | minigit rebase --skip
+```
+
+---
+
+### 15. Working Tree Hygiene with Clean
+
+Remove untracked artifacts from the working tree safely (enforces `-f` or `-n`):
+```bash
+# Preview files that would be deleted (dry-run)
+minigit clean -n
+
+# Force removal of untracked files and untracked directories (-d)
+minigit clean -fd
+
+# Clean including ignored files (-x)
+minigit clean -fdx
+```
+
+---
+
+### 16. Multiple Linked Worktrees
+
+Check out and work on multiple branches simultaneously using isolated working directories:
+```bash
+# Add a new linked worktree checking out a new branch
+minigit worktree add ../feature-auth -b feature/oauth2
+
+# List all active linked worktrees
+minigit worktree list
+
+# Lock worktree to prevent pruning
+minigit worktree lock --reason "Offline development" feature-auth
+
+# Unlock and remove worktree
+minigit worktree unlock feature-auth
+minigit worktree remove ../feature-auth
+
+# Prune administrative metadata for deleted worktrees
+minigit worktree prune -v
+```
+
+---
+
+### 17. Nested Submodules
+
+Coordinate nested repositories using Git-standard mode `160000` gitlink entries:
+```bash
+# Add an external repository as a submodule
+minigit submodule add https://github.com/example/math.git libs/math
+minigit commit -m "Add math submodule"
+
+# Check status across submodules
+minigit submodule status
+
+# Initialize and update submodules on a fresh clone
+minigit submodule update --init --recursive
+
+# Run commands in all submodule working trees
+minigit submodule foreach minigit status
+```
+
+---
+
+### 18. Binary Search Debugging with Bisect
+
+Pinpoint regression-introducing commits across the commit DAG in $O(\log N)$ steps:
+```bash
+# 1. Interactive bisection
+minigit bisect start
+minigit bisect bad HEAD
+minigit bisect good v1.0.0
+# MiniGit checks out optimal DAG midpoints automatically:
+minigit bisect bad      # if test fails
+minigit bisect good     # if test passes
+minigit bisect reset    # clean up and return to starting branch
+
+# 2. Fully automated bisection runner
+minigit bisect start HEAD v1.0.0
+minigit bisect run ./scripts/test_regression.sh
+```
+
+---
+
+### 19. Packfile Maintenance and Verification
+
+Consolidate thousands of loose CAS objects into binary `.pack` archives with byte-level sliding-window delta compression:
+```bash
+# Consolidate loose objects and delete unpacked sources (-d)
+minigit repack -d -w 10
+
+# Verify packfile SHA-256 and CRC-32 integrity
+minigit verify-pack .minigit/objects/pack/*.pack
+
+# Verbose inspection showing object types, unpacked sizes, and delta chains
+minigit verify-pack -v .minigit/objects/pack/*.pack
+```
+
+---
+
+### 20. Stage and Tree Object Inspection
+
+Directly inspect staging area contents and hierarchical tree objects:
+```bash
+# Inspect tracked files, staged modes, and blob hashes
+minigit ls-files -s
+
+# Show untracked files respecting .minigitignore
+minigit ls-files -o
+
+# Traverse tree object hierarchy recursively
+minigit ls-tree -r HEAD
+
+# Output only filenames or object hashes
+minigit ls-tree -r --name-only HEAD
+minigit ls-tree -r --object-only HEAD
+```
 
 ---
 
@@ -668,17 +828,27 @@ When `minigit init` is executed, it creates the `.minigit` directory structure:
 ```text
 .minigit/
 ├── HEAD               # Symbolic ref (ref: refs/heads/main) or commit SHA
-├── config             # Repository configuration file (including remotes)
+├── config             # Repository configuration file (remotes, submodules)
 ├── index              # Staging area: flat map of path -> SHA-256 entries
 ├── stash              # Stash commit stack (one SHA per line)
+├── BISECT_START       # Active bisection session starting reference
+├── BISECT_LOG         # Audit log of bisection steps
+├── BISECT_TERMS       # Custom bisection terms (bad/good or custom)
+├── rebase-apply/      # Transient linear rebase transplantation state
+├── worktrees/         # Linked working tree administrative metadata
+│   └── <id>/          # Per-worktree gitdir, commondir, HEAD, index
+├── modules/           # Nested submodule CAS and ref storage
+│   └── <name>/        # Submodule object database and reference namespace
 ├── objects/           # Content-addressable zlib-compressed object store
+│   ├── pack/          # Packfile (.pack) and index (.idx) binary archives
 │   ├── 5b/
-│   │   └── 2f8a18342dc2145b...   # Blob / Tree / Commit object payloads
+│   │   └── 2f8a18342dc2145b...   # Blob / Tree / Commit / Tag object payloads
 │   └── ...
 └── refs/
     ├── heads/         # Branch pointers (e.g., refs/heads/main)
     ├── remotes/       # Remote-tracking branches (e.g., refs/remotes/origin/main)
-    └── tags/          # Tag pointers
+    ├── tags/          # Tag pointers (lightweight and annotated)
+    └── bisect/        # Active bisection boundary references (bad, good-*, skip-*)
 ```
 
 ### On-Disk Object Envelope
@@ -692,6 +862,7 @@ All objects in `.minigit/objects/` are formatted with an envelope header:
 - **Blob:** `blob <size>\0<file-bytes>`
 - **Tree:** `tree <size>\0<mode> <filename> <sha256>\n...`
 - **Commit:** `commit <size>\0tree <sha>\nparent <sha>\nauthor <author> <timestamp>\ncommitter <author> <timestamp>\n\n<message>`
+- **Tag:** `tag <size>\0object <sha>\ntype commit\ntag <name>\ntagger <author> <timestamp>\n\n<message>`
 
 Objects are sharded using the first 2 characters of their 64-character hex SHA-256 hash as the subdirectory name and the remaining 62 characters as the filename.
 
@@ -703,6 +874,7 @@ Objects are sharded using the first 2 characters of their 64-character hex SHA-2
 minigit/
 ├── CMakeLists.txt              # Root CMake build configuration
 ├── README.md                   # Project overview and user guide
+├── USAGE.md                    # Detailed CLI usage recipes and cheat sheet
 ├── FEATURES.md                 # In-depth architectural and feature specification
 ├── src/
 │   ├── CMakeLists.txt          # Modular CMake targets & executable linking
@@ -714,6 +886,7 @@ minigit/
 │   ├── core/                   # Shared Infrastructure & Utilities
 │   │   ├── CMakeLists.txt
 │   │   ├── file.{h,cpp}        # File reading and binary I/O helpers
+│   │   ├── path_safety.{h,cpp} # Path traversal validation & repo boundary safety
 │   │   ├── sha256.{h,cpp}      # OpenSSL SHA-256 cryptographic hashing
 │   │   └── zlib_compress.{h,cpp}# zlib deflate / inflate compression
 │   ├── repository/             # Repository Lifecycle & Initialization
@@ -727,20 +900,26 @@ minigit/
 │   │   ├── commit.{h,cpp}      # Commit domain object representation
 │   │   ├── object_database.{h,cpp} # Sharded on-disk CAS store with zlib compression
 │   │   ├── object_parser.{h,cpp}   # Raw byte parsing into domain structs
+│   │   ├── pack.{h,cpp}        # Packfile v2 & idx v2 reader/writer & delta compression
+│   │   ├── repack.{h,cpp}      # repack command: loose object compaction
 │   │   ├── hash_object.{h,cpp} # hash-object plumbing command
-│   │   └── cat_file.{h,cpp}    # cat-file plumbing command
+│   │   ├── cat_file.{h,cpp}    # cat-file plumbing command
+│   │   └── ls_tree.{h,cpp}     # ls-tree plumbing command
 │   ├── staging/                # Staging Area, Index & Working Tree State
 │   │   ├── CMakeLists.txt
 │   │   ├── index.{h,cpp}       # In-memory and on-disk index manager
 │   │   ├── ignore.{h,cpp}      # .minigitignore parser and glob matcher
 │   │   ├── add.{h,cpp}         # add command: recursive staging & deletion sync
 │   │   ├── status.{h,cpp}      # status command: multi-tree delta calculation
+│   │   ├── clean.{h,cpp}       # clean command: untracked file hygiene
 │   │   ├── reset.{h,cpp}       # reset command: soft, mixed, and hard resets
+│   │   ├── ls_files.{h,cpp}    # ls-files plumbing command
 │   │   └── write_tree.{h,cpp}  # write-tree plumbing command
 │   ├── history/                # Commit History & Log
 │   │   ├── CMakeLists.txt
 │   │   ├── commit.{h,cpp}      # commit command: snapshot index and update branch
-│   │   └── log.{h,cpp}         # log command: commit graph traversal
+│   │   ├── log.{h,cpp}         # log command: commit graph traversal
+│   │   └── show.{h,cpp}        # show command: commit, tag, tree, blob inspection
 │   ├── branching/              # Branches, References & Switching
 │   │   ├── CMakeLists.txt
 │   │   ├── branch.{h,cpp}      # branch command: list, create, delete branches
@@ -751,11 +930,13 @@ minigit/
 │   │   ├── CMakeLists.txt
 │   │   ├── diff_engine.{h,cpp} # LCS dynamic programming algorithm & unified diff
 │   │   └── diff.{h,cpp}        # diff CLI command
-│   ├── merge/                  # Merge & Revert Engine
+│   ├── merge/                  # Merge, Rebase & Cherry-Pick Engine
 │   │   ├── CMakeLists.txt
 │   │   ├── merge_engine.{h,cpp}# 3-way line merge & LCA DAG traversal
 │   │   ├── merge.{h,cpp}       # merge command
-│   │   └── revert.{h,cpp}      # revert command
+│   │   ├── revert.{h,cpp}      # revert command
+│   │   ├── cherry_pick.{h,cpp} # cherry-pick command: selective transplantation
+│   │   └── rebase.{h,cpp}      # rebase command: linear history replay
 │   ├── stash/                  # Working-State Shelving
 │   │   ├── CMakeLists.txt
 │   │   └── stash.{h,cpp}       # stash command: push, list, pop, drop, show
@@ -782,25 +963,74 @@ minigit/
 │       ├── fetch.{h,cpp}       # fetch command (local & Smart HTTP)
 │       ├── push.{h,cpp}        # push command (local & Smart HTTP)
 │       └── pull.{h,cpp}        # pull command (local & Smart HTTP)
+└── tests/                      # Automated Regression & Verification Harness
+    ├── CMakeLists.txt
+    ├── test_framework.h        # Self-registering test harness macro suite
+    ├── benchmark_metrics.cpp   # Empirical performance benchmarks
+    ├── test_main.cpp           # Test executable runner entry point
+    ├── test_core.cpp           # Cryptographic hashing, compression, path safety
+    ├── test_repository.cpp     # Repository lifecycle & discovery
+    ├── test_storage.cpp        # CAS blobs, trees, commits, ODB
+    ├── test_staging.cpp        # Index roundtripping & ignore patterns
+    ├── test_diff.cpp           # LCS dynamic programming diff engine
+    ├── test_show.cpp           # Object inspection & diffstat formatting
+    ├── test_clean.cpp          # Working tree cleanup safeguards
+    ├── test_ls.cpp             # ls-files and ls-tree inspection
+    ├── test_cherry_pick.cpp    # Commit transplantation & conflict detection
+    ├── test_rebase.cpp         # Linear rebase replay, onto, abort, skip
+    ├── test_pack.cpp           # Packfile v2, idx v2, delta compression roundtrips
+    ├── test_worktree.cpp       # Linked worktree isolation & exclusivity
+    ├── test_submodule.cpp      # Submodule gitlinks & .minigitmodules
+    ├── test_bisect.cpp         # DAG midpoint binary search & automated run
+    └── test_smart_http.cpp     # Smart HTTP pkt-line protocol & transfers
 ```
 
 ---
 
 ## MiniGit vs Standard Git
 
-| Dimension | MiniGit | Standard Git |
-| :--- | :--- | :--- |
-| **Language** | C++20 | C, Shell, Perl |
-| **Cryptographic Hash** | SHA-256 (64 hex characters) | SHA-1 (default) / SHA-256 (experimental) |
-| **Index Format** | Clean text line format (`<path> <sha256>`) | Binary DIRC (format v2/v3/v4) |
-| **Tree Storage** | Text-based sorted entries | Binary mode/path/SHA entries |
-| **Diff Engine** | Dynamic programming LCS (`O(M * N)`) | Myers diff algorithm (`O(N * D)`) |
-| **Branch Switching** | `minigit switch` and `minigit checkout` | `git switch` and `git checkout` |
-| **Linked Worktrees** | Full support (add, list, remove, prune, lock, unlock, move) | Full support |
-| **Submodules** | Full support (add, status, init, update, deinit, summary, foreach, sync, mode 160000 gitlinks) | Full support |
-| **Binary Search Debugging (bisect)** | Full support (DAG midpoint search, automated run, log/replay, terms) | Full support |
-| **Remotes & Transport**| Local filesystem & Smart HTTP/HTTPS (`clone`, `fetch`, `push`, `pull` with pkt-line) | Full local, SSH, Git, HTTP/S protocols |
-| **Compression & Packing** | zlib deflate & Packfile v2 with delta compression | zlib deflate compression & Packfiles |
+While MiniGit provides high behavioral fidelity, shared low-level concepts, and wire-level interoperability with standard Git over Smart HTTP and local filesystems, it makes deliberate architectural choices prioritizing educational clarity, modern C++20 memory safety, cryptographic robustness (pure SHA-256), and deterministic single-pass performance.
+
+### Architectural Comparison Matrix
+
+| Architectural Dimension | MiniGit (v1.8.2) | Canonical / Standard Git | Codebase Reference |
+| :--- | :--- | :--- | :--- |
+| **Implementation Language** | Modern C++20 (`std::filesystem`, RAII, OOP) | C99, POSIX shell scripts, Perl | Full codebase |
+| **Repository Root Directory** | `.minigit/` (isolated metadata environment) | `.git/` | [`src/repository/`](src/repository/) |
+| **Cryptographic Hash** | Pure SHA-256 (64 hex characters) via OpenSSL EVP | SHA-1 (40 hex chars default); experimental SHA-256 | [`src/core/sha256.cpp`](src/core/sha256.cpp) |
+| **Tree Object Model** | **Flat Tree**: Commit points to one tree storing all relative paths (`<mode> <path> <sha256>\n`) | **Hierarchical Tree DAG**: Tree-of-trees where subdirectories are nested subtree objects (`040000 tree`) | [`src/storage/tree.cpp`](src/storage/tree.cpp) |
+| **Index / Staging Area** | Plaintext `<path> <sha256>` line entries; single-stage in-memory hash map; no filesystem `stat` cache | Binary `DIRC` format (v2–v4) with 40-byte stat cache (ctime/mtime/ino/dev/size) and 4-stage conflict flags | [`src/staging/index.cpp`](src/staging/index.cpp) |
+| **Merge Engine & Conflicts** | 3-way LCA line merge via LCS DP; conflicts inject markers and are directly staged into the flat index | Pluggable strategies (`ort`, `recursive`, `octopus`); conflicts split index into stages 1, 2, and 3 until `git add` | [`src/merge/merge.cpp`](src/merge/merge.cpp) |
+| **Packfile & Delta Compression** | Packfile v2 & Index v2 with single-depth (`depth <= 1`) `OBJ_REF_DELTA` for deterministic $O(1)$ unpack reads | Packfile v2 with arbitrary delta chain depth ($\le 50$), `OBJ_OFS_DELTA` relative offsets, MIDX, and bitmaps | [`src/storage/pack.cpp`](src/storage/pack.cpp) |
+| **Working Tree Checkout** | `minigit checkout <target>` restores full tree snapshots (branch/commit); does not checkout individual paths | `git checkout` switches branches, detaches HEAD, restores individual pathspecs (`-- <path>`), and checks out hunks (`-p`) | [`src/branching/checkout.cpp`](src/branching/checkout.cpp) |
+| **Diff Engine & Formatting** | Eugene Myers' $O(ND)$ greedy difference algorithm ([`myers_diff`](src/diff/diff_engine.cpp)); unified diff header formatted as `diff --minigit a/... b/...` | Eugene Myers' greedy diff algorithm ($O(ND)$) / patience diff; unified diff header formatted as `diff --git a/... b/...` | [`src/diff/diff_engine.cpp`](src/diff/diff_engine.cpp) |
+| **Network & Wire Protocols** | Git Smart HTTP v1 client (`git-upload-pack`/`git-receive-pack` via libcurl pkt-line) and local filesystem | Full multi-protocol suite: Smart HTTP v1 & v2, SSH (`git@`), Git daemon (`git://`), dumb HTTP, and bundles | [`src/remotes/smart_http.cpp`](src/remotes/smart_http.cpp) |
+| **Configuration Files** | `.minigitignore`, `.minigitmodules`, and `.minigit/config` | Hierarchical config (`system`, `global`, `local`, `worktree`), nested `.gitignore`, `.gitmodules`, `.git/config` | [`src/remotes/config.cpp`](src/remotes/config.cpp) |
+| **Commit & Tag Metadata** | Author and committer share single Unix epoch timestamp (no timezone offset); annotated tags are first-class tag objects | Independent author & committer identities, timestamps, and timezone offsets (`+HHMM`/`-HHMM`); GPG/SSH signing | [`src/storage/commit.cpp`](src/storage/commit.cpp) |
+| **Linked Worktrees** | Full support (`add`, `list`, `remove`, `prune`, `lock`, `unlock`, `move`) with active branch exclusivity | Full support (`git worktree`) | [`src/worktree/worktree.cpp`](src/worktree/worktree.cpp) |
+| **Submodules** | Full support (`add`, `status`, `init`, `update`, `deinit`, `summary`, `foreach`, `sync`) with mode `160000` gitlinks | Full support (`git submodule`) | [`src/submodule/submodule.cpp`](src/submodule/submodule.cpp) |
+| **Binary Search Debugging** | Full DAG midpoint bisection (`start`, `bad`, `good`, `skip`, `reset`, `terms`, `log`, `replay`, `run`) | Full support (`git bisect`) | [`src/bisect/bisect.cpp`](src/bisect/bisect.cpp) |
+| **Command Dispatching** | Static compile-time $O(1)$ dispatch tables using `std::unordered_map<std::string_view, CommandHandler>` | Built-in command array (`struct cmd_struct`) with prefix abbreviations, external pager, and aliases | [`src/cli/dispatcher.cpp`](src/cli/dispatcher.cpp) |
+
+### Key Architectural Divergences Explained
+
+1. **Flat Tree Model vs. Hierarchical Subtrees:**
+   Standard Git represents directory structures as a tree-of-trees DAG, where subdirectories are separate `tree` objects with mode `040000`. MiniGit flattens the tree hierarchy into a single sorted text record list per commit, with entries storing the complete relative path (`100644 src/core/sha256.cpp <sha256>`). This eliminates recursive subtree pointer chasing during tree traversals and diffs while maintaining unambiguous file paths.
+
+2. **Index Structure & Conflict Lifecycle:**
+   Canonical Git uses a binary `DIRC` index maintaining 40-byte stat cache entries (device, inode, mode, UID, GID, mtime, file size) to avoid rehashing unchanged files. During merge conflicts, it records up to three distinct stages for conflicting paths (stage 1 = common ancestor, stage 2 = target/ours, stage 3 = incoming/theirs). MiniGit uses a clean plaintext line-oriented index (`<path> <sha256>`) mapped to an in-memory hash table. During conflicts, MiniGit writes standard conflict markers directly into working tree files and immediately hashes and stages the marked content into the flat index, signaling conflict resolution state through file markers and CLI exit codes rather than multi-stage index slots.
+
+3. **Packfile Delta Depth & Traversal Guarantees:**
+   Canonical Git constructs deep delta chains (often 10–50 deltas deep) combining both `OBJ_REF_DELTA` and `OBJ_OFS_DELTA` offsets to maximize compression ratios. MiniGit's Packfile v2 engine enforces a strict maximum delta depth of 1 (`OBJ_REF_DELTA` bases are never allowed to be deltas themselves). This bounds object reconstruction time to exactly one delta application step ($O(1)$ unpack complexity), preventing delta chain traversal degradation.
+
+4. **Working Tree Checkout Scope:**
+   Canonical Git's `git checkout` is a polymorphic tool that switches branches, detaches HEAD, restores individual pathspecs (`git checkout <commit> -- <path>`), and interactively restores hunks (`git checkout -p`). MiniGit explicitly cleanly decouples branch operations (`minigit switch` / `minigit switch -c`) from full-tree snapshot restoration (`minigit checkout <branch|commit>`). MiniGit's checkout restores the complete tree snapshot and updates HEAD; granular file restoration is managed via clean working tree operations.
+
+5. **Diff Algorithm & Output Headers:**
+   Both MiniGit and canonical Git implement Eugene Myers' 1986 $O(ND)$ difference algorithm (*"An $O(ND)$ Difference Algorithm and Its Variations"*). MiniGit's diff engine in [`src/diff/diff_engine.cpp`](src/diff/diff_engine.cpp) implements the greedy diagonal search with $O(D^2)$ space trace slicing, outputting unified diff hunks formatted with `diff --minigit a/<path> b/<path>` headers and automatically stripping Windows CRLF carriage returns. Canonical Git outputs `diff --git a/<path> b/<path>` and provides alternative heuristic drivers (patience/histogram diff).
+
+6. **Transport & Wire Protocol Interoperability:**
+   MiniGit is directly wire-compatible with standard Git Smart HTTP servers over HTTP/HTTPS. It implements the Git Smart HTTP v1 transfer protocol (`git-upload-pack` and `git-receive-pack`) via libcurl, parsing 4-hex pkt-line frames, discovering advertised refs, negotiating `want`/`have` sets, and streaming packfiles directly into the local Content-Addressable Storage (CAS). For multi-protocol flexibility, canonical Git also supports SSH, native Git daemon (`git://`), dumb HTTP, and bundle archives.
 
 ---
 

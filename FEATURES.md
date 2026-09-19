@@ -2,7 +2,7 @@
 
 This document provides a comprehensive, production-grade technical specification of **MiniGit**, covering its command-line interface, underlying subsystems, algorithms, data structures, storage formats, and behavioral semantics.
 
-> 📖 For practical CLI usage examples, daily workflows, and recipe guides, see [USAGE.MD](USAGE.MD). For installation instructions and pre-built binaries, see [README.md](README.md).
+> 📖 For practical CLI usage examples, daily workflows, and recipe guides, see [USAGE.md](USAGE.md). For installation instructions and pre-built binaries, see [README.md](README.md).
 
 ---
 
@@ -40,6 +40,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.25 `minigit show`](#225-minigit-show)
   - [2.26 `minigit clean`](#226-minigit-clean)
   - [2.27 `minigit ls-files`](#227-minigit-ls-files)
+  - [2.28 `minigit ls-tree`](#228-minigit-ls-tree)
   - [2.29 `minigit rebase`](#229-minigit-rebase)
   - [2.30 `minigit repack`](#230-minigit-repack)
   - [2.31 `minigit verify-pack`](#231-minigit-verify-pack)
@@ -47,12 +48,15 @@ This document provides a comprehensive, production-grade technical specification
   - [2.33 `minigit submodule`](#233-minigit-submodule)
   - [2.34 `minigit bisect`](#234-minigit-bisect)
   - [2.35 Smart HTTP Network Remotes](#235-smart-http-network-remotes)
+  - [2.36 `minigit version`](#236-minigit-version)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
   - [3.3 Tree Objects](#33-tree-objects)
   - [3.4 Commit Objects](#34-commit-objects)
-  - [3.5 Object Database Sharding](#35-object-database-sharding)
+  - [3.5 Annotated Tag Objects](#35-annotated-tag-objects)
+  - [3.6 Object Database Sharding](#36-object-database-sharding)
+  - [3.7 Packfiles (`.pack`) and Index (`.idx`) Format with Delta Compression](#37-packfiles-pack-and-index-idx-format-with-delta-compression)
 - [4. Staging Engine & Index Specification](#4-staging-engine--index-specification)
   - [4.1 On-Disk Index Format](#41-on-disk-index-format)
   - [4.2 In-Memory Representation](#42-in-memory-representation)
@@ -82,9 +86,9 @@ MiniGit is architected around the core data structures and state transitions of 
 Borrowing from standard Git architecture, MiniGit separates commands into two conceptual tiers:
 
 1. **Porcelain Commands:** High-level, user-facing commands designed for daily developer workflows:
-   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`, `stash`, `remote`, `clone`, `fetch`, `push`, `pull`.
+   - `init`, `status`, `add`, `commit`, `log`, `diff`, `branch`, `switch`, `checkout`, `tag`, `reset`, `merge`, `revert`, `cherry-pick`, `rebase`, `stash`, `clean`, `show`, `worktree`, `submodule`, `bisect`, `remote`, `clone`, `fetch`, `push`, `pull`, `repack`, `version`.
 2. **Plumbing Commands:** Low-level commands designed for scriptability, tooling, and granular manipulation of the object database and index:
-   - `hash-object`, `write-tree`, `cat-file`.
+   - `hash-object`, `write-tree`, `cat-file`, `ls-files`, `ls-tree`, `verify-pack`.
 
 ### 1.2 Content-Addressable Storage (CAS) Engine
 
@@ -1931,7 +1935,7 @@ sequenceDiagram
     Note over C,S: Fetch / Clone Exchange (git-upload-pack)
     C->>S: GET /repo.git/info/refs?service=git-upload-pack
     S-->>C: 200 OK (application/x-git-upload-pack-advertisement)<br/># service=git-upload-pack<br/>0000<br/>SHA HEAD\0symref=HEAD:refs/heads/main ...<br/>SHA refs/heads/main<br/>0000
-    C->>S: POST /repo.git/git-upload-pack<br/>want <sha> ofs-delta agent=minigit/1.8.0<br/>0000<br/>have <sha><br/>done
+    C->>S: POST /repo.git/git-upload-pack<br/>want <sha> ofs-delta agent=minigit/1.8.2<br/>0000<br/>have <sha><br/>done
     S-->>C: 200 OK (application/x-git-upload-pack-result)<br/>0008NAK\n + PACK<binary-stream>
     Note over C: Demultiplex side-band & unpack objects directly to CAS
 
@@ -1950,7 +1954,7 @@ sequenceDiagram
    - `0000` represents a flush packet (`FLUSH-PKT`), used to terminate command lists and indicate end of transmission phases.
    - `0001` represents a delimiter packet (`DELIM-PKT`).
    - Line-oriented text records terminate with `\n`.
-   - The initial advertised ref line appends a null byte `\0` followed by space-separated capabilities (`symref=HEAD:refs/heads/main`, `ofs-delta`, `side-band-64k`, `report-status`, `agent=minigit/1.8.0`).
+   - The initial advertised ref line appends a null byte `\0` followed by space-separated capabilities (`symref=HEAD:refs/heads/main`, `ofs-delta`, `side-band-64k`, `report-status`, `agent=minigit/1.8.2`).
 
 2. **Reference Discovery (`info/refs`)**:
    - Upload-pack discovery requests `GET <url>/info/refs?service=git-upload-pack`. The response begins with `# service=git-upload-pack\n` framed as a pkt-line followed by `0000`, then the list of reachable references (`<sha> <refname>\n`).
@@ -1973,11 +1977,28 @@ sequenceDiagram
 5. **Push Transfer & Verification (`git-receive-pack`)**:
    - Verifies that the update is a fast-forward: ancestors of local tip must include the current remote SHA.
    - Generates a delta-compressed packfile containing only missing commits, trees, and blobs.
-   - Sends command line: `<old-sha> <new-sha> refs/heads/<branch>\0report-status agent=minigit/1.8.0\n` + `0000` + binary pack bytes.
+   - Sends command line: `<old-sha> <new-sha> refs/heads/<branch>\0report-status agent=minigit/1.8.2\n` + `0000` + binary pack bytes.
    - Parses the server's `unpack ok` and `ok <ref>` status confirmations.
 
 6. **Environment & Security Flags**:
    - `GIT_SSL_NO_VERIFY=1` or `MINIGIT_SSL_NO_VERIFY=1`: Disables SSL peer and host verification for local self-signed development environments and internal corporate mirrors.
+
+---
+
+### 2.36 `minigit version`
+
+#### Synopsis
+```bash
+minigit version
+minigit --version
+minigit -v
+```
+
+#### Purpose
+Outputs the compiled MiniGit binary version string:
+```text
+minigit version 1.8.2
+```
 
 ---
 
@@ -1993,7 +2014,7 @@ Every object stored in `.minigit/objects/` adheres to a strict canonical envelop
 +------+---+------+----+---------------+
 ```
 
-- **`type`:** ASCII string identifier (`blob`, `tree`, or `commit`).
+- **`type`:** ASCII string identifier (`blob`, `tree`, `commit`, or `tag`).
 - **` `:** A single ASCII space character (`0x20`).
 - **`size`:** Decimal ASCII representation of payload size in bytes.
 - **`\0`:** Null byte delimiter (`0x00`).
@@ -2015,7 +2036,7 @@ Trees represent directory snapshots.
   ```text
   <mode> <name> <sha256>\n
   ```
-  - `mode`: File permission mode string (e.g. `100644` for regular files).
+  - `mode`: File permission mode string (e.g. `100644` for regular files, `160000` for gitlink submodules).
   - `name`: Relative file or directory name.
   - `sha256`: 64-character lowercase hex SHA-256 hash.
 
@@ -2033,14 +2054,28 @@ Commits represent immutable checkpoints in repository history.
   <commit-message>
   ```
 
-### 3.5 Object Database Sharding
+### 3.5 Annotated Tag Objects
+
+Annotated tags represent first-class release milestone objects referencing a target commit.
+- **Header:** `tag <payload-size>\0`
+- **Payload:**
+  ```text
+  object <target-commit-sha256>
+  type commit
+  tag <tag-name>
+  tagger <tagger-name-and-email> <unix-timestamp>
+
+  <tag-message>
+  ```
+
+### 3.6 Object Database Sharding
 
 To prevent filesystem performance degradation due to thousands of files in a single directory, MiniGit shards objects:
 - Directory: `.minigit/objects/<first-2-hex-chars>/`
 - Filename: `<remaining-62-hex-chars>`
 - Total path length: 64-character hash split into `2 / 62`.
 
-### 3.6 Packfiles (`.pack`) and Index (`.idx`) Format with Delta Compression
+### 3.7 Packfiles (`.pack`) and Index (`.idx`) Format with Delta Compression
 
 MiniGit implements the canonical Git Packfile Version 2 and Index Version 2 specifications adapted for SHA-256 content addressing:
 
@@ -2174,32 +2209,40 @@ When `minigit checkout <commit-sha>` is invoked with a commit SHA:
 ## 7. Error Handling & Security
 
 1. **Repository Discovery:** Commands dynamically discover the repository boundary by traversing upwards from the current directory. If no `.minigit` directory is encountered before reaching the filesystem root, the process exits with `fatal: not a minigit repository`.
-2. **Directory Traversal Protection:** Relative paths supplied to `minigit add` are resolved to absolute paths and verified to lie within `repo.root()`. Files outside the repository yield `error: '<path>' is outside repository`.
-3. **Atomic File Updates:** Branch updates and index writes use truncation modes and full buffer flushes to minimize index corruption.
-4. **Exception Containment:** Subsystem exceptions (`std::runtime_error`) are caught at command boundaries and transformed into clean, readable CLI error messages.
+2. **Directory & Path Traversal Protection:** All filesystem operations strictly invoke `resolve_safe_repo_path` (`src/core/path_safety.cpp`). Relative paths supplied to `add`, `checkout`, `clone`, `pull`, and `submodule` are verified against path traversal attacks (`..` escapes, absolute path overrides) and forbidden from accessing or writing files outside `repo.root()`. Files outside the repository yield `error: '<path>' is outside repository`.
+3. **Internal Hierarchy Protection:** Prevents accidental staging, modification, or overwriting of internal metadata trees (`.minigit` and `.git`).
+4. **Atomic File Updates:** Branch updates and index writes use truncation modes and full buffer flushes to minimize index corruption.
+5. **Network Protocol Hardening:** Hardened hex parsers for packet-line (pkt-line) framing, verified LEB128 bitshift decoders for packfile streams, and RAII resource management for libcurl handles (`HttpClient`).
+6. **Exception Containment:** Subsystem exceptions (`std::runtime_error`) are caught at command boundaries and transformed into clean, readable CLI error messages.
 
 ---
 
 ## 8. Canonical Git Comparison Matrix
 
-| Feature / Behavior | MiniGit | Canonical Git |
-| :--- | :--- | :--- |
-| **Implementation Language** | C++20 | C, POSIX Shell, Perl |
-| **Hashing Algorithm** | SHA-256 (64 hex characters) | SHA-1 (legacy default) / SHA-256 |
-| **Object Header** | `<type> <size>\0<content>` | `<type> <size>\0<content>` |
-| **Object Compression** | zlib deflate compression | zlib deflate compression |
-| **Packfiles (`.pack`)** | Supported (v1.4.0, delta compression) | Full support (delta compression) |
-| **Remotes & Synchronization** | Local filesystem & Smart HTTP/HTTPS (`clone`, `fetch`, `push`, `pull` with pkt-line packet protocol) | Full local, SSH, Git, HTTP/S protocols |
-| **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file`, `verify-pack` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, `verify-pack`, and many more |
-| **Index Serialization** | Human-readable `<path> <sha256>` | Binary DIRC structure with stat cache |
-| **Diff Engine** | LCS DP Matrix | Eugene Myers $O(ND)$ Difference Algorithm |
-| **Symbolic HEAD Ref** | Supported (`ref: refs/heads/...`) | Supported (`ref: refs/heads/...`) |
-| **Detached HEAD** | Supported | Supported |
-| **Branch Deletion Safeguard** | Prevents active branch deletion | Prevents active branch deletion |
-| **Linked Worktrees** | Supported (v1.5.0, add, list, remove, prune, lock, unlock, move) | Full support |
-| **Submodules** | Supported (v1.6.0, add, status, init, update, deinit, summary, foreach, sync, mode `160000` gitlinks) | Full support |
-| **Binary Search Debugging (`bisect`)** | Supported (v1.7.0, DAG midpoint binary search, automated run, log/replay, terms) | Full support |
-| **Cross-Platform CRLF** | Normalizes `\r` across comparisons | Handled via `core.autocrlf` |
+| Feature / Architectural Dimension | MiniGit (v1.8.2) | Canonical Git | Codebase Reference |
+| :--- | :--- | :--- | :--- |
+| **Implementation Language** | Modern C++20 (`std::filesystem`, RAII, OOP) | C99, POSIX shell scripts, Perl | Full codebase |
+| **Repository Root Directory** | `.minigit/` (isolated metadata environment) | `.git/` | `src/repository/` |
+| **Hashing Algorithm** | Pure SHA-256 (64 hex characters) via OpenSSL EVP | SHA-1 (40 hex chars default); experimental SHA-256 | `src/core/sha256.cpp` |
+| **Object Header Envelope** | `<type> <size>\0<content>` | `<type> <size>\0<content>` | `src/storage/blob.cpp` |
+| **Loose Object Compression** | zlib deflate / inflate on loose CAS objects | zlib deflate / inflate on loose CAS objects | `src/core/zlib_compress.cpp` |
+| **Tree Object Model** | **Flat Tree**: Commit references single flat tree holding all relative paths (`<mode> <path> <sha256>\n`) | **Hierarchical Tree DAG**: Tree-of-trees where subdirectories are separate subtree objects (`040000 tree`) | `src/storage/tree.cpp` |
+| **Index Serialization** | Human-readable `<path> <sha256>` line entries; single-stage in-memory hash map; no stat cache | Binary `DIRC` format (v2–v4) with 40-byte stat cache (ctime/mtime/ino/dev/size) and 4-stage conflict flags | `src/staging/index.cpp` |
+| **Merge Engine & Conflicts** | 3-way LCA line merge via LCS DP; conflicts inject markers and are directly staged into the flat index | Pluggable strategies (`ort`, `recursive`, `octopus`); conflicts split index into stages 1, 2, and 3 until `git add` | `src/merge/merge.cpp` |
+| **Packfile & Delta Compression** | Packfile v2 & Index v2 with single-depth (`depth <= 1`) `OBJ_REF_DELTA` for deterministic $O(1)$ unpack reads | Packfile v2 with arbitrary delta chain depth ($\le 50$), `OBJ_OFS_DELTA` relative offsets, MIDX, and bitmaps | `src/storage/pack.cpp` |
+| **Working Tree Checkout** | `minigit checkout <target>` restores full tree snapshots (branch/commit); does not checkout individual paths | `git checkout` switches branches, detaches HEAD, restores individual pathspecs (`-- <path>`), and checks out hunks (`-p`) | `src/branching/checkout.cpp` |
+| **Diff Engine & Formatting** | Eugene Myers' $O(ND)$ greedy difference algorithm (`myers_diff`); unified diff header formatted as `diff --minigit a/... b/...` | Eugene Myers' greedy diff algorithm ($O(ND)$) / patience diff; unified diff header formatted as `diff --git a/... b/...` | `src/diff/diff_engine.cpp` |
+| **Remotes & Transport Protocols** | Git Smart HTTP v1 client (`git-upload-pack`/`git-receive-pack` via libcurl pkt-line) and local filesystem | Full multi-protocol suite: Smart HTTP v1 & v2, SSH (`git@`), Git daemon (`git://`), dumb HTTP, and bundles | `src/remotes/smart_http.cpp` |
+| **Configuration Files** | `.minigitignore`, `.minigitmodules`, and `.minigit/config` | Hierarchical config (`system`, `global`, `local`, `worktree`), nested `.gitignore`, `.gitmodules`, `.git/config` | `src/remotes/config.cpp` |
+| **Commit & Tag Metadata** | Author and committer share single Unix epoch timestamp (no timezone offset); annotated tags are first-class tag objects | Independent author & committer identities, timestamps, and timezone offsets (`+HHMM`/`-HHMM`); GPG/SSH signing | `src/storage/commit.cpp` |
+| **Symbolic & Detached HEAD** | Full support (`ref: refs/heads/...` and raw commit SHA) | Full support (`ref: refs/heads/...` and raw commit SHA) | `src/repository/repository.cpp` |
+| **Branch Safety Constraints** | Prevents active branch deletion (`-d`), prevents duplicates | Prevents active branch deletion (`-d`), prevents duplicates | `src/branching/branch.cpp` |
+| **Linked Worktrees** | Full support (`add`, `list`, `remove`, `prune`, `lock`, `unlock`, `move`) with active branch exclusivity | Full support (`git worktree`) | `src/worktree/worktree.cpp` |
+| **Submodules** | Full support (`add`, `status`, `init`, `update`, `deinit`, `summary`, `foreach`, `sync`) with mode `160000` gitlinks | Full support (`git submodule`) | `src/submodule/submodule.cpp` |
+| **Binary Search Debugging** | Full DAG midpoint bisection (`start`, `bad`, `good`, `skip`, `reset`, `terms`, `log`, `replay`, `run`) | Full support (`git bisect`) | `src/bisect/bisect.cpp` |
+| **Command Dispatching** | Static compile-time $O(1)$ dispatch tables using `std::unordered_map<std::string_view, CommandHandler>` | Built-in command array (`struct cmd_struct`) with prefix abbreviations, external pager, and aliases | `src/cli/dispatcher.cpp` |
+| **Cross-Platform CRLF** | Normalizes `\r` carriage returns across line splitting | Handled via `core.autocrlf` and `.gitattributes` | `src/diff/diff_engine.cpp` |
+| **Plumbing Commands** | `hash-object`, `write-tree`, `cat-file`, `ls-files`, `ls-tree`, `verify-pack` | `hash-object`, `write-tree`, `cat-file`, `ls-tree`, `ls-files`, `verify-pack`, and many more | `src/cli/dispatcher.cpp` |
 
 ---
 
@@ -2210,13 +2253,17 @@ The following features are scheduled for subsequent development phases:
 ```mermaid
 flowchart LR
     A["v0.5.0\nzlib Compression"] --> B["v0.6.0\nRemotes Protocol"]
-    B --> C["v1.4.0\nPackfiles & Delta Compression"]
-    C --> D["v1.5.0\nLinked Worktrees"]
-    D --> E["v1.6.0\nSubmodules"]
-    E --> F["v1.7.0\nBisect Debugging"]
-    F --> G["v1.8.0\nSmart HTTP Remotes"]
-    G --> H["v1.8.1\nSecurity & Performance Hardening"]
-    H --> I["v1.8.2 (Current)\nO(1) Unordered Map Dispatching"]
+    B --> C["v1.1.0\ncherry-pick & show"]
+    C --> D["v1.2.0\nclean"]
+    D --> E["v1.2.1\nls-files & ls-tree"]
+    E --> F["v1.3.0\nrebase"]
+    F --> G["v1.4.0\nPackfiles & Deltas"]
+    G --> H["v1.5.0\nLinked Worktrees"]
+    H --> I["v1.6.0\nSubmodules"]
+    I --> J["v1.7.0\nBisect Debugging"]
+    J --> K["v1.8.0\nSmart HTTP Remotes"]
+    K --> L["v1.8.1\nSecurity & Benchmarks"]
+    L --> M["v1.8.2 (Current)\nO(1) Map Dispatching"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**

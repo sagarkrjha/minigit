@@ -33,47 +33,166 @@ std::vector<std::string> split_lines(const std::string &text)
 }
 
 // ---------------------------------------------------------------------------
-// lcs_diff  (O(m*n) LCS dynamic programming)
+// myers_diff  (Eugene Myers' O(ND) Greedy Difference Algorithm)
 // ---------------------------------------------------------------------------
 
-std::vector<Edit> lcs_diff(const std::vector<std::string> &old_lines,
-                            const std::vector<std::string> &new_lines)
+std::vector<Edit> myers_diff(const std::vector<std::string> &old_lines,
+                             const std::vector<std::string> &new_lines)
 {
     const int m = static_cast<int>(old_lines.size());
     const int n = static_cast<int>(new_lines.size());
 
-    // Build LCS table.
-    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
-    for (int i = 1; i <= m; ++i)
-        for (int j = 1; j <= n; ++j)
-            dp[i][j] = (old_lines[i - 1] == new_lines[j - 1])
-                           ? dp[i - 1][j - 1] + 1
-                           : std::max(dp[i - 1][j], dp[i][j - 1]);
+    // Fast-path 1: both inputs empty
+    if (m == 0 && n == 0)
+        return {};
 
-    // Backtrack iteratively to build the edit sequence in reverse.
-    std::vector<Edit> edits;
-    int i = m, j = n;
-    while (i > 0 || j > 0)
+    // Fast-path 2: old is empty -> all lines are additions
+    if (m == 0)
     {
-        if (i > 0 && j > 0 && old_lines[i - 1] == new_lines[j - 1])
+        std::vector<Edit> edits;
+        edits.reserve(n);
+        for (const auto &line : new_lines)
+            edits.push_back({EditType::Add, line});
+        return edits;
+    }
+
+    // Fast-path 3: new is empty -> all lines are removals
+    if (n == 0)
+    {
+        std::vector<Edit> edits;
+        edits.reserve(m);
+        for (const auto &line : old_lines)
+            edits.push_back({EditType::Remove, line});
+        return edits;
+    }
+
+    const int max_d = m + n;
+    // v array stores furthest reaching x on diagonal k, indexed by k + max_d
+    std::vector<int> v(2 * max_d + 1, 0);
+
+    // trace[d] stores the slice of v for diagonals [-d, d] at step d.
+    // Diagonal k is at trace[d][k + d].
+    std::vector<std::vector<int>> trace;
+    trace.reserve(max_d + 1);
+
+    // Initial snake at d = 0
+    int init_x = 0;
+    while (init_x < m && init_x < n && old_lines[init_x] == new_lines[init_x])
+        ++init_x;
+
+    v[max_d] = init_x;
+    trace.push_back({init_x});
+
+    // If identical, return all Keep
+    if (init_x == m && init_x == n)
+    {
+        std::vector<Edit> edits;
+        edits.reserve(m);
+        for (const auto &line : old_lines)
+            edits.push_back({EditType::Keep, line});
+        return edits;
+    }
+
+    bool done = false;
+    for (int d = 1; d <= max_d && !done; ++d)
+    {
+        std::vector<int> slice(2 * d + 1, 0);
+
+        for (int k = -d; k <= d; k += 2)
         {
-            edits.push_back({EditType::Keep, old_lines[i - 1]});
-            --i; --j;
+            int x = 0;
+            if (k == -d || (k != d && v[k - 1 + max_d] < v[k + 1 + max_d]))
+            {
+                x = v[k + 1 + max_d]; // Downward move (Add)
+            }
+            else
+            {
+                x = v[k - 1 + max_d] + 1; // Rightward move (Remove)
+            }
+
+            int y = x - k;
+
+            // Snake along diagonal
+            while (x < m && y < n && old_lines[x] == new_lines[y])
+            {
+                ++x;
+                ++y;
+            }
+
+            v[k + max_d] = x;
+            slice[k + d] = x;
+
+            if (x >= m && y >= n)
+            {
+                done = true;
+                break;
+            }
         }
-        else if (j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]))
+
+        trace.push_back(std::move(slice));
+    }
+
+    // Backtrack to reconstruct the edit script
+    std::vector<Edit> edits;
+    int x = m;
+    int y = n;
+
+    for (int d = static_cast<int>(trace.size()) - 1; d > 0; --d)
+    {
+        const int k = x - y;
+        int prev_k = 0;
+
+        if (k == -d || (k != d && trace[d - 1][k - 1 + (d - 1)] < trace[d - 1][k + 1 + (d - 1)]))
         {
-            edits.push_back({EditType::Add, new_lines[j - 1]});
-            --j;
+            prev_k = k + 1;
         }
         else
         {
-            edits.push_back({EditType::Remove, old_lines[i - 1]});
-            --i;
+            prev_k = k - 1;
         }
+
+        const int prev_x = trace[d - 1][prev_k + (d - 1)];
+        const int prev_y = prev_x - prev_k;
+
+        // Roll back diagonal snake
+        while (x > prev_x && y > prev_y && x > 0 && y > 0 && old_lines[x - 1] == new_lines[y - 1])
+        {
+            edits.push_back({EditType::Keep, old_lines[x - 1]});
+            --x;
+            --y;
+        }
+
+        // Edit step
+        if (prev_k < k)
+        {
+            // Horizontal move: Remove old_lines[prev_x]
+            edits.push_back({EditType::Remove, old_lines[prev_x]});
+            x = prev_x;
+        }
+        else
+        {
+            // Vertical move: Add new_lines[prev_y]
+            edits.push_back({EditType::Add, new_lines[prev_y]});
+            y = prev_y;
+        }
+    }
+
+    // Roll back initial snake at d = 0
+    while (x > 0 && y > 0 && old_lines[x - 1] == new_lines[y - 1])
+    {
+        edits.push_back({EditType::Keep, old_lines[x - 1]});
+        --x;
+        --y;
     }
 
     std::reverse(edits.begin(), edits.end());
     return edits;
+}
+
+std::vector<Edit> lcs_diff(const std::vector<std::string> &old_lines,
+                            const std::vector<std::string> &new_lines)
+{
+    return myers_diff(old_lines, new_lines);
 }
 
 // ---------------------------------------------------------------------------

@@ -50,3 +50,65 @@ TEST_CASE(Diff, FormatUnifiedDiff)
     ASSERT_TRUE(diff_output.find("-second line") != std::string::npos);
     ASSERT_TRUE(diff_output.find("+modified line") != std::string::npos);
 }
+
+TEST_CASE(Diff, MyersDiffPaperExample)
+{
+    // Eugene Myers 1986 paper example: "ABCABBA" -> "CBABAC"
+    std::vector<std::string> a = {"A", "B", "C", "A", "B", "B", "A"};
+    std::vector<std::string> b = {"C", "B", "A", "B", "A", "C"};
+
+    std::vector<Edit> edits = myers_diff(a, b);
+
+    // Verify reconstruction of b from a using edit script
+    std::vector<std::string> reconstructed;
+    size_t a_idx = 0;
+    for (const auto& e : edits)
+    {
+        if (e.type == EditType::Keep)
+        {
+            ASSERT_TRUE(a_idx < a.size() && a[a_idx] == e.line);
+            reconstructed.push_back(e.line);
+            a_idx++;
+        }
+        else if (e.type == EditType::Remove)
+        {
+            ASSERT_TRUE(a_idx < a.size() && a[a_idx] == e.line);
+            a_idx++;
+        }
+        else if (e.type == EditType::Add)
+        {
+            reconstructed.push_back(e.line);
+        }
+    }
+    ASSERT_EQ(a_idx, a.size());
+    ASSERT_EQ(reconstructed.size(), b.size());
+    for (size_t i = 0; i < b.size(); ++i)
+    {
+        ASSERT_EQ(reconstructed[i], b[i]);
+    }
+}
+
+TEST_CASE(Diff, MyersDiffEdgeCases)
+{
+    // Empty inputs
+    auto empty_edits = myers_diff({}, {});
+    ASSERT_TRUE(empty_edits.empty());
+
+    // Pure additions
+    auto add_edits = myers_diff({}, {"one", "two"});
+    ASSERT_EQ(add_edits.size(), 2);
+    ASSERT_TRUE(add_edits[0].type == EditType::Add && add_edits[0].line == "one");
+    ASSERT_TRUE(add_edits[1].type == EditType::Add && add_edits[1].line == "two");
+
+    // Pure removals
+    auto rem_edits = myers_diff({"one", "two"}, {});
+    ASSERT_EQ(rem_edits.size(), 2);
+    ASSERT_TRUE(rem_edits[0].type == EditType::Remove && rem_edits[0].line == "one");
+    ASSERT_TRUE(rem_edits[1].type == EditType::Remove && rem_edits[1].line == "two");
+
+    // Identical files
+    auto id_edits = myers_diff({"x", "y"}, {"x", "y"});
+    ASSERT_EQ(id_edits.size(), 2);
+    ASSERT_TRUE(id_edits[0].type == EditType::Keep && id_edits[0].line == "x");
+    ASSERT_TRUE(id_edits[1].type == EditType::Keep && id_edits[1].line == "y");
+}
