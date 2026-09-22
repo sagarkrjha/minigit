@@ -138,17 +138,10 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build binary
-        run: |
-          cmake --build build \
-            --config ${{ inputs.build_type || 'Release' }} \
-            --parallel
+        run: cmake --build build --config ${{ inputs.build_type || 'Release' }} --parallel
 
       - name: Run test suite
-        run: |
-          ctest \
-            --test-dir build \
-            --output-on-failure \
-            --build-config ${{ inputs.build_type || 'Release' }}
+        run: ctest --test-dir build --output-on-failure --build-config ${{ inputs.build_type || 'Release' }}
 
       - name: Verify and stage binary (Windows)
         if: runner.os == 'Windows'

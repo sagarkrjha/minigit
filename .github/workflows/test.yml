@@ -101,14 +101,14 @@ jobs:
           path: |
             ${{ runner.temp }}/vcpkg_cache
             C:\Users\runneradmin\AppData\Local\vcpkg\archives
-          key: ${{ runner.os }}-vcpkg-archives-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-vcpkg-archives-${{ hashFiles('vcpkg.json', '**/CMakeLists.txt') }}
           restore-keys: |
             ${{ runner.os }}-vcpkg-archives-
 
       - name: Install dependencies via vcpkg (Windows)
         if: runner.os == 'Windows'
         run: |
-          vcpkg install openssl:x64-windows-static zlib:x64-windows-static curl:x64-windows-static
+          vcpkg install --triplet x64-windows-static
 
       # --- Configure CMake ---
       - name: Configure CMake (Linux)
