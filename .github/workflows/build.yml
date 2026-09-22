@@ -13,6 +13,7 @@ on:
         required: false
         default: true
         type: boolean
+
   workflow_dispatch:
     inputs:
       build_type:
@@ -37,6 +38,7 @@ jobs:
   compile:
     name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -45,10 +47,12 @@ jobs:
             platform: windows
             binary_name: minigit.exe
             release_asset: minigit.exe
+
           - os: ubuntu-latest
             platform: linux
             binary_name: minigit
             release_asset: minigit-linux
+
           - os: macos-latest
             platform: macos
             binary_name: minigit
@@ -58,55 +62,55 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      # --- Setup Optimistic Compiler Cache (ccache / sccache) ---
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.platform }}-${{ matrix.os }}-${{ inputs.build_type || 'Release' }}
           max-size: 500M
 
-      # --- Linux dependencies ---
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Fast-path check: avoid slow apt-get update if packages already exist
-          if ! pkg-config --exists openssl zlib libcurl; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev libcurl4-openssl-dev ninja-build
-          fi
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev \
+            zlib1g-dev \
+            libcurl4-openssl-dev \
+            ninja-build
 
-      # --- macOS dependencies ---
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           export HOMEBREW_NO_AUTO_UPDATE=1
           export HOMEBREW_NO_INSTALL_UPGRADE=1
-          # Fast-path check: only install if missing
-          if ! brew list openssl@3 &>/dev/null && ! brew list openssl &>/dev/null; then
-            brew install openssl
-          fi
-          if ! brew list ninja &>/dev/null; then
-            brew install ninja
-          fi
 
-      # --- Windows dependencies & vcpkg cache ---
-      - name: Cache vcpkg dependencies (Windows)
+          brew list openssl@3 &>/dev/null || brew install openssl@3
+          brew list ninja &>/dev/null || brew install ninja
+
+      - name: Configure vcpkg binary cache
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cache = "${{ github.workspace }}\.vcpkg-cache"
+          New-Item -ItemType Directory -Force -Path $cache | Out-Null
+          "VCPKG_DEFAULT_BINARY_CACHE=$cache" >> $env:GITHUB_ENV
+
+      - name: Cache vcpkg
         if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
           path: |
+            .vcpkg-cache
             ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-            ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-vcpkg-openssl-zlib-curl-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-vcpkg-x64-windows-static-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-openssl-zlib-curl-
+            ${{ runner.os }}-vcpkg-x64-windows-static-
 
-      - name: Install dependencies via vcpkg (Windows)
+      - name: Install dependencies via vcpkg
         if: runner.os == 'Windows'
         run: |
-          vcpkg install openssl:x64-windows-static zlib:x64-windows-static curl:x64-windows-static
+          vcpkg install --triplet x64-windows-static
 
-      # --- Configure CMake ---
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -117,7 +121,8 @@ jobs:
       - name: Configure CMake (macOS)
         if: runner.os == 'macOS'
         run: |
-          OPENSSL_ROOT="$(brew --prefix openssl@3 2>/dev/null || brew --prefix openssl 2>/dev/null || echo '/opt/homebrew/opt/openssl')"
+          OPENSSL_ROOT="$(brew --prefix openssl@3)"
+
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type || 'Release' }} \
             -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT" \
@@ -125,78 +130,91 @@ jobs:
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           cmake -B build -S . `
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type || 'Release' }} `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      # --- Build ---
       - name: Build binary
         run: |
-          cmake --build build --config ${{ inputs.build_type || 'Release' }} --parallel
+          cmake --build build \
+            --config ${{ inputs.build_type || 'Release' }} \
+            --parallel
 
-      # --- Run Tests ---
       - name: Run test suite
         run: |
-          ctest --test-dir build --output-on-failure --build-config ${{ inputs.build_type || 'Release' }}
+          ctest \
+            --test-dir build \
+            --output-on-failure \
+            --build-config ${{ inputs.build_type || 'Release' }}
 
-      # --- Verify and stage binary ---
       - name: Verify and stage binary (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path build -Filter minigit.exe -Recurse | Select-Object -First 1
-          if (-not $exe -or -not (Test-Path $exe.FullName)) {
+          $exe = Get-ChildItem -Path build -Filter minigit.exe -Recurse |
+            Select-Object -First 1
+
+          if (-not $exe) {
             Write-Error "minigit.exe was not produced by the build!"
             exit 1
           }
+
           if ($exe.Length -le 0) {
-            Write-Error "minigit.exe is empty (0 bytes)!"
+            Write-Error "minigit.exe is empty!"
             exit 1
           }
-          Write-Host "Found binary at $($exe.FullName) (Size: $($exe.Length) bytes)"
+
+          Write-Host "Found binary at $($exe.FullName)"
+          Write-Host "Size: $($exe.Length) bytes"
+
           New-Item -ItemType Directory -Path bin -Force | Out-Null
           Copy-Item $exe.FullName -Destination bin\minigit.exe
+
           Write-Host "Verifying binary execution..."
+
           $output = & .\bin\minigit.exe 2>&1
           Write-Host $output
+
           if ($output -notmatch "Usage: minigit") {
             Write-Error "minigit.exe failed execution check!"
             exit 1
           }
-          $global:LASTEXITCODE = 0
 
       - name: Verify and stage binary (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
           BIN=$(find build -type f -name minigit | head -n 1)
+
           if [ -z "$BIN" ] || [ ! -f "$BIN" ]; then
             echo "minigit binary was not produced by the build!" >&2
             exit 1
           fi
+
           if [ ! -s "$BIN" ]; then
-            echo "minigit binary is empty (0 bytes)!" >&2
+            echo "minigit binary is empty!" >&2
             exit 1
           fi
+
           chmod +x "$BIN"
-          if [ ! -x "$BIN" ]; then
-            echo "minigit does not have executable permissions!" >&2
-            exit 1
-          fi
-          echo "Found binary at $BIN (Size: $(stat -c%s "$BIN" 2>/dev/null || stat -f%z "$BIN") bytes)"
+
           mkdir -p bin
           cp "$BIN" "bin/${{ matrix.release_asset }}"
           chmod +x "bin/${{ matrix.release_asset }}"
+
+          echo "Found binary at $BIN"
           echo "Verifying binary execution..."
+
           OUT=$("./bin/${{ matrix.release_asset }}" 2>&1 || true)
           echo "$OUT"
+
           if ! echo "$OUT" | grep -q "Usage: minigit"; then
             echo "Binary failed execution check!" >&2
             exit 1
           fi
 
-      # --- Upload Artifact ---
       - name: Upload binary artifact
         if: ${{ inputs.upload_artifacts != false }}
         uses: actions/upload-artifact@v4
