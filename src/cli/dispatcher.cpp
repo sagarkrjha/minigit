@@ -32,6 +32,7 @@
 #include "worktree/worktree.h"
 #include "submodule/submodule.h"
 #include "bisect/bisect.h"
+#include "core/logger.h"
 
 #include <functional>
 #include <iostream>
@@ -513,7 +514,7 @@ int cmd_bisect(int argc, char const *argv[])
 
 int cmd_version(int /*argc*/, char const * /*argv*/[])
 {
-    std::cout << "minigit version 1.8.2\n";
+    std::cout << "minigit version 1.9.0\n";
     return 0;
 }
 
@@ -523,7 +524,40 @@ namespace minigit::cli {
 
 int run(int argc, char const *argv[])
 {
-    if (argc < 2)
+    minigit::core::Logger::instance().init_from_env();
+
+    int arg_idx = 1;
+    while (arg_idx < argc)
+    {
+        std::string_view arg = argv[arg_idx];
+        if (arg == "--trace")
+        {
+            minigit::core::Logger::instance().set_level(minigit::core::LogLevel::TRACE);
+            arg_idx++;
+        }
+        else if (arg.starts_with("--trace="))
+        {
+            auto path = arg.substr(8);
+            if (!path.empty())
+            {
+                minigit::core::Logger::instance().set_output_file(std::string(path));
+            }
+            minigit::core::Logger::instance().set_level(minigit::core::LogLevel::TRACE);
+            arg_idx++;
+        }
+        else if (arg.starts_with("--log-level="))
+        {
+            auto lvl = arg.substr(12);
+            minigit::core::Logger::instance().set_level(minigit::core::log_level_from_string(lvl));
+            arg_idx++;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (arg_idx >= argc)
     {
         std::cout << "Usage: minigit <command>\n";
         return 1;
@@ -568,7 +602,23 @@ int run(int argc, char const *argv[])
         {"bisect", cmd_bisect}
     };
 
-    const std::string command = argv[1];
+    std::vector<char const*> shifted_argv;
+    int effective_argc = argc;
+    char const** effective_argv = argv;
+
+    if (arg_idx > 1)
+    {
+        shifted_argv.reserve(argc - arg_idx + 1);
+        shifted_argv.push_back(argv[0]);
+        for (int i = arg_idx; i < argc; ++i)
+        {
+            shifted_argv.push_back(argv[i]);
+        }
+        effective_argc = static_cast<int>(shifted_argv.size());
+        effective_argv = shifted_argv.data();
+    }
+
+    const std::string command = effective_argv[1];
     const auto it = commands.find(command);
     if (it == commands.end())
     {
@@ -576,7 +626,10 @@ int run(int argc, char const *argv[])
         return 1;
     }
 
-    return it->second(argc, argv);
+    LOG_DEBUG("cli", "executing command '" << command << "' with " << (effective_argc - 2) << " arguments");
+    int result = it->second(effective_argc, effective_argv);
+    LOG_DEBUG("cli", "command '" << command << "' completed with exit code " << result);
+    return result;
 }
 
 } // namespace minigit::cli

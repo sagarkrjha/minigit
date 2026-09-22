@@ -11,6 +11,7 @@
 #include "storage/pack.h"
 #include "staging/index.h"
 #include "core/path_safety.h"
+#include "core/logger.h"
 
 #include <algorithm>
 #include <chrono>
@@ -323,7 +324,7 @@ void clone_http(const std::string &url, const std::string &dest_dir_str)
 
         if (first_want)
         {
-            request_body += pkt_line("want " + ref.sha + " ofs-delta agent=minigit/1.8.2\n");
+            request_body += pkt_line("want " + ref.sha + " ofs-delta agent=minigit/1.9.0\n");
             first_want = false;
         }
         else
@@ -451,7 +452,7 @@ void fetch_http(const Repository &local, const std::string &remote_name, const s
     {
         if (first)
         {
-            req += pkt_line("want " + w + " ofs-delta agent=minigit/1.8.2\n");
+            req += pkt_line("want " + w + " ofs-delta agent=minigit/1.9.0\n");
             first = false;
         }
         else
@@ -575,7 +576,7 @@ void push_http(
 
     // 5. Build receive-pack POST payload
     std::string req;
-    req += pkt_line(old_sha + " " + local_branch_sha + " " + ref_target + '\0' + "report-status agent=minigit/1.8.2\n");
+    req += pkt_line(old_sha + " " + local_branch_sha + " " + ref_target + '\0' + "report-status agent=minigit/1.9.0\n");
     req += pkt_flush();
     req.append(pack_bytes);
 

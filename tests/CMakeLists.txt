@@ -14,6 +14,7 @@ add_executable(minigit_tests
     test_worktree.cpp
     test_submodule.cpp
     test_bisect.cpp
+    test_logger.cpp
     test_smart_http.cpp
 )
 

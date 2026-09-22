@@ -1,6 +1,7 @@
 #include "object_database.h"
 
 #include "pack.h"
+#include "core/logger.h"
 #include "core/zlib_compress.h"
 
 #include <fstream>
@@ -44,6 +45,7 @@ void ObjectDatabase::write(
     const std::string &id,
     const std::string &data)
 {
+    LOG_TRACE("storage", "writing object " << id << " (" << data.size() << " bytes)");
     const std::string prefix = id.substr(0, 2);
     const std::string remainder = id.substr(2);
 
@@ -137,6 +139,7 @@ bool ObjectDatabase::contains(const std::string &id) const
 
 std::string ObjectDatabase::read(const std::string &id) const
 {
+    LOG_TRACE("storage", "reading object " << id);
     if (id.size() >= 2)
     {
         const std::string prefix    = id.substr(0, 2);

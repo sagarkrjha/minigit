@@ -1,4 +1,5 @@
 #include "repository.h"
+#include "core/logger.h"
 #include <fstream>
 #include <stdexcept>
 
@@ -79,6 +80,7 @@ Repository::Repository(const std::filesystem::path &root,
 
 Repository Repository::discover(const std::filesystem::path &start)
 {
+    LOG_TRACE("repository", "discovering repository starting from: " << start.string());
     auto current = std::filesystem::weakly_canonical(start);
 
     while (true)
@@ -86,6 +88,7 @@ Repository Repository::discover(const std::filesystem::path &start)
         const auto candidate = current / ".minigit";
         if (std::filesystem::exists(candidate))
         {
+            LOG_DEBUG("repository", "discovered repository root at: " << current.string());
             if (std::filesystem::is_directory(candidate))
             {
                 return Repository(current, candidate, candidate, false, "");

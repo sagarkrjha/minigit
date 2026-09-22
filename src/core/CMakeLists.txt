@@ -1,5 +1,6 @@
 add_library(minigit_core STATIC
     file.cpp
+    logger.cpp
     path_safety.cpp
     sha256.cpp
     zlib_compress.cpp
