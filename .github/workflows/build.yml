@@ -176,6 +176,8 @@ jobs:
             exit 1
           }
 
+          $global:LASTEXITCODE = 0
+
       - name: Verify and stage binary (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
