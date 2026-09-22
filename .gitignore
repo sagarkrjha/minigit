@@ -35,3 +35,7 @@ build.ninja
 
 # Local prompt context
 context.md
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-cache/

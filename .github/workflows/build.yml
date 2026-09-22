@@ -93,21 +93,22 @@ jobs:
         run: |
           $cache = "${{ github.workspace }}\.vcpkg-cache"
           New-Item -ItemType Directory -Force -Path $cache | Out-Null
-          "VCPKG_DEFAULT_BINARY_CACHE=$cache" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_BINARY_CACHE=$cache" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Cache vcpkg
+      - name: Cache vcpkg installed dependencies
+        id: vcpkg-cache
         if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
           path: |
+            vcpkg_installed
             .vcpkg-cache
-            ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-          key: ${{ runner.os }}-vcpkg-x64-windows-static-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-vcpkg-installed-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-x64-windows-static-
+            ${{ runner.os }}-vcpkg-installed-
 
       - name: Install dependencies via vcpkg
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
         run: |
           vcpkg install --triplet x64-windows-static
 
@@ -134,6 +135,7 @@ jobs:
         run: |
           cmake -B build -S . `
             -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed" `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
