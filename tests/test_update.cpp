@@ -227,6 +227,69 @@ TEST_CASE(Update, ReleaseParsing) {
     ASSERT_FALSE(is_update_available(*info, *current_v2_0));
 }
 
+TEST_CASE(Update, OsDispatchUnorderedMap) {
+    ASSERT_EQ(os_to_string(OperatingSystem::Windows), "windows");
+    ASSERT_EQ(os_to_string(OperatingSystem::MacOS), "macos");
+    ASSERT_EQ(os_to_string(OperatingSystem::Linux), "linux");
+    ASSERT_EQ(os_to_string(OperatingSystem::Unknown), "unknown");
+
+    std::string release_json = R"({
+        "tag_name": "v1.11.0",
+        "name": "MiniGit v1.11.0",
+        "assets": [
+            { "name": "minigit.exe", "browser_download_url": "https://example.com/minigit.exe", "size": 1000 },
+            { "name": "minigit-linux", "browser_download_url": "https://example.com/minigit-linux", "size": 2000 },
+            { "name": "minigit-macos", "browser_download_url": "https://example.com/minigit-macos", "size": 3000 }
+        ]
+    })";
+
+    auto info = parse_release_json(release_json);
+    ASSERT_TRUE(info.has_value());
+
+    // Test Windows OS lookup via unordered_map
+#if defined(_WIN32)
+    _putenv("MINIGIT_OS_OVERRIDE=windows");
+#else
+    setenv("MINIGIT_OS_OVERRIDE", "windows", 1);
+#endif
+    ASSERT_EQ(get_current_os(), OperatingSystem::Windows);
+    ASSERT_EQ(get_current_platform_asset_name(), "minigit.exe");
+    const auto* win_asset = info->find_platform_asset();
+    ASSERT_TRUE(win_asset != nullptr);
+    ASSERT_EQ(win_asset->name, "minigit.exe");
+
+    // Test Linux OS lookup via unordered_map
+#if defined(_WIN32)
+    _putenv("MINIGIT_OS_OVERRIDE=linux");
+#else
+    setenv("MINIGIT_OS_OVERRIDE", "linux", 1);
+#endif
+    ASSERT_EQ(get_current_os(), OperatingSystem::Linux);
+    ASSERT_EQ(get_current_platform_asset_name(), "minigit-linux");
+    const auto* linux_asset = info->find_platform_asset();
+    ASSERT_TRUE(linux_asset != nullptr);
+    ASSERT_EQ(linux_asset->name, "minigit-linux");
+
+    // Test macOS OS lookup via unordered_map
+#if defined(_WIN32)
+    _putenv("MINIGIT_OS_OVERRIDE=macos");
+#else
+    setenv("MINIGIT_OS_OVERRIDE", "macos", 1);
+#endif
+    ASSERT_EQ(get_current_os(), OperatingSystem::MacOS);
+    ASSERT_EQ(get_current_platform_asset_name(), "minigit-macos");
+    const auto* mac_asset = info->find_platform_asset();
+    ASSERT_TRUE(mac_asset != nullptr);
+    ASSERT_EQ(mac_asset->name, "minigit-macos");
+
+    // Reset override
+#if defined(_WIN32)
+    _putenv("MINIGIT_OS_OVERRIDE=");
+#else
+    unsetenv("MINIGIT_OS_OVERRIDE");
+#endif
+}
+
 TEST_CASE(Update, ReplaceExecutable) {
     auto dir = make_temp_test_dir("replace_exe");
     auto target_file = dir / "my_app.bin";

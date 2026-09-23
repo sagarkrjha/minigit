@@ -12,6 +12,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 
 #if defined(_WIN32)
@@ -94,23 +95,23 @@ std::string UpdateNotifier::get_cache_path() const {
         // Not in repo or repo lookup failed
     }
 
-#if defined(_WIN32)
-    const char* user_profile = std::getenv("USERPROFILE");
-    if (user_profile && *user_profile) {
-        std::filesystem::path dir = std::filesystem::path(user_profile) / ".minigit";
-        std::error_code ec;
-        std::filesystem::create_directories(dir, ec);
-        return (dir / "update_cache").string();
+    static const std::unordered_map<std::string_view, std::string_view> kHomeEnvMap = {
+        {"windows", "USERPROFILE"},
+        {"macos",   "HOME"},
+        {"linux",   "HOME"}
+    };
+
+    std::string_view os_key = os_to_string(get_current_os());
+    auto it = kHomeEnvMap.find(os_key);
+    if (it != kHomeEnvMap.end()) {
+        const char* home_dir = std::getenv(it->second.data());
+        if (home_dir && *home_dir) {
+            std::filesystem::path dir = std::filesystem::path(home_dir) / ".minigit";
+            std::error_code ec;
+            std::filesystem::create_directories(dir, ec);
+            return (dir / "update_cache").string();
+        }
     }
-#else
-    const char* home = std::getenv("HOME");
-    if (home && *home) {
-        std::filesystem::path dir = std::filesystem::path(home) / ".minigit";
-        std::error_code ec;
-        std::filesystem::create_directories(dir, ec);
-        return (dir / "update_cache").string();
-    }
-#endif
 
     std::filesystem::path temp_dir = std::filesystem::temp_directory_path();
     return (temp_dir / "minigit_update_cache").string();
