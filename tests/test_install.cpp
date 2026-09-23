@@ -81,6 +81,14 @@ TEST_CASE(Install, AdminPrivilegeDetectionOverride) {
     unset_env("MINIGIT_ADMIN_OVERRIDE");
 }
 
+TEST_CASE(Install, RequestUacElevationAlreadyAdmin) {
+    set_env("MINIGIT_ADMIN_OVERRIDE", "1");
+    int exit_code = 0;
+    bool elevated = request_uac_elevation("minigit.exe", {"update"}, exit_code);
+    ASSERT_FALSE(elevated);
+    unset_env("MINIGIT_ADMIN_OVERRIDE");
+}
+
 TEST_CASE(Install, WritePermissionDetection) {
     auto test_dir = make_temp_install_test_dir("perm");
 

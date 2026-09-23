@@ -365,6 +365,10 @@ TEST_CASE(Update, UpdateCommandHelp) {
     int res_short = update_command(3, argv_short);
     ASSERT_EQ(res_short, 0);
 
+    char const* argv_elevated[] = {"minigit", "update", "--elevated", "--help"};
+    int res_elevated = update_command(4, argv_elevated);
+    ASSERT_EQ(res_elevated, 0);
+
     char const* argv_bad[] = {"minigit", "update", "--unknown-flag"};
     int res_bad = update_command(3, argv_bad);
     ASSERT_EQ(res_bad, 1);

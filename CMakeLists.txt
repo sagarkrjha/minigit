@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(minigit
-    VERSION 1.11.1
+    VERSION 1.11.2
     DESCRIPTION "A simple Git implementation in C++"
     LANGUAGES CXX    
 )

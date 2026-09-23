@@ -125,6 +125,11 @@ bool can_write_to_file(const std::filesystem::path& file) {
         CloseHandle(h);
         return true;
     }
+    // A running executable or file locked by another process fails with ERROR_SHARING_VIOLATION.
+    // In that case, check if the parent directory is writable (allowing replacement via rename).
+    if (GetLastError() == ERROR_SHARING_VIOLATION) {
+        return can_write_to_directory(file.parent_path());
+    }
     return false;
 #else
     return access(file.c_str(), W_OK) == 0;
@@ -710,6 +715,11 @@ bool request_uac_elevation(const std::filesystem::path& exe, const std::vector<s
         return false;
     }
 
+    if (is_running_as_admin()) {
+        LOG_DEBUG("install", "already running with administrator privileges, skipping redundant UAC elevation");
+        return false;
+    }
+
 #if defined(_WIN32)
     std::wstring w_exe = exe.wstring();
     std::wstring w_args;
@@ -780,30 +790,32 @@ InstallResult perform_install(const InstallOptions& options, const std::filesyst
     if (!can_write_to_directory(install_root)) {
         if (effective_scope == InstallScope::System || !options.custom_dir.empty()) {
 #if defined(_WIN32)
-            // Lacking permissions to system directory on Windows -> attempt UAC elevation
-            std::vector<std::string> args = {"install"};
-            if (options.scope == InstallScope::System) args.push_back("--system");
-            if (!options.custom_dir.empty()) {
-                args.push_back("--dir");
-                args.push_back(options.custom_dir.string());
-            }
-            if (!options.add_to_path) args.push_back("--no-path");
-            if (!options.add_context_menu) args.push_back("--no-context-menu");
-            if (options.force) args.push_back("--force");
-
-            int exit_code = 0;
-            if (request_uac_elevation(src, args, exit_code)) {
-                result.success = (exit_code == 0);
-                result.escalated = true;
-                result.installed_cmd_exe = install_root / "cmd" / src.filename();
-                result.installed_bin_exe = install_root / "bin" / src.filename();
-                result.installed_exe = result.installed_cmd_exe;
-                if (result.success) {
-                    result.message = "Successfully installed minigit via elevated Administrator privileges";
-                } else {
-                    result.message = "Elevated installation failed with exit code " + std::to_string(exit_code);
+            if (!is_running_as_admin()) {
+                // Lacking permissions to system directory on Windows -> attempt UAC elevation
+                std::vector<std::string> args = {"install"};
+                if (options.scope == InstallScope::System) args.push_back("--system");
+                if (!options.custom_dir.empty()) {
+                    args.push_back("--dir");
+                    args.push_back(options.custom_dir.string());
                 }
-                return result;
+                if (!options.add_to_path) args.push_back("--no-path");
+                if (!options.add_context_menu) args.push_back("--no-context-menu");
+                if (options.force) args.push_back("--force");
+
+                int exit_code = 0;
+                if (request_uac_elevation(src, args, exit_code)) {
+                    result.success = (exit_code == 0);
+                    result.escalated = true;
+                    result.installed_cmd_exe = install_root / "cmd" / src.filename();
+                    result.installed_bin_exe = install_root / "bin" / src.filename();
+                    result.installed_exe = result.installed_cmd_exe;
+                    if (result.success) {
+                        result.message = "Successfully installed minigit via elevated Administrator privileges";
+                    } else {
+                        result.message = "Elevated installation failed with exit code " + std::to_string(exit_code);
+                    }
+                    return result;
+                }
             }
 #endif
             result.message = "Administrator privileges required to install to " + install_root.string() +
@@ -962,19 +974,21 @@ InstallResult perform_uninstall(const InstallOptions& options) {
 
     if (!can_write_to_directory(install_root)) {
 #if defined(_WIN32)
-        std::filesystem::path current_exe = get_current_executable_path();
-        std::vector<std::string> args = {"install", "--uninstall"};
-        if (options.scope == InstallScope::System) args.push_back("--system");
-        if (!options.custom_dir.empty()) {
-            args.push_back("--dir");
-            args.push_back(options.custom_dir.string());
-        }
-        int exit_code = 0;
-        if (request_uac_elevation(current_exe, args, exit_code)) {
-            result.success = (exit_code == 0);
-            result.escalated = true;
-            result.message = result.success ? "Successfully uninstalled minigit via elevated privileges" : "Elevated uninstall failed";
-            return result;
+        if (!is_running_as_admin()) {
+            std::filesystem::path current_exe = get_current_executable_path();
+            std::vector<std::string> args = {"install", "--uninstall"};
+            if (options.scope == InstallScope::System) args.push_back("--system");
+            if (!options.custom_dir.empty()) {
+                args.push_back("--dir");
+                args.push_back(options.custom_dir.string());
+            }
+            int exit_code = 0;
+            if (request_uac_elevation(current_exe, args, exit_code)) {
+                result.success = (exit_code == 0);
+                result.escalated = true;
+                result.message = result.success ? "Successfully uninstalled minigit via elevated privileges" : "Elevated uninstall failed";
+                return result;
+            }
         }
 #endif
         result.message = "Administrator privileges required to uninstall from " + install_root.string();

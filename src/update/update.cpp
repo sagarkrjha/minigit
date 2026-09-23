@@ -326,6 +326,12 @@ std::optional<ReleaseInfo> fetch_latest_release(const std::string& repo, long ti
         "Accept: application/vnd.github.v3+json"
     };
 
+    const char* token = std::getenv("GITHUB_TOKEN");
+    if (!token) token = std::getenv("GH_TOKEN");
+    if (token && *token) {
+        headers.push_back("Authorization: Bearer " + std::string(token));
+    }
+
     auto response = client.get(url, headers);
     if (!response.ok()) {
         LOG_DEBUG("update", "fetch release failed with status " << response.status_code << ", error: " << response.error);
@@ -356,6 +362,7 @@ void print_usage() {
 int update_command(int argc, char const *argv[]) {
     bool check_only = false;
     bool force = false;
+    bool is_elevated_child = false;
     std::string repo = "sagarkrjha/minigit";
 
     const char* env_repo = std::getenv("MINIGIT_UPDATE_REPO");
@@ -369,6 +376,8 @@ int update_command(int argc, char const *argv[]) {
             check_only = true;
         } else if (arg == "-f" || arg == "--force") {
             force = true;
+        } else if (arg == "--elevated") {
+            is_elevated_child = true;
         } else if (arg == "-h" || arg == "--help") {
             print_usage();
             return 0;
@@ -439,14 +448,19 @@ int update_command(int argc, char const *argv[]) {
         return 1;
     }
 
-    // Pre-flight write permission check for binary destination
-    bool writable = minigit::install::can_write_to_directory(exe_path.parent_path()) &&
-                    minigit::install::can_write_to_file(exe_path);
+    // Pre-flight write permission check for binary destination (parent directory must be writable)
+    bool writable = minigit::install::can_write_to_directory(exe_path.parent_path());
     if (!writable) {
+        if (is_elevated_child || minigit::install::is_running_as_admin()) {
+            std::cerr << "error: write permission denied to update " << exe_path.string()
+                      << " even with Administrator privileges.\n";
+            return 1;
+        }
+
         std::cout << "Write permissions required to update minigit at " << exe_path.string() << ".\n";
 #if defined(_WIN32)
         std::cout << "Requesting Administrator privileges via Windows UAC...\n";
-        std::vector<std::string> args = {"update"};
+        std::vector<std::string> args = {"update", "--elevated"};
         if (force) args.push_back("--force");
         if (repo != "sagarkrjha/minigit") {
             args.push_back("--repo");
@@ -507,6 +521,18 @@ int update_command(int argc, char const *argv[]) {
         std::filesystem::remove(tmp_path, ec);
         std::cerr << "error: failed to replace executable at " << exe_path.string() << "\n";
         return 1;
+    }
+
+    // If installed in Git-style layout (cmd/ and bin/ siblings), keep sibling binary synchronized
+    auto parent_dir_name = exe_path.parent_path().filename().string();
+    if (parent_dir_name == "cmd" || parent_dir_name == "bin") {
+        auto install_root = exe_path.parent_path().parent_path();
+        auto sibling_dir = (parent_dir_name == "cmd") ? (install_root / "bin") : (install_root / "cmd");
+        auto sibling_exe = sibling_dir / exe_path.filename();
+        std::error_code ec;
+        if (std::filesystem::exists(sibling_exe, ec)) {
+            std::filesystem::copy_file(exe_path, sibling_exe, std::filesystem::copy_options::overwrite_existing, ec);
+        }
     }
 
     std::cout << "Successfully updated minigit to " << release->tag_name << "!\n";
