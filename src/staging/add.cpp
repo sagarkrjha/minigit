@@ -166,8 +166,12 @@ bool add_files(const std::vector<std::string> &paths)
             continue;
         }
 
+        std::error_code eq_ec;
+        const bool is_repo_root = (rel_path == "." || rel_path.empty() || rel_str == "." || rel_str.empty() ||
+                                   std::filesystem::equivalent(abs_path, repo.root(), eq_ec));
+
         // Case 2: Path is a submodule directory specified directly.
-        if (std::filesystem::is_directory(abs_path, ec) &&
+        if (!is_repo_root && std::filesystem::is_directory(abs_path, ec) &&
             (fs::exists(abs_path / ".minigit") || fs::exists(abs_path / ".git") || SubmoduleConfig::is_submodule_path(repo.root(), rel_str)))
         {
             try

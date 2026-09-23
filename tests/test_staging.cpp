@@ -1,6 +1,8 @@
 #include "test_framework.h"
 #include "staging/index.h"
 #include "staging/ignore.h"
+#include "staging/add.h"
+#include "repository/repository.h"
 
 #include <filesystem>
 #include <fstream>
@@ -62,6 +64,41 @@ TEST_CASE(Staging, IgnoreRules)
     ASSERT_TRUE(rules.is_ignored("temp.txt"));
     ASSERT_FALSE(rules.is_ignored("main.cpp"));
     ASSERT_FALSE(rules.is_ignored("README.md"));
+
+    std::filesystem::remove_all(temp_repo);
+}
+
+TEST_CASE(Staging, AddDotRecursive)
+{
+    const auto temp_repo = std::filesystem::temp_directory_path() / "minigit_test_add_dot";
+    std::filesystem::remove_all(temp_repo);
+    std::filesystem::create_directories(temp_repo);
+
+    Repository repo(temp_repo);
+    repo.init();
+
+    // Create files in root and subdirectories
+    {
+        std::ofstream f(temp_repo / "root.txt");
+        f << "root content";
+    }
+    std::filesystem::create_directories(temp_repo / "subdir");
+    {
+        std::ofstream f(temp_repo / "subdir" / "child.txt");
+        f << "child content";
+    }
+
+    const auto old_cwd = std::filesystem::current_path();
+    std::filesystem::current_path(temp_repo);
+
+    ASSERT_TRUE(add_files({"."}));
+
+    std::filesystem::current_path(old_cwd);
+
+    Index index(repo.git_dir() / "index");
+    ASSERT_EQ(index.entries().size(), 2);
+    ASSERT_TRUE(index.entries().count("root.txt") > 0);
+    ASSERT_TRUE(index.entries().count("subdir/child.txt") > 0);
 
     std::filesystem::remove_all(temp_repo);
 }
