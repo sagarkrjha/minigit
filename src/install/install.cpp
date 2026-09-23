@@ -212,16 +212,25 @@ std::filesystem::path get_current_executable_path() {
 
 namespace {
 
-std::string normalize_path_for_compare(const std::filesystem::path& p) {
+bool is_case_insensitive_path(char delimiter) {
+#if defined(_WIN32)
+    (void)delimiter;
+    return true;
+#else
+    return delimiter == ';';
+#endif
+}
+
+std::string normalize_path_for_compare(const std::filesystem::path& p, bool case_insensitive) {
     std::string s = p.lexically_normal().string();
     // Normalize slashes to forward slashes for comparison
     std::replace(s.begin(), s.end(), '\\', '/');
     while (!s.empty() && s.back() == '/') {
         s.pop_back();
     }
-#if defined(_WIN32)
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-#endif
+    if (case_insensitive) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    }
     return s;
 }
 
@@ -270,12 +279,13 @@ std::string wstring_to_utf8(std::wstring_view wstr) {
 } // namespace
 
 bool is_in_path_list(std::string_view path_list, const std::filesystem::path& dir, char delimiter) {
-    std::string target_norm = normalize_path_for_compare(dir);
+    bool ci = is_case_insensitive_path(delimiter);
+    std::string target_norm = normalize_path_for_compare(dir, ci);
     if (target_norm.empty()) return false;
 
     auto entries = split_path_list(path_list, delimiter);
     for (const auto& entry : entries) {
-        if (normalize_path_for_compare(entry) == target_norm) {
+        if (normalize_path_for_compare(entry, ci) == target_norm) {
             return true;
         }
     }
@@ -299,14 +309,15 @@ std::string add_to_path_list(std::string_view path_list, const std::filesystem::
 }
 
 std::string remove_from_path_list(std::string_view path_list, const std::filesystem::path& dir, char delimiter) {
-    std::string target_norm = normalize_path_for_compare(dir);
+    bool ci = is_case_insensitive_path(delimiter);
+    std::string target_norm = normalize_path_for_compare(dir, ci);
     if (target_norm.empty()) return std::string(path_list);
 
     auto entries = split_path_list(path_list, delimiter);
     std::ostringstream oss;
     bool first = true;
     for (const auto& entry : entries) {
-        if (normalize_path_for_compare(entry) == target_norm) {
+        if (normalize_path_for_compare(entry, ci) == target_norm) {
             continue;
         }
         if (!first) {
@@ -726,6 +737,11 @@ InstallResult perform_uninstall(const InstallOptions& options) {
             result.message = "Failed to remove binary at " + target_exe.string() + ": " + ec.message();
             return result;
         }
+    }
+
+    std::filesystem::path alt_exe = target_dir / (exe_name == "minigit" ? "minigit.exe" : "minigit");
+    if (std::filesystem::exists(alt_exe, ec)) {
+        std::filesystem::remove(alt_exe, ec);
     }
 
     if (options.add_to_path) {
