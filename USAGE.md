@@ -107,10 +107,23 @@ Pre-compiled native standalone executables are automatically built, verified, an
 
 ### Permission-Based Installation (`minigit install`)
 
-MiniGit includes a built-in porcelain installer that copies the executable to standard system or user directories, configures your environment `PATH`, and automatically handles elevation via Windows User Account Control (UAC).
+MiniGit includes a built-in porcelain installer modeled directly after Git for Windows. It structures the installation root into `cmd/`, `bin/`, and `etc/` directories, configures your environment `PATH` pointing to `cmd/` (preventing tool name collisions), registers MiniGit in Windows **Installed Apps (Add/Remove Programs)**, and adds the **"Open MiniGit Prompt Here"** context menu to Windows Explorer.
+
+#### Directory Layout
+
+```text
+<InstallRoot>/
+├── cmd/
+│   └── minigit.exe        ← Added to PATH (matching Git for Windows <Git>\cmd)
+├── bin/
+│   └── minigit.exe        ← Core binary
+└── etc/
+    ├── minigitconfig      ← System-wide configuration ([core] autocrlf = true)
+    └── templates/         ← Default repository templates
+```
 
 #### 1. Per-User Installation (Default for Standard Users)
-Installs MiniGit for the current user into `%LOCALAPPDATA%\Programs\minigit\bin` without requiring administrative rights:
+Installs MiniGit for the current user into `%LOCALAPPDATA%\Programs\MiniGit` without requiring administrative rights:
 
 ```powershell
 .\minigit.exe install --user
@@ -119,41 +132,49 @@ Installs MiniGit for the current user into `%LOCALAPPDATA%\Programs\minigit\bin`
 *Output:*
 ```text
 Installing minigit (v1.11.0)...
-Installation scope: User (Current User)
-Installed binary:   C:\Users\username\AppData\Local\Programs\minigit\bin\minigit.exe
-Environment PATH:   Added directory to PATH
+Installation scope:  User (Current User)
+Destination root:    C:\Users\username\AppData\Local\Programs\MiniGit
+CLI command binary:  C:\Users\username\AppData\Local\Programs\MiniGit\cmd\minigit.exe
+Core binary:         C:\Users\username\AppData\Local\Programs\MiniGit\bin\minigit.exe
+Environment PATH:    Added <InstallDir>\cmd to PATH
+Apps & Features:     Registered in Windows Installed Apps
+Explorer Menu:       Registered 'Open MiniGit Prompt Here'
 minigit installed successfully!
 ```
 
 #### 2. System-Wide Installation (Requires Administrator Privileges)
-Installs MiniGit for all users on the machine into `%ProgramFiles%\minigit\bin`:
+Installs MiniGit machine-wide for all users into `%ProgramFiles%\MiniGit`:
 
 ```powershell
 .\minigit.exe install --system
 ```
 
-*When run from a standard non-elevated prompt, MiniGit automatically requests Administrator privileges via Windows UAC dialog (`runas`). Once approved, the installation proceeds seamlessly and updates the System PATH environment variable.*
+*When run from a standard non-elevated prompt, MiniGit automatically requests Administrator privileges via Windows UAC dialog (`runas`). Once approved, the installation proceeds seamlessly, configures the machine PATH, and registers system-level uninstall and context menu entries.*
 
 #### 3. Custom Installation Directory
 You can specify an arbitrary target directory with `--dir`:
 
 ```powershell
-.\minigit.exe install --dir "D:\tools\minigit"
+.\minigit.exe install --dir "D:\tools\MiniGit"
 ```
 
-#### 4. Skipping Environment PATH Changes
-Use `--no-path` if you want to deploy the binary without modifying user or system environment variables:
-
-```powershell
-.\minigit.exe install --no-path
-```
+#### 4. Skipping Environment PATH or Context Menu
+- Use `--no-path` to deploy without altering user or system `PATH`:
+  ```powershell
+  .\minigit.exe install --no-path
+  ```
+- Use `--no-context-menu` to omit the Windows Explorer right-click context menu:
+  ```powershell
+  .\minigit.exe install --no-context-menu
+  ```
 
 #### 5. Uninstallation
-To cleanly remove MiniGit and delete its directory entry from your environment PATH:
+To cleanly remove MiniGit, delete its `cmd/` entry from `PATH`, and unregister Windows Installed Apps and Explorer context menus:
 
 ```powershell
 minigit install --uninstall
 ```
+*(You can also uninstall directly from Windows Settings > Installed Apps / Add or Remove Programs).*
 
 ---
 
@@ -1478,7 +1499,7 @@ When using MiniGit interactively, a lightweight non-intrusive update notificatio
 | :--- | :--- | :--- |
 | `version` | `minigit version` \| `--version` \| `-v` | Display MiniGit version information. |
 | `update` | `minigit update [--check] [--force] [--repo <owner/repo>]` | Check for newer releases and self-update the MiniGit executable. |
-| `install` | `minigit install [--system\|--user] [--dir <p>] [--no-path] [-f] [--uninstall]` | Deploy binary, manage permissions/UAC elevation, and configure PATH. |
+| `install` | `minigit install [--system\|--user] [--dir <p>] [--no-path] [--no-context-menu] [-f] [--uninstall]` | Deploy Git-style layout, register PATH (<root>/cmd), Apps & Features, and context menu. |
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
 | `clean` | `minigit clean [-f\|--force] [-n\|--dry-run] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |

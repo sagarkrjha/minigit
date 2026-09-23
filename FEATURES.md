@@ -2004,39 +2004,59 @@ minigit version 1.11.0
 
 ---
 
-### 2.37 `minigit install` (Permission-Based Installation System)
+### 2.37 `minigit install` (Git-Style Permission-Based Installation System)
 
 #### Synopsis
 ```bash
-minigit install [--system | --user] [--dir <path>] [--no-path] [-f | --force] [--uninstall]
+minigit install [--system | --user] [--dir <path>] [--no-path] [--no-context-menu] [-f | --force] [--uninstall]
 ```
 
 #### Purpose
-`minigit install` provides a native, permission-aware installation and uninstallation subsystem for `minigit.exe` (and cross-platform binaries). It manages binary deployment, permission boundary detection, automated UAC escalation on Windows when administrative privileges are required, and environment `PATH` configuration.
+`minigit install` provides a native, permission-aware installation and uninstallation subsystem structured directly after Git for Windows. It provides full directory layout parity (`cmd/`, `bin/`, and `etc/`), PATH registration scoped exclusively to `cmd/` (avoiding executable collisions), Windows **Installed Apps (Add/Remove Programs)** registry integration, and the **"Open MiniGit Prompt Here"** Windows Explorer context menu.
+
+#### Git-Style Directory Hierarchy
+```text
+<InstallRoot>/
+├── cmd/
+│   └── minigit.exe        ← Added to PATH (matching Git for Windows <Git>\cmd convention)
+├── bin/
+│   └── minigit.exe        ← Core binary
+└── etc/
+    ├── minigitconfig      ← Default system-wide configuration file ([core] autocrlf = true)
+    └── templates/         ← Default repository templates directory
+```
 
 #### Scopes & Permission Architecture
 1. **User Scope (`--user`):**
    - **Target Directory:**
-     - Windows: `%LOCALAPPDATA%\Programs\minigit\bin` (fallback: `%USERPROFILE%\.minigit\bin`).
-     - Linux/macOS: `~/.local/bin`.
+     - Windows: `%LOCALAPPDATA%\Programs\MiniGit` (fallback: `%USERPROFILE%\.minigit`).
+     - Linux/macOS: `~/.local`.
    - **Privileges:** Runs entirely under standard user credentials without requiring Administrator elevation.
-   - **Environment PATH:** Configures user environment PATH (`HKEY_CURRENT_USER\Environment\Path` on Windows) and broadcasts `WM_SETTINGCHANGE` so newly launched terminals instantly recognize `minigit`.
+   - **Environment PATH:** Configures user environment PATH (`HKEY_CURRENT_USER\Environment\Path` on Windows) targeting `<InstallRoot>\cmd`, broadcasting `WM_SETTINGCHANGE` so newly launched shells immediately recognize `minigit`.
+   - **Installed Apps Registry:** Registered under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\MiniGit`.
+   - **Explorer Context Menu:** Registered under `HKCU\Software\Classes\Directory\Background\shell\MiniGit` and `Directory\shell\MiniGit`.
 2. **System Scope (`--system`):**
    - **Target Directory:**
-     - Windows: `%ProgramFiles%\minigit\bin` (typically `C:\Program Files\minigit\bin`).
-     - Linux/macOS: `/usr/local/bin`.
+     - Windows: `%ProgramFiles%\MiniGit` (typically `C:\Program Files\MiniGit`).
+     - Linux/macOS: `/usr/local`.
    - **Privileges & UAC Escalation:** Requires Administrator privileges.
      - When run from a non-elevated prompt on Windows, MiniGit automatically requests Administrator rights via Windows User Account Control (UAC) using `ShellExecuteExW` with the `runas` verb.
      - Waits for the elevated installer process to complete and relays the result.
      - If UAC is declined or denied, reports a clean error message and advises using `--user` for a per-user installation without elevation.
-   - **Environment PATH:** Configures machine-wide System PATH (`HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\Path`).
+   - **Environment PATH:** Configures machine-wide System PATH (`HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\Path`) targeting `<InstallRoot>\cmd`.
+   - **Installed Apps Registry:** Registered under `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\MiniGit`.
+   - **Explorer Context Menu:** Registered under `HKLM\Software\Classes\Directory\Background\shell\MiniGit` and `Directory\shell\MiniGit`.
 3. **Auto Detection (Default):**
-   - If running with Administrator privileges, defaults to System scope (`C:\Program Files\minigit\bin`).
-   - If running with Standard User privileges, defaults to User scope (`%LOCALAPPDATA%\Programs\minigit\bin`).
+   - If running with Administrator privileges, defaults to System scope (`C:\Program Files\MiniGit`).
+   - If running with Standard User privileges, defaults to User scope (`%LOCALAPPDATA%\Programs\MiniGit`).
 4. **Custom Directory (`--dir <path>`):**
-   - Installs the binary to an explicit directory specified by the caller. Automatically tests write permissions and elevates via UAC if targeting a protected directory.
-5. **Uninstallation (`--uninstall`):**
-   - Removes the installed binary from the target directory and cleanly strips the directory from the environment PATH.
+   - Installs to an explicit root directory specified by the caller, structuring `cmd/`, `bin/`, and `etc/` inside it.
+5. **Flags:**
+   - `--no-path`: Skips modifying user or system `PATH`.
+   - `--no-context-menu`: Skips registering the Windows Explorer context menu.
+   - `-f, --force`: Overwrites existing binaries and stages replacement files cleanly.
+6. **Uninstallation (`--uninstall`):**
+   - Deletes `cmd/` and `bin/` binaries, system config files, unregisters `cmd/` from `PATH`, removes Windows Explorer context menus, and deletes the Windows Add/Remove Programs registry key.
 
 ---
 

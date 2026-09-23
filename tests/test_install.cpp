@@ -175,14 +175,20 @@ TEST_CASE(Install, PerformInstallUserScope) {
     auto target_dir = temp_dir / "target";
     fs::create_directories(src_dir);
 
+    std::string exe_name = "minigit";
+#if defined(_WIN32)
+    exe_name += ".exe";
+#endif
+
     // Create fake source executable
-    auto src_exe = src_dir / "minigit.exe";
+    auto src_exe = src_dir / exe_name;
     {
         std::ofstream out(src_exe, std::ios::binary);
         out << "MOCK_MINIGIT_BINARY_v1.11.0";
     }
 
     set_env("MINIGIT_MOCK_ENV_PATH", "C:\\existing");
+    set_env("MINIGIT_MOCK_REGISTRY", "1");
 
     InstallOptions options;
     options.scope = InstallScope::User;
@@ -191,23 +197,38 @@ TEST_CASE(Install, PerformInstallUserScope) {
 
     auto res = perform_install(options, src_exe);
     ASSERT_TRUE(res.success);
+    ASSERT_TRUE(fs::exists(res.installed_cmd_exe));
+    ASSERT_TRUE(fs::exists(res.installed_bin_exe));
     ASSERT_TRUE(fs::exists(res.installed_exe));
+    ASSERT_EQ(res.installed_exe, res.installed_cmd_exe);
+    ASSERT_EQ(res.installed_cmd_exe, target_dir / "cmd" / exe_name);
+    ASSERT_EQ(res.installed_bin_exe, target_dir / "bin" / exe_name);
+    ASSERT_TRUE(fs::exists(target_dir / "etc" / "minigitconfig"));
+    ASSERT_TRUE(fs::exists(target_dir / "etc" / "templates"));
     ASSERT_TRUE(res.path_modified);
-    ASSERT_TRUE(is_directory_in_env_path(target_dir, InstallScope::User));
+    ASSERT_TRUE(is_directory_in_env_path(target_dir / "cmd", InstallScope::User));
+    ASSERT_TRUE(res.uninstall_registered);
+    ASSERT_TRUE(res.context_menu_registered);
 
-    // Verify content of installed file
+    // Verify content of installed files
     {
-        std::ifstream in(res.installed_exe, std::ios::binary);
+        std::ifstream in(res.installed_cmd_exe, std::ios::binary);
+        std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        ASSERT_EQ(content, "MOCK_MINIGIT_BINARY_v1.11.0");
+    }
+    {
+        std::ifstream in(res.installed_bin_exe, std::ios::binary);
         std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         ASSERT_EQ(content, "MOCK_MINIGIT_BINARY_v1.11.0");
     }
 
     // Reinstalling the exact same binary without --force is recognized as up to date
-    auto res_repeat = perform_install(options, res.installed_exe);
+    auto res_repeat = perform_install(options, res.installed_cmd_exe);
     ASSERT_TRUE(res_repeat.success);
     ASSERT_TRUE(res_repeat.message.find("already installed") != std::string::npos);
 
     unset_env("MINIGIT_MOCK_ENV_PATH");
+    unset_env("MINIGIT_MOCK_REGISTRY");
     remove_install_test_dir(temp_dir);
 }
 
@@ -216,19 +237,32 @@ TEST_CASE(Install, PerformInstallForce) {
     auto src_dir = temp_dir / "src";
     auto target_dir = temp_dir / "target";
     fs::create_directories(src_dir);
-    fs::create_directories(target_dir);
+    fs::create_directories(target_dir / "cmd");
+    fs::create_directories(target_dir / "bin");
 
-    auto src_exe = src_dir / "minigit.exe";
+    std::string exe_name = "minigit";
+#if defined(_WIN32)
+    exe_name += ".exe";
+#endif
+
+    auto src_exe = src_dir / exe_name;
     {
         std::ofstream out(src_exe, std::ios::binary);
         out << "NEW_BINARY_CONTENT";
     }
 
-    auto target_exe = target_dir / "minigit.exe";
+    auto target_cmd_exe = target_dir / "cmd" / exe_name;
+    auto target_bin_exe = target_dir / "bin" / exe_name;
     {
-        std::ofstream out(target_exe, std::ios::binary);
+        std::ofstream out(target_cmd_exe, std::ios::binary);
         out << "OLD_BINARY_CONTENT";
     }
+    {
+        std::ofstream out(target_bin_exe, std::ios::binary);
+        out << "OLD_BINARY_CONTENT";
+    }
+
+    set_env("MINIGIT_MOCK_REGISTRY", "1");
 
     InstallOptions options;
     options.scope = InstallScope::User;
@@ -239,33 +273,52 @@ TEST_CASE(Install, PerformInstallForce) {
     auto res = perform_install(options, src_exe);
     ASSERT_TRUE(res.success);
 
-    // Verify target binary was overwritten
+    // Verify target binaries were overwritten
     {
-        std::ifstream in(target_exe, std::ios::binary);
+        std::ifstream in(target_cmd_exe, std::ios::binary);
+        std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        ASSERT_EQ(content, "NEW_BINARY_CONTENT");
+    }
+    {
+        std::ifstream in(target_bin_exe, std::ios::binary);
         std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         ASSERT_EQ(content, "NEW_BINARY_CONTENT");
     }
 
+    unset_env("MINIGIT_MOCK_REGISTRY");
     remove_install_test_dir(temp_dir);
 }
 
 TEST_CASE(Install, PerformUninstall) {
     auto temp_dir = make_temp_install_test_dir("uninst");
     auto target_dir = temp_dir / "target";
-    fs::create_directories(target_dir);
+    fs::create_directories(target_dir / "cmd");
+    fs::create_directories(target_dir / "bin");
+    fs::create_directories(target_dir / "etc");
 
     std::string exe_name = "minigit";
 #if defined(_WIN32)
     exe_name += ".exe";
 #endif
-    auto target_exe = target_dir / exe_name;
+    auto target_cmd_exe = target_dir / "cmd" / exe_name;
+    auto target_bin_exe = target_dir / "bin" / exe_name;
     {
-        std::ofstream out(target_exe, std::ios::binary);
-        out << "SAMPLE_BINARY";
+        std::ofstream out(target_cmd_exe, std::ios::binary);
+        out << "SAMPLE_CMD_BINARY";
+    }
+    {
+        std::ofstream out(target_bin_exe, std::ios::binary);
+        out << "SAMPLE_BIN_BINARY";
     }
 
-    set_env("MINIGIT_MOCK_ENV_PATH", "C:\\bin;" + target_dir.string());
-    ASSERT_TRUE(is_directory_in_env_path(target_dir, InstallScope::User));
+    set_env("MINIGIT_MOCK_ENV_PATH", "C:\\bin;" + (target_dir / "cmd").string());
+    set_env("MINIGIT_MOCK_REGISTRY", "1");
+    register_windows_uninstall(target_dir, target_cmd_exe, InstallScope::User);
+    register_explorer_context_menu(target_cmd_exe, InstallScope::User);
+
+    ASSERT_TRUE(is_directory_in_env_path(target_dir / "cmd", InstallScope::User));
+    ASSERT_TRUE(is_windows_uninstall_registered(InstallScope::User));
+    ASSERT_TRUE(is_explorer_context_menu_registered(InstallScope::User));
 
     InstallOptions options;
     options.scope = InstallScope::User;
@@ -275,11 +328,52 @@ TEST_CASE(Install, PerformUninstall) {
 
     auto res = perform_uninstall(options);
     ASSERT_TRUE(res.success);
-    ASSERT_FALSE(fs::exists(target_exe));
+    ASSERT_FALSE(fs::exists(target_cmd_exe));
+    ASSERT_FALSE(fs::exists(target_bin_exe));
     ASSERT_TRUE(res.path_modified);
-    ASSERT_FALSE(is_directory_in_env_path(target_dir, InstallScope::User));
+    ASSERT_FALSE(is_directory_in_env_path(target_dir / "cmd", InstallScope::User));
+    ASSERT_FALSE(is_windows_uninstall_registered(InstallScope::User));
+    ASSERT_FALSE(is_explorer_context_menu_registered(InstallScope::User));
 
     unset_env("MINIGIT_MOCK_ENV_PATH");
+    unset_env("MINIGIT_MOCK_REGISTRY");
+    remove_install_test_dir(temp_dir);
+}
+
+TEST_CASE(Install, WindowsRegistryIntegration) {
+    set_env("MINIGIT_MOCK_REGISTRY", "1");
+
+    auto temp_dir = make_temp_install_test_dir("reg");
+    auto cmd_exe = temp_dir / "cmd" / "minigit.exe";
+
+    ASSERT_FALSE(is_windows_uninstall_registered(InstallScope::User));
+    ASSERT_TRUE(register_windows_uninstall(temp_dir, cmd_exe, InstallScope::User));
+    ASSERT_TRUE(is_windows_uninstall_registered(InstallScope::User));
+    ASSERT_TRUE(unregister_windows_uninstall(InstallScope::User));
+    ASSERT_FALSE(is_windows_uninstall_registered(InstallScope::User));
+
+    ASSERT_FALSE(is_explorer_context_menu_registered(InstallScope::User));
+    ASSERT_TRUE(register_explorer_context_menu(cmd_exe, InstallScope::User));
+    ASSERT_TRUE(is_explorer_context_menu_registered(InstallScope::User));
+    ASSERT_TRUE(unregister_explorer_context_menu(InstallScope::User));
+    ASSERT_FALSE(is_explorer_context_menu_registered(InstallScope::User));
+
+    unset_env("MINIGIT_MOCK_REGISTRY");
+    remove_install_test_dir(temp_dir);
+}
+
+TEST_CASE(Install, SetupSystemConfig) {
+    auto temp_dir = make_temp_install_test_dir("syscfg");
+    ASSERT_TRUE(setup_system_config(temp_dir));
+
+    auto cfg_file = temp_dir / "etc" / "minigitconfig";
+    ASSERT_TRUE(fs::exists(cfg_file));
+    ASSERT_TRUE(fs::exists(temp_dir / "etc" / "templates"));
+
+    std::ifstream in(cfg_file);
+    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    ASSERT_TRUE(content.find("autocrlf = true") != std::string::npos);
+
     remove_install_test_dir(temp_dir);
 }
 
@@ -341,25 +435,29 @@ TEST_CASE(Install, CommandLineInterface) {
         out << "CLI_TEST_BINARY";
     }
     set_env("MINIGIT_EXEC_PATH_OVERRIDE", dummy_exe.string().c_str());
+    set_env("MINIGIT_MOCK_REGISTRY", "1");
 
     auto target_dir = temp_dir / "installed";
     std::string target_dir_str = target_dir.string();
 
     char const* install_argv[] = {
-        "minigit", "install", "--user", "--dir", target_dir_str.c_str(), "--no-path"
+        "minigit", "install", "--user", "--dir", target_dir_str.c_str(), "--no-path", "--no-context-menu"
     };
-    ASSERT_EQ(install_command(6, install_argv), 0);
+    ASSERT_EQ(install_command(7, install_argv), 0);
 
-    // Verify binary exists in target
-    ASSERT_TRUE(fs::exists(target_dir / exe_name));
+    // Verify binary exists in target cmd and bin
+    ASSERT_TRUE(fs::exists(target_dir / "cmd" / exe_name));
+    ASSERT_TRUE(fs::exists(target_dir / "bin" / exe_name));
 
     // Valid uninstall from mock dir
     char const* uninstall_argv[] = {
         "minigit", "install", "--uninstall", "--dir", target_dir_str.c_str(), "--no-path"
     };
     ASSERT_EQ(install_command(6, uninstall_argv), 0);
-    ASSERT_FALSE(fs::exists(target_dir / exe_name));
+    ASSERT_FALSE(fs::exists(target_dir / "cmd" / exe_name));
+    ASSERT_FALSE(fs::exists(target_dir / "bin" / exe_name));
 
     unset_env("MINIGIT_EXEC_PATH_OVERRIDE");
+    unset_env("MINIGIT_MOCK_REGISTRY");
     remove_install_test_dir(temp_dir);
 }

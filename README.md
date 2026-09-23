@@ -309,14 +309,25 @@ The binary will be located at `./build/minigit`.
 
 ### Permission-Based Installation (v1.11.0)
 
-MiniGit features a built-in porcelain installer (`minigit install`) that safely installs the binary, manages permission boundaries, requests Windows User Account Control (UAC) elevation when necessary, and registers the binary directory into the system or user environment `PATH`.
+MiniGit features a built-in porcelain installer (`minigit install`) designed after Git for Windows. It organizes binaries into `cmd/`, `bin/`, and `etc/` directories, configures your environment `PATH` pointing to `cmd/` (preventing binary naming collisions), registers MiniGit in Windows **Installed Apps (Add/Remove Programs)**, and adds the **"Open MiniGit Prompt Here"** context menu to Windows Explorer.
+
+```text
+<InstallRoot>/
+├── cmd/
+│   └── minigit.exe        ← Added to PATH (matching Git for Windows <Git>\cmd convention)
+├── bin/
+│   └── minigit.exe        ← Core binary
+└── etc/
+    ├── minigitconfig      ← Default system-wide configuration file ([core] autocrlf = true)
+    └── templates/         ← Default repository templates directory
+```
 
 #### Installation Scopes
 
 | Scope | Windows Destination | Linux / macOS Destination | Privileges | PATH Registry / Environment |
 | :--- | :--- | :--- | :--- | :--- |
-| **User** (`--user`) | `%LOCALAPPDATA%\Programs\minigit\bin` | `~/.local/bin` | Standard User (No admin needed) | `HKCU\Environment\Path` |
-| **System** (`--system`) | `%ProgramFiles%\minigit\bin` | `/usr/local/bin` | Administrator / root | `HKLM\...\Session Manager\Environment\Path` |
+| **User** (`--user`) | `%LOCALAPPDATA%\Programs\MiniGit` | `~/.local` | Standard User (No admin needed) | `HKCU\Environment\Path` (`<root>\cmd`) |
+| **System** (`--system`) | `%ProgramFiles%\MiniGit` | `/usr/local` | Administrator / root | `HKLM\...\Session Manager\Environment\Path` (`<root>\cmd`) |
 
 #### 1. Per-User Installation (Recommended for Standard Users)
 Installs MiniGit for the current user without requiring administrative privileges:
@@ -330,7 +341,7 @@ Installs MiniGit for the current user without requiring administrative privilege
 ./minigit-linux install --user
 ```
 
-*Registers the target directory in the user `PATH` and immediately broadcasts `WM_SETTINGCHANGE` on Windows so open and new terminals instantly recognize `minigit`.*
+*Registers the `<InstallRoot>\cmd` directory in the user `PATH` and immediately broadcasts `WM_SETTINGCHANGE` on Windows so open and new terminals instantly recognize `minigit`.*
 
 #### 2. System-Wide Installation (Machine-Wide)
 Installs MiniGit for all users on the operating system:
@@ -349,20 +360,25 @@ sudo ./minigit-linux install --system
 #### 3. Custom Installation Directory
 Specify an explicit installation directory with `--dir`:
 ```powershell
-.\minigit.exe install --dir "D:\tools\minigit"
+.\minigit.exe install --dir "D:\tools\MiniGit"
 ```
 
-#### 4. Skipping Environment PATH Registration
-Deploy the binary to the destination directory without updating environment variables:
-```powershell
-.\minigit.exe install --no-path
-```
+#### 4. Skipping Environment PATH or Context Menu
+- Use `--no-path` to deploy without updating environment variables:
+  ```powershell
+  .\minigit.exe install --no-path
+  ```
+- Use `--no-context-menu` to omit the Windows Explorer right-click context menu:
+  ```powershell
+  .\minigit.exe install --no-context-menu
+  ```
 
 #### 5. Uninstallation
-Cleanly remove the installed executable and delete the directory entry from your environment PATH:
+Cleanly remove the installed executables, clean system configs, remove the directory entry from your environment PATH, and unregister Explorer context menus and Installed Apps:
 ```powershell
 minigit install --uninstall
 ```
+*(On Windows, you can also uninstall directly via Windows Settings > Installed Apps / Add or Remove Programs).*
 
 ---
 
