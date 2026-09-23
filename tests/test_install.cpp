@@ -331,7 +331,11 @@ TEST_CASE(Install, CommandLineInterface) {
 
     // Valid install to mock dir
     auto temp_dir = make_temp_install_test_dir("cli_inst");
-    auto dummy_exe = temp_dir / "minigit.exe";
+    std::string exe_name = "minigit";
+#if defined(_WIN32)
+    exe_name += ".exe";
+#endif
+    auto dummy_exe = temp_dir / exe_name;
     {
         std::ofstream out(dummy_exe, std::ios::binary);
         out << "CLI_TEST_BINARY";
@@ -347,14 +351,14 @@ TEST_CASE(Install, CommandLineInterface) {
     ASSERT_EQ(install_command(6, install_argv), 0);
 
     // Verify binary exists in target
-    ASSERT_TRUE(fs::exists(target_dir / "minigit.exe"));
+    ASSERT_TRUE(fs::exists(target_dir / exe_name));
 
     // Valid uninstall from mock dir
     char const* uninstall_argv[] = {
         "minigit", "install", "--uninstall", "--dir", target_dir_str.c_str(), "--no-path"
     };
     ASSERT_EQ(install_command(6, uninstall_argv), 0);
-    ASSERT_FALSE(fs::exists(target_dir / "minigit.exe"));
+    ASSERT_FALSE(fs::exists(target_dir / exe_name));
 
     unset_env("MINIGIT_EXEC_PATH_OVERRIDE");
     remove_install_test_dir(temp_dir);
