@@ -9,6 +9,16 @@
 
 namespace minigit::update {
 
+enum class OperatingSystem {
+    Windows,
+    Linux,
+    MacOS,
+    Unknown
+};
+
+OperatingSystem get_current_os();
+std::string_view os_to_string(OperatingSystem os);
+
 struct ReleaseAsset {
     std::string name;
     std::string download_url;

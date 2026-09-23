@@ -7,7 +7,9 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 
 #if defined(_WIN32)
@@ -23,20 +25,78 @@
 
 namespace minigit::update {
 
+OperatingSystem get_current_os() {
+    const char* override_os = std::getenv("MINIGIT_OS_OVERRIDE");
+    if (override_os) {
+        static const std::unordered_map<std::string_view, OperatingSystem> kOsOverrideMap = {
+            {"windows", OperatingSystem::Windows},
+            {"win",     OperatingSystem::Windows},
+            {"macos",   OperatingSystem::MacOS},
+            {"darwin",  OperatingSystem::MacOS},
+            {"apple",   OperatingSystem::MacOS},
+            {"linux",   OperatingSystem::Linux}
+        };
+        auto it = kOsOverrideMap.find(override_os);
+        if (it != kOsOverrideMap.end()) {
+            return it->second;
+        }
+    }
+
+#if defined(_WIN32)
+    return OperatingSystem::Windows;
+#elif defined(__APPLE__)
+    return OperatingSystem::MacOS;
+#elif defined(__linux__)
+    return OperatingSystem::Linux;
+#else
+    return OperatingSystem::Unknown;
+#endif
+}
+
+std::string_view os_to_string(OperatingSystem os) {
+    static const std::unordered_map<OperatingSystem, std::string_view> kOsNameMap = {
+        {OperatingSystem::Windows, "windows"},
+        {OperatingSystem::MacOS,   "macos"},
+        {OperatingSystem::Linux,   "linux"},
+        {OperatingSystem::Unknown, "unknown"}
+    };
+    auto it = kOsNameMap.find(os);
+    return it != kOsNameMap.end() ? it->second : "unknown";
+}
+
 std::string get_current_platform_asset_name() {
     const char* env_asset = std::getenv("MINIGIT_UPDATE_ASSET");
     if (env_asset && *env_asset) {
         return env_asset;
     }
 
-#if defined(_WIN32)
-    return "minigit.exe";
-#elif defined(__APPLE__)
-    return "minigit-macos";
-#else
-    return "minigit-linux";
-#endif
+    static const std::unordered_map<std::string_view, std::string_view> kPlatformBinaryMap = {
+        {"windows", "minigit.exe"},
+        {"macos",   "minigit-macos"},
+        {"linux",   "minigit-linux"}
+    };
+
+    std::string_view os_key = os_to_string(get_current_os());
+    auto it = kPlatformBinaryMap.find(os_key);
+    if (it != kPlatformBinaryMap.end()) {
+        return std::string(it->second);
+    }
+    return "minigit";
 }
+
+using AssetMatcher = std::function<bool(const std::string&)>;
+
+static const std::unordered_map<std::string_view, AssetMatcher> kOsAssetMatchers = {
+    {"windows", [](const std::string& name) {
+        return name.ends_with(".exe") || name.find("windows") != std::string::npos || name.find("win") != std::string::npos;
+    }},
+    {"macos", [](const std::string& name) {
+        return name.find("macos") != std::string::npos || name.find("darwin") != std::string::npos || name.find("apple") != std::string::npos;
+    }},
+    {"linux", [](const std::string& name) {
+        return name.find("linux") != std::string::npos;
+    }}
+};
 
 const ReleaseAsset* ReleaseInfo::find_platform_asset() const {
     std::string expected_name = get_current_platform_asset_name();
@@ -46,36 +106,25 @@ const ReleaseAsset* ReleaseInfo::find_platform_asset() const {
         }
     }
 
-    // Fallback matching heuristics
-#if defined(_WIN32)
-    for (const auto& asset : assets) {
-        if (asset.name.ends_with(".exe") || asset.name.find("windows") != std::string::npos || asset.name.find("win") != std::string::npos) {
-            return &asset;
+    // Fallback matching heuristics via unordered_map lookup
+    std::string_view os_key = os_to_string(get_current_os());
+    auto it = kOsAssetMatchers.find(os_key);
+    if (it != kOsAssetMatchers.end()) {
+        for (const auto& asset : assets) {
+            if (it->second(asset.name)) {
+                return &asset;
+            }
         }
     }
-#elif defined(__APPLE__)
-    for (const auto& asset : assets) {
-        if (asset.name.find("macos") != std::string::npos || asset.name.find("darwin") != std::string::npos || asset.name.find("apple") != std::string::npos) {
-            return &asset;
-        }
-    }
-#else
-    for (const auto& asset : assets) {
-        if (asset.name.find("linux") != std::string::npos) {
-            return &asset;
-        }
-    }
-#endif
 
     return nullptr;
 }
 
-std::filesystem::path get_executable_path() {
-    const char* env_path = std::getenv("MINIGIT_EXEC_PATH_OVERRIDE");
-    if (env_path && *env_path) {
-        return std::filesystem::path(env_path);
-    }
+namespace {
 
+using ExecutablePathResolver = std::function<std::filesystem::path()>;
+
+std::filesystem::path resolve_windows_executable() {
 #if defined(_WIN32)
     std::wstring path_buf(MAX_PATH, L'\0');
     DWORD len = GetModuleFileNameW(NULL, path_buf.data(), static_cast<DWORD>(path_buf.size()));
@@ -87,7 +136,12 @@ std::filesystem::path get_executable_path() {
         path_buf.resize(len);
         return std::filesystem::path(path_buf);
     }
-#elif defined(__APPLE__)
+#endif
+    return {};
+}
+
+std::filesystem::path resolve_macos_executable() {
+#if defined(__APPLE__)
     uint32_t size = 0;
     _NSGetExecutablePath(nullptr, &size);
     if (size > 0) {
@@ -99,7 +153,12 @@ std::filesystem::path get_executable_path() {
             return std::filesystem::path(buf.data());
         }
     }
-#elif defined(__linux__)
+#endif
+    return {};
+}
+
+std::filesystem::path resolve_linux_executable() {
+#if defined(__linux__)
     char buf[PATH_MAX];
     ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
     if (len > 0) {
@@ -110,16 +169,16 @@ std::filesystem::path get_executable_path() {
         return std::filesystem::path(buf);
     }
 #endif
-
     return {};
 }
 
-bool replace_executable(const std::filesystem::path& target_path, const std::filesystem::path& new_path) {
-    std::error_code ec;
+using ExecutableReplacer = std::function<bool(const std::filesystem::path&, const std::filesystem::path&)>;
 
+bool replace_windows_executable(const std::filesystem::path& target_path, const std::filesystem::path& new_path) {
 #if defined(_WIN32)
     std::filesystem::path old_path = target_path;
     old_path += ".old";
+    std::error_code ec;
     if (std::filesystem::exists(old_path, ec)) {
         std::filesystem::remove(old_path, ec);
     }
@@ -137,10 +196,17 @@ bool replace_executable(const std::filesystem::path& target_path, const std::fil
         return false;
     }
 
-    // Try deleting old executable; if locked, ignore
     std::filesystem::remove(old_path, ec);
     return true;
 #else
+    (void)target_path; (void)new_path;
+    return false;
+#endif
+}
+
+bool replace_posix_executable(const std::filesystem::path& target_path, const std::filesystem::path& new_path) {
+#if !defined(_WIN32)
+    std::error_code ec;
     std::filesystem::permissions(new_path,
         std::filesystem::perms::owner_read | std::filesystem::perms::owner_write | std::filesystem::perms::owner_exec |
         std::filesystem::perms::group_read | std::filesystem::perms::group_exec |
@@ -153,7 +219,49 @@ bool replace_executable(const std::filesystem::path& target_path, const std::fil
         return false;
     }
     return true;
+#else
+    (void)target_path; (void)new_path;
+    return false;
 #endif
+}
+
+} // namespace
+
+std::filesystem::path get_executable_path() {
+    const char* env_path = std::getenv("MINIGIT_EXEC_PATH_OVERRIDE");
+    if (env_path && *env_path) {
+        return std::filesystem::path(env_path);
+    }
+
+    static const std::unordered_map<std::string_view, ExecutablePathResolver> kExecResolvers = {
+        {"windows", resolve_windows_executable},
+        {"macos",   resolve_macos_executable},
+        {"linux",   resolve_linux_executable}
+    };
+
+    std::string_view os_key = os_to_string(get_current_os());
+    auto it = kExecResolvers.find(os_key);
+    if (it != kExecResolvers.end()) {
+        auto path = it->second();
+        if (!path.empty()) return path;
+    }
+
+    return {};
+}
+
+bool replace_executable(const std::filesystem::path& target_path, const std::filesystem::path& new_path) {
+    static const std::unordered_map<std::string_view, ExecutableReplacer> kReplacers = {
+        {"windows", replace_windows_executable},
+        {"macos",   replace_posix_executable},
+        {"linux",   replace_posix_executable}
+    };
+
+    std::string_view os_key = os_to_string(get_current_os());
+    auto it = kReplacers.find(os_key);
+    if (it != kReplacers.end()) {
+        return it->second(target_path, new_path);
+    }
+    return false;
 }
 
 std::optional<ReleaseInfo> parse_release_json(std::string_view json_str) {
