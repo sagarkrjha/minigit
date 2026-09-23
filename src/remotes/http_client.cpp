@@ -1,4 +1,5 @@
 #include "http_client.h"
+#include "core/version.h"
 
 #include <curl/curl.h>
 
@@ -100,7 +101,8 @@ HttpResponse HttpClient::get(
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "minigit/1.8.2");
+    std::string user_agent = "minigit/" + std::string(minigit::core::MINIGIT_VERSION);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, user_agent.c_str());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds_);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.body);
@@ -164,7 +166,8 @@ HttpResponse HttpClient::post(
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.data());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "minigit/1.8.2");
+    std::string user_agent = "minigit/" + std::string(minigit::core::MINIGIT_VERSION);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, user_agent.c_str());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_seconds_);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response.body);

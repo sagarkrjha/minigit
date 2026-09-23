@@ -2263,7 +2263,9 @@ flowchart LR
     I --> J["v1.7.0\nBisect Debugging"]
     J --> K["v1.8.0\nSmart HTTP Remotes"]
     K --> L["v1.8.1\nSecurity & Benchmarks"]
-    L --> M["v1.8.2 (Current)\nO(1) Map Dispatching"]
+    L --> M["v1.8.2\nO(1) Map Dispatching"]
+    M --> N["v1.9.0\nDiagnostic Logging"]
+    N --> O["v1.10.0 (Current)\nSelf-Update & Notifier"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -2284,4 +2286,6 @@ flowchart LR
 16. ~~**Smart HTTP Network Remotes (Phase 13 / v1.8.0):** Remote synchronization over HTTP/HTTPS with bidirectional pkt-line framing, ref advertisement discovery (`/info/refs?service=git-upload-pack|git-receive-pack`), want/have/done negotiation, packfile streaming & sideband demultiplexing, unpacked directly to CAS.~~ ✅ **Implemented in v1.8.0**
 17. ~~**Security Hardening, Memory Safety & Performance Profiling (Phase 14 / v1.8.1):** Traversal prevention (`resolve_safe_repo_path`) across clone/pull/checkout, hardened pkt-line hex and packfile bitshift decoding, RAII guards for libcurl network resources, and automated empirical benchmark suite (`minigit_benchmarks`).~~ ✅ **Implemented in v1.8.1**
 18. ~~**Lookup & Dispatch Optimization (Phase 15 / v1.8.2):** Replaced linear sequential conditional checks and command/subcommand parsing with `std::unordered_map` $O(1)$ hash table lookups across worktree, submodule, bisect, show, dispatcher, and pack storage subsystem handlers.~~ ✅ **Implemented in v1.8.2**
+19. ~~**Diagnostic & Trace Logging Subsystem (Phase 16 / v1.9.0):** Zero-cost internal diagnostic tracing and multi-level logging (`MINIGIT_TRACE`, `--trace`, `--log-level`) with thread-safe output formatting and microsecond timestamps.~~ ✅ **Implemented in v1.9.0**
+20. ~~**Self-Update & Update Notification Subsystem (Phase 17 / v1.10.0):** Automated release discovery via GitHub API, SemVer precedence comparison, cross-platform in-place binary self-replacement (`minigit update`), and cached terminal notification banners.~~ ✅ **Implemented in v1.10.0**
 
