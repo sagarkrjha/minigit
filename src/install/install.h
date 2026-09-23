@@ -1,5 +1,7 @@
 #pragma once
 
+#include "update/semver.h"
+
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -38,6 +40,8 @@ struct InstallResult {
     bool uninstall_registered{false};
     bool context_menu_registered{false};
     bool escalated{false};
+    bool is_upgrade{false};                              // true when overwriting an older installation
+    std::optional<update::SemVer> previous_version;     // SemVer of the previously installed binary (if any)
 };
 
 // Privilege & Permission detection

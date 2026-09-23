@@ -1,6 +1,7 @@
 #include "install.h"
 #include "core/version.h"
 #include "core/logger.h"
+#include "update/semver.h"
 
 #include <algorithm>
 #include <chrono>
@@ -854,7 +855,9 @@ InstallResult perform_install(const InstallOptions& options, const std::filesyst
     result.installed_bin_exe = target_bin_exe;
     result.installed_exe = target_cmd_exe;
 
-    // Check if source executable is already installed
+    // Check if source executable is already installed at the target location.
+    // SemVer-aware: if the source IS the currently installed binary (same path),
+    // report as up-to-date; otherwise, flag as upgrade if target already exists.
     if (!options.force) {
         auto can_src = std::filesystem::weakly_canonical(src, ec);
         bool same_as_cmd = false;
@@ -879,6 +882,15 @@ InstallResult perform_install(const InstallOptions& options, const std::filesyst
             }
             return result;
         }
+    }
+
+    // Detect whether this install overwrites an existing target (upgrade vs fresh install).
+    // We set is_upgrade when the target cmd binary already exists and is NOT the source.
+    if (std::filesystem::exists(target_cmd_exe, ec)) {
+        result.is_upgrade = true;
+        // Record the version of the binary being replaced as the current embedded version
+        // (the running binary is the one being upgraded from).
+        result.previous_version = update::SemVer::parse(minigit::core::MINIGIT_VERSION);
     }
 
     auto copy_or_replace = [&](const std::filesystem::path& target) -> bool {
@@ -1116,6 +1128,7 @@ int install_command(int argc, char const *argv[]) {
         return 0;
     }
 
+    auto current_semver = update::SemVer::parse(minigit::core::MINIGIT_VERSION);
     std::cout << "Installing minigit (v" << minigit::core::MINIGIT_VERSION << ")...\n";
     auto res = perform_install(options);
 
@@ -1131,6 +1144,11 @@ int install_command(int argc, char const *argv[]) {
         return 1;
     }
 
+    // Show SemVer-aware upgrade vs fresh install header
+    if (res.is_upgrade && res.previous_version.has_value() && current_semver.has_value()) {
+        std::cout << "Upgraded:            v" << res.previous_version->to_string()
+                  << " -> v" << current_semver->to_string() << "\n";
+    }
     std::cout << "Installation scope:  " << scope_to_string(res.effective_scope)
               << (res.effective_scope == InstallScope::System ? " (System-wide)" : " (Current User)") << "\n";
     std::cout << "Destination root:    " << res.install_root.string() << "\n";
@@ -1148,7 +1166,7 @@ int install_command(int argc, char const *argv[]) {
                   << (res.context_menu_registered ? "Registered 'Open MiniGit Prompt Here'" : "Skipped") << "\n";
     }
 #endif
-    std::cout << "minigit installed successfully!\n";
+    std::cout << "minigit " << (res.is_upgrade ? "upgraded" : "installed") << " successfully!\n";
     return 0;
 }
 

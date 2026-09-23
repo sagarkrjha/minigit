@@ -205,6 +205,8 @@ TEST_CASE(Install, PerformInstallUserScope) {
 
     auto res = perform_install(options, src_exe);
     ASSERT_TRUE(res.success);
+    ASSERT_FALSE(res.is_upgrade);
+    ASSERT_FALSE(res.previous_version.has_value());
     ASSERT_TRUE(fs::exists(res.installed_cmd_exe));
     ASSERT_TRUE(fs::exists(res.installed_bin_exe));
     ASSERT_TRUE(fs::exists(res.installed_exe));
@@ -280,6 +282,8 @@ TEST_CASE(Install, PerformInstallForce) {
 
     auto res = perform_install(options, src_exe);
     ASSERT_TRUE(res.success);
+    ASSERT_TRUE(res.is_upgrade);
+    ASSERT_TRUE(res.previous_version.has_value());
 
     // Verify target binaries were overwritten
     {

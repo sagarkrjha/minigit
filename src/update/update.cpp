@@ -413,7 +413,7 @@ int update_command(int argc, char const *argv[]) {
     if (check_only) {
         if (newer) {
             std::cout << "A new version of minigit is available: v" << current_ver->to_string()
-                      << " -> " << release->tag_name << "\n";
+                      << " -> v" << release->version.to_string() << "\n";
             if (!release->title.empty()) {
                 std::cout << "Release: " << release->title << "\n";
             }
@@ -480,7 +480,7 @@ int update_command(int argc, char const *argv[]) {
 #endif
     }
 
-    std::cout << "Found " << release->tag_name << " (current: v" << current_ver->to_string() << ")\n";
+    std::cout << "Found v" << release->version.to_string() << " (current: v" << current_ver->to_string() << ")\n";
     std::cout << "Downloading " << asset->name << " from " << asset->download_url << "...\n";
 
     minigit::remotes::HttpClient download_client;
@@ -535,7 +535,8 @@ int update_command(int argc, char const *argv[]) {
         }
     }
 
-    std::cout << "Successfully updated minigit to " << release->tag_name << "!\n";
+    std::cout << "Successfully updated minigit from v" << current_ver->to_string()
+              << " to v" << release->version.to_string() << "!\n";
     std::cout << "Updated binary: " << exe_path.string() << "\n";
 
     // Update notification cache so notifier knows we're up to date
