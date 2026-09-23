@@ -34,6 +34,7 @@
 #include "bisect/bisect.h"
 #include "core/logger.h"
 #include "core/version.h"
+#include "install/install.h"
 #include "update/update.h"
 #include "update/notifier.h"
 
@@ -521,6 +522,11 @@ int cmd_version(int /*argc*/, char const * /*argv*/[])
     return 0;
 }
 
+int cmd_install(int argc, char const *argv[])
+{
+    return minigit::install::install_command(argc, argv);
+}
+
 int cmd_update(int argc, char const *argv[])
 {
     return minigit::update::update_command(argc, argv);
@@ -608,6 +614,7 @@ int run(int argc, char const *argv[])
         {"worktree", cmd_worktree},
         {"submodule", cmd_submodule},
         {"bisect", cmd_bisect},
+        {"install", cmd_install},
         {"update", cmd_update}
     };
 

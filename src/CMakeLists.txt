@@ -11,6 +11,7 @@ add_subdirectory(remotes)
 add_subdirectory(worktree)
 add_subdirectory(submodule)
 add_subdirectory(bisect)
+add_subdirectory(install)
 add_subdirectory(update)
 add_subdirectory(cli)
 

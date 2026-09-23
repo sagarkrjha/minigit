@@ -3,6 +3,7 @@
 #include "notifier.h"
 #include "core/version.h"
 #include "core/logger.h"
+#include "install/install.h"
 #include "remotes/http_client.h"
 
 #include <cstdlib>
@@ -436,6 +437,33 @@ int update_command(int argc, char const *argv[]) {
     if (exe_path.empty()) {
         std::cerr << "error: unable to determine minigit executable path\n";
         return 1;
+    }
+
+    // Pre-flight write permission check for binary destination
+    bool writable = minigit::install::can_write_to_directory(exe_path.parent_path()) &&
+                    minigit::install::can_write_to_file(exe_path);
+    if (!writable) {
+        std::cout << "Write permissions required to update minigit at " << exe_path.string() << ".\n";
+#if defined(_WIN32)
+        std::cout << "Requesting Administrator privileges via Windows UAC...\n";
+        std::vector<std::string> args = {"update"};
+        if (force) args.push_back("--force");
+        if (repo != "sagarkrjha/minigit") {
+            args.push_back("--repo");
+            args.push_back(repo);
+        }
+        int exit_code = 0;
+        if (minigit::install::request_uac_elevation(exe_path, args, exit_code)) {
+            return exit_code;
+        }
+        std::cerr << "error: administrator privileges required to update " << exe_path.string()
+                  << ". Please run from an elevated command prompt (Run as Administrator) or approve the UAC prompt.\n";
+        return 1;
+#else
+        std::cerr << "error: write permission denied to update " << exe_path.string()
+                  << ". Please re-run with sudo: sudo minigit update\n";
+        return 1;
+#endif
     }
 
     std::cout << "Found " << release->tag_name << " (current: v" << current_ver->to_string() << ")\n";
