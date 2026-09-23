@@ -136,6 +136,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
 - **Binary Search Debugging:** Pinpoint regression-introducing commits across linear and branching DAG histories using `minigit bisect` (`start`, `bad`/`new`, `good`/`old`, `skip`, `reset`, `terms`, `log`, `replay`, and automated `run`).
 - **Defensive Engineering:** Path traversal protection (`resolve_safe_repo_path`), internal directory protection (`.minigit`/`.git`), automatic Windows CRLF line-ending normalization, and directory tree discovery.
+- **Self-Update & Update Notifications:** Automated version discovery via GitHub Releases API, SemVer precedence comparison, safe executable in-place self-replacement, and non-intrusive CLI terminal update notification banners via `minigit update` and `minigit update --check`.
 - **Version Reporting:** Command-line version inspection via `minigit version`, `minigit --version`, or `minigit -v`.
 
 ---
@@ -1051,6 +1052,8 @@ Planned milestones for future MiniGit development:
 - [x] **Phase 11: Binary Search Debugging:** DAG-aware binary search debugging (`minigit bisect`) with automated test execution (`bisect run`), session recording/replay, and customizable terms implemented in v1.7.0.
 - [x] **Phase 12: Security Hardening & Performance Profiling:** Path traversal prevention across checkout/clone/pull, hardened network pkt-line and packfile decoders, RAII resource lifecycle guards for libcurl, and dedicated empirical performance benchmarks (`minigit_benchmarks`) implemented in v1.8.1.
 - [x] **Phase 13: Lookup & Dispatch Optimization:** Replaced linear sequential conditional checks and command/subcommand parsing with constant-time `std::unordered_map` dispatch tables across worktree, submodule, bisect, show, dispatcher, and pack storage subsystem handlers in v1.8.2.
+- [x] **Phase 14: Diagnostic & Trace Logging Subsystem:** Zero-cost internal diagnostic tracing and multi-level logging (`MINIGIT_TRACE`, `--trace`, `--log-level`) implemented in v1.9.0.
+- [x] **Phase 15: Self-Update & CLI Update Notification Banner:** Automated in-place self-update (`minigit update`), release discovery, and cached terminal update notification banners implemented in v1.10.0.
 
 ---
 

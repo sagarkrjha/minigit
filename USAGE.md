@@ -84,7 +84,11 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Packfile Maintenance & Compaction (`minigit repack`)](#packfile-maintenance--compaction-minigit-repack)
   - [Verify Packfiles (`minigit verify-pack`)](#verify-packfiles-minigit-verify-pack)
   - [Display Version Information (`minigit version`)](#display-version-information-minigit-version)
-- [14. Command Summary & Cheat Sheet](#14-command-summary--cheat-sheet)
+- [14. Checking for Updates & Self-Update (`minigit update`)](#14-checking-for-updates--self-update-minigit-update)
+  - [Check for Available Updates (`minigit update --check`)](#141-check-for-available-updates)
+  - [Download and Apply Self-Update (`minigit update`)](#142-download-and-apply-self-update)
+  - [Terminal Update Notification Banner](#143-terminal-update-notification-banner)
+- [15. Command Summary & Cheat Sheet](#15-command-summary--cheat-sheet)
 
 ---
 
@@ -1343,16 +1347,84 @@ minigit -v
 
 *Output:*
 ```text
-minigit version 1.8.2
+minigit version 1.10.0
 ```
 
 ---
 
-## 14. Command Summary & Cheat Sheet
+## 14. Checking for Updates & Self-Update (`minigit update`)
+
+MiniGit includes an integrated self-update subsystem that queries official releases on GitHub, validates semantic version precedence, and automatically downloads and safely replaces the active executable in-place.
+
+### 14.1 Check for Available Updates
+
+To check if a newer release of MiniGit is available without applying updates:
+
+```bash
+minigit update --check
+```
+
+Example output if an update is available:
+```text
+A new version of minigit is available: v1.10.0 -> v1.11.0
+Release: MiniGit v1.11.0
+Published: 2026-09-23T12:00:00Z
+Release URL: https://github.com/sagarkrjha/minigit/releases/tag/v1.11.0
+
+Run 'minigit update' to upgrade.
+```
+
+If the installed version is already the newest release:
+```text
+minigit is already up to date (v1.10.0).
+```
+
+### 14.2 Download and Apply Self-Update
+
+To automatically download the matching native binary for your platform (`minigit.exe` on Windows, `minigit-linux` on Linux, `minigit-macos` on macOS) and update the running binary in-place:
+
+```bash
+minigit update
+```
+
+Example output:
+```text
+Checking for latest release from sagarkrjha/minigit...
+Found v1.11.0 (current: v1.10.0)
+Downloading minigit.exe from https://github.com/sagarkrjha/minigit/releases/download/v1.11.0/minigit.exe...
+Replacing executable at C:\Users\user\bin\minigit.exe...
+Successfully updated minigit to v1.11.0!
+Updated binary: C:\Users\user\bin\minigit.exe
+```
+
+Use `--force` or `-f` to reinstall the current release if desired:
+```bash
+minigit update --force
+```
+
+### 14.3 Terminal Update Notification Banner
+
+When using MiniGit interactively, a lightweight non-intrusive update notification banner is automatically displayed after successful command completion when a newer release is detected:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  A new version of minigit is available: v1.10.0 -> v1.11.0  │
+│  Run 'minigit update' to update to the latest release       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **Smart Caching:** Release checks are cached in `.minigit/update_cache` (or `~/.minigit/update_cache`) for 24 hours to prevent network latency on daily commands.
+- **Scripting & CI Safe:** Suppressed automatically in non-interactive environments, piped outputs, and when running plumbing commands.
+- **Opt-out:** Disable update notifications anytime by setting `MINIGIT_NO_UPDATE_NOTIFIER=1`.
+
+---
+
+## 15. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |
 | `version` | `minigit version` \| `--version` \| `-v` | Display MiniGit version information. |
+| `update` | `minigit update [--check] [--force] [--repo <owner/repo>]` | Check for newer releases and self-update the MiniGit executable. |
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
 | `clean` | `minigit clean [-f\|--force] [-n\|--dry-run] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |

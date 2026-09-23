@@ -33,6 +33,9 @@
 #include "submodule/submodule.h"
 #include "bisect/bisect.h"
 #include "core/logger.h"
+#include "core/version.h"
+#include "update/update.h"
+#include "update/notifier.h"
 
 #include <functional>
 #include <iostream>
@@ -514,8 +517,13 @@ int cmd_bisect(int argc, char const *argv[])
 
 int cmd_version(int /*argc*/, char const * /*argv*/[])
 {
-    std::cout << "minigit version 1.9.0\n";
+    std::cout << "minigit version " << minigit::core::MINIGIT_VERSION << "\n";
     return 0;
+}
+
+int cmd_update(int argc, char const *argv[])
+{
+    return minigit::update::update_command(argc, argv);
 }
 
 } // namespace
@@ -599,7 +607,8 @@ int run(int argc, char const *argv[])
         {"verify-pack", cmd_verify_pack},
         {"worktree", cmd_worktree},
         {"submodule", cmd_submodule},
-        {"bisect", cmd_bisect}
+        {"bisect", cmd_bisect},
+        {"update", cmd_update}
     };
 
     std::vector<char const*> shifted_argv;
@@ -629,6 +638,12 @@ int run(int argc, char const *argv[])
     LOG_DEBUG("cli", "executing command '" << command << "' with " << (effective_argc - 2) << " arguments");
     int result = it->second(effective_argc, effective_argv);
     LOG_DEBUG("cli", "command '" << command << "' completed with exit code " << result);
+
+    if (result == 0)
+    {
+        minigit::update::UpdateNotifier::instance().check_and_notify(command);
+    }
+
     return result;
 }
 
