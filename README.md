@@ -52,6 +52,10 @@ curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-
 chmod +x minigit-linux
 ./minigit-linux init
 ./minigit-linux status
+
+# Optional: Install to PATH
+./minigit-linux install --user    # Installs to ~/.local/bin (no root required)
+sudo ./minigit-linux install --system # Installs to /usr/local/bin
 ```
 
 #### macOS
@@ -61,6 +65,10 @@ curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-
 chmod +x minigit-macos
 ./minigit-macos init
 ./minigit-macos status
+
+# Optional: Install to PATH
+./minigit-macos install --user    # Installs to ~/.local/bin (no root required)
+sudo ./minigit-macos install --system # Installs to /usr/local/bin
 ```
 
 ---
@@ -76,6 +84,7 @@ chmod +x minigit-macos
   - [Prerequisites](#prerequisites)
   - [Build on Windows (PowerShell / MSVC / Ninja)](#build-on-windows-powershell--msvc--ninja)
   - [Build on Linux / macOS](#build-on-linux--macos)
+  - [Permission-Based Installation (v1.11.0)](#permission-based-installation-v1110)
 - [Usage Walkthrough](#usage-walkthrough)
   - [1. Initialize a Repository](#1-initialize-a-repository)
   - [2. Inspect Status](#2-inspect-status)
@@ -97,6 +106,7 @@ chmod +x minigit-macos
   - [18. Binary Search Debugging with Bisect](#18-binary-search-debugging-with-bisect)
   - [19. Packfile Maintenance and Verification](#19-packfile-maintenance-and-verification)
   - [20. Stage and Tree Object Inspection](#20-stage-and-tree-object-inspection)
+  - [21. Permission-Based Installation & Updates](#21-permission-based-installation--updates)
 - [Internal Repository Layout](#internal-repository-layout)
 - [Codebase Structure](#codebase-structure)
 - [MiniGit vs Standard Git](#minigit-vs-standard-git)
@@ -294,6 +304,65 @@ cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 ```
 
 The binary will be located at `./build/minigit`.
+
+---
+
+### Permission-Based Installation (v1.11.0)
+
+MiniGit features a built-in porcelain installer (`minigit install`) that safely installs the binary, manages permission boundaries, requests Windows User Account Control (UAC) elevation when necessary, and registers the binary directory into the system or user environment `PATH`.
+
+#### Installation Scopes
+
+| Scope | Windows Destination | Linux / macOS Destination | Privileges | PATH Registry / Environment |
+| :--- | :--- | :--- | :--- | :--- |
+| **User** (`--user`) | `%LOCALAPPDATA%\Programs\minigit\bin` | `~/.local/bin` | Standard User (No admin needed) | `HKCU\Environment\Path` |
+| **System** (`--system`) | `%ProgramFiles%\minigit\bin` | `/usr/local/bin` | Administrator / root | `HKLM\...\Session Manager\Environment\Path` |
+
+#### 1. Per-User Installation (Recommended for Standard Users)
+Installs MiniGit for the current user without requiring administrative privileges:
+
+```powershell
+# Windows
+.\minigit.exe install --user
+```
+```bash
+# Linux / macOS
+./minigit-linux install --user
+```
+
+*Registers the target directory in the user `PATH` and immediately broadcasts `WM_SETTINGCHANGE` on Windows so open and new terminals instantly recognize `minigit`.*
+
+#### 2. System-Wide Installation (Machine-Wide)
+Installs MiniGit for all users on the operating system:
+
+```powershell
+# Windows (from any PowerShell or Command Prompt)
+.\minigit.exe install --system
+```
+```bash
+# Linux / macOS
+sudo ./minigit-linux install --system
+```
+
+> **Automated Windows UAC Escalation:** When `install --system` (or a write to a protected directory like `C:\Program Files`) is executed from a non-elevated command prompt, MiniGit automatically requests Administrator elevation via the Windows UAC consent dialog (`runas`). Once approved, the elevated process finishes the installation and updates the System PATH. If UAC is declined, it safely exits with actionable guidance to use `--user`.
+
+#### 3. Custom Installation Directory
+Specify an explicit installation directory with `--dir`:
+```powershell
+.\minigit.exe install --dir "D:\tools\minigit"
+```
+
+#### 4. Skipping Environment PATH Registration
+Deploy the binary to the destination directory without updating environment variables:
+```powershell
+.\minigit.exe install --no-path
+```
+
+#### 5. Uninstallation
+Cleanly remove the installed executable and delete the directory entry from your environment PATH:
+```powershell
+minigit install --uninstall
+```
 
 ---
 
@@ -822,6 +891,29 @@ minigit ls-tree -r HEAD
 # Output only filenames or object hashes
 minigit ls-tree -r --name-only HEAD
 minigit ls-tree -r --object-only HEAD
+```
+
+---
+
+### 21. Permission-Based Installation & Updates
+
+Deploy, manage, and self-update the MiniGit executable with automated privilege handling:
+
+```powershell
+# 1. Install for current user (no administrator rights needed)
+minigit install --user
+
+# 2. Install machine-wide (prompts for Windows Administrator UAC elevation if needed)
+minigit install --system
+
+# 3. Check for new releases on GitHub
+minigit update --check
+
+# 4. In-place self-update (auto-elevates via UAC if installed in Program Files)
+minigit update
+
+# 5. Cleanly uninstall and remove from PATH
+minigit install --uninstall
 ```
 
 ---
