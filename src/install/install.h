@@ -21,6 +21,7 @@ struct InstallOptions {
     InstallScope scope{InstallScope::Auto};
     std::filesystem::path custom_dir;
     bool add_to_path{true};
+    bool add_context_menu{true};
     bool force{false};
     bool uninstall{false};
 };
@@ -28,9 +29,14 @@ struct InstallOptions {
 struct InstallResult {
     bool success{false};
     std::string message;
+    std::filesystem::path install_root;
+    std::filesystem::path installed_cmd_exe;
+    std::filesystem::path installed_bin_exe;
     std::filesystem::path installed_exe;
     InstallScope effective_scope{InstallScope::User};
     bool path_modified{false};
+    bool uninstall_registered{false};
+    bool context_menu_registered{false};
     bool escalated{false};
 };
 
@@ -52,6 +58,21 @@ std::string remove_from_path_list(std::string_view path_list, const std::filesys
 bool is_directory_in_env_path(const std::filesystem::path& dir, InstallScope scope);
 bool add_directory_to_env_path(const std::filesystem::path& dir, InstallScope scope);
 bool remove_directory_from_env_path(const std::filesystem::path& dir, InstallScope scope);
+
+// Windows Add/Remove Programs (Apps & Features) integration
+bool register_windows_uninstall(const std::filesystem::path& install_root,
+                                const std::filesystem::path& cmd_exe,
+                                InstallScope scope);
+bool unregister_windows_uninstall(InstallScope scope);
+bool is_windows_uninstall_registered(InstallScope scope);
+
+// Windows Explorer context menu integration
+bool register_explorer_context_menu(const std::filesystem::path& cmd_exe, InstallScope scope);
+bool unregister_explorer_context_menu(InstallScope scope);
+bool is_explorer_context_menu_registered(InstallScope scope);
+
+// System configuration setup
+bool setup_system_config(const std::filesystem::path& install_root);
 
 // UAC Elevation
 bool request_uac_elevation(const std::filesystem::path& exe, const std::vector<std::string>& args, int& exit_code);
