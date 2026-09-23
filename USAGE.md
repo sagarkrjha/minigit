@@ -10,6 +10,7 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
 
 - [1. Quick Start & Installation](#1-quick-start--installation)
   - [Download Pre-Built Binaries](#download-pre-built-binaries)
+  - [Permission-Based Installation (`minigit install`)](#permission-based-installation-minigit-install)
   - [Build from Source](#build-from-source)
 - [2. Daily Development Workflow](#2-daily-development-workflow)
   - [Initialize a Repository (`minigit init`)](#initialize-a-repository-minigit-init)
@@ -103,6 +104,58 @@ Pre-compiled native standalone executables are automatically built, verified, an
 | **Windows** | [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) | `.\minigit.exe <command>` | [![Windows Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit.exe?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) |
 | **Linux** | [`minigit-linux`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) | `chmod +x minigit-linux && ./minigit-linux <command>` | [![Linux Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-linux?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) |
 | **macOS** | [`minigit-macos`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) | `chmod +x minigit-macos && ./minigit-macos <command>` | [![macOS Downloads](https://img.shields.io/github/downloads/sagarkrjha/minigit/latest/minigit-macos?style=flat-square&label=downloads&color=blue)](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) |
+
+### Permission-Based Installation (`minigit install`)
+
+MiniGit includes a built-in porcelain installer that copies the executable to standard system or user directories, configures your environment `PATH`, and automatically handles elevation via Windows User Account Control (UAC).
+
+#### 1. Per-User Installation (Default for Standard Users)
+Installs MiniGit for the current user into `%LOCALAPPDATA%\Programs\minigit\bin` without requiring administrative rights:
+
+```powershell
+.\minigit.exe install --user
+```
+
+*Output:*
+```text
+Installing minigit (v1.11.0)...
+Installation scope: User (Current User)
+Installed binary:   C:\Users\username\AppData\Local\Programs\minigit\bin\minigit.exe
+Environment PATH:   Added directory to PATH
+minigit installed successfully!
+```
+
+#### 2. System-Wide Installation (Requires Administrator Privileges)
+Installs MiniGit for all users on the machine into `%ProgramFiles%\minigit\bin`:
+
+```powershell
+.\minigit.exe install --system
+```
+
+*When run from a standard non-elevated prompt, MiniGit automatically requests Administrator privileges via Windows UAC dialog (`runas`). Once approved, the installation proceeds seamlessly and updates the System PATH environment variable.*
+
+#### 3. Custom Installation Directory
+You can specify an arbitrary target directory with `--dir`:
+
+```powershell
+.\minigit.exe install --dir "D:\tools\minigit"
+```
+
+#### 4. Skipping Environment PATH Changes
+Use `--no-path` if you want to deploy the binary without modifying user or system environment variables:
+
+```powershell
+.\minigit.exe install --no-path
+```
+
+#### 5. Uninstallation
+To cleanly remove MiniGit and delete its directory entry from your environment PATH:
+
+```powershell
+minigit install --uninstall
+```
+
+---
 
 ### Build from Source
 
@@ -1425,6 +1478,7 @@ When using MiniGit interactively, a lightweight non-intrusive update notificatio
 | :--- | :--- | :--- |
 | `version` | `minigit version` \| `--version` \| `-v` | Display MiniGit version information. |
 | `update` | `minigit update [--check] [--force] [--repo <owner/repo>]` | Check for newer releases and self-update the MiniGit executable. |
+| `install` | `minigit install [--system\|--user] [--dir <p>] [--no-path] [-f] [--uninstall]` | Deploy binary, manage permissions/UAC elevation, and configure PATH. |
 | `init` | `minigit init` | Initialize a new repository or reinitialize an existing one. |
 | `status` | `minigit status` | Report status across Working Tree, Index, and HEAD. |
 | `clean` | `minigit clean [-f\|--force] [-n\|--dry-run] [-d] [-x] [<path>...]` | Remove untracked files and directories from working tree. |

@@ -49,6 +49,8 @@ This document provides a comprehensive, production-grade technical specification
   - [2.34 `minigit bisect`](#234-minigit-bisect)
   - [2.35 Smart HTTP Network Remotes](#235-smart-http-network-remotes)
   - [2.36 `minigit version`](#236-minigit-version)
+  - [2.37 `minigit install` (Permission-Based Installation)](#237-minigit-install-permission-based-installation)
+  - [2.38 `minigit update`](#238-minigit-update)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -1997,8 +1999,64 @@ minigit -v
 #### Purpose
 Outputs the compiled MiniGit binary version string:
 ```text
-minigit version 1.8.2
+minigit version 1.11.0
 ```
+
+---
+
+### 2.37 `minigit install` (Permission-Based Installation System)
+
+#### Synopsis
+```bash
+minigit install [--system | --user] [--dir <path>] [--no-path] [-f | --force] [--uninstall]
+```
+
+#### Purpose
+`minigit install` provides a native, permission-aware installation and uninstallation subsystem for `minigit.exe` (and cross-platform binaries). It manages binary deployment, permission boundary detection, automated UAC escalation on Windows when administrative privileges are required, and environment `PATH` configuration.
+
+#### Scopes & Permission Architecture
+1. **User Scope (`--user`):**
+   - **Target Directory:**
+     - Windows: `%LOCALAPPDATA%\Programs\minigit\bin` (fallback: `%USERPROFILE%\.minigit\bin`).
+     - Linux/macOS: `~/.local/bin`.
+   - **Privileges:** Runs entirely under standard user credentials without requiring Administrator elevation.
+   - **Environment PATH:** Configures user environment PATH (`HKEY_CURRENT_USER\Environment\Path` on Windows) and broadcasts `WM_SETTINGCHANGE` so newly launched terminals instantly recognize `minigit`.
+2. **System Scope (`--system`):**
+   - **Target Directory:**
+     - Windows: `%ProgramFiles%\minigit\bin` (typically `C:\Program Files\minigit\bin`).
+     - Linux/macOS: `/usr/local/bin`.
+   - **Privileges & UAC Escalation:** Requires Administrator privileges.
+     - When run from a non-elevated prompt on Windows, MiniGit automatically requests Administrator rights via Windows User Account Control (UAC) using `ShellExecuteExW` with the `runas` verb.
+     - Waits for the elevated installer process to complete and relays the result.
+     - If UAC is declined or denied, reports a clean error message and advises using `--user` for a per-user installation without elevation.
+   - **Environment PATH:** Configures machine-wide System PATH (`HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\Path`).
+3. **Auto Detection (Default):**
+   - If running with Administrator privileges, defaults to System scope (`C:\Program Files\minigit\bin`).
+   - If running with Standard User privileges, defaults to User scope (`%LOCALAPPDATA%\Programs\minigit\bin`).
+4. **Custom Directory (`--dir <path>`):**
+   - Installs the binary to an explicit directory specified by the caller. Automatically tests write permissions and elevates via UAC if targeting a protected directory.
+5. **Uninstallation (`--uninstall`):**
+   - Removes the installed binary from the target directory and cleanly strips the directory from the environment PATH.
+
+---
+
+### 2.38 `minigit update` (Self-Update with Permission Escalation)
+
+#### Synopsis
+```bash
+minigit update [--check] [-f | --force] [--repo <owner/repo>]
+```
+
+#### Purpose
+Enables in-place self-updating of the active `minigit` binary directly from GitHub Releases with automatic SemVer comparison and pre-flight write permission detection.
+
+#### Permission-Aware Update Mechanics
+1. **Pre-flight Permission Verification:**
+   - Prior to downloading assets, MiniGit verifies write permissions to both the executable file and its parent installation directory.
+2. **Automated UAC Elevation:**
+   - If installed in a protected directory (such as `C:\Program Files\minigit\bin\minigit.exe`), attempting an update from a non-elevated terminal automatically requests Administrator elevation via Windows UAC (`runas`), executing the update with administrative privileges and returning the result.
+3. **Safe In-Place Replacement:**
+   - On Windows, renames the running binary to `.old`, writes the new executable, and cleans up the `.old` binary on success.
 
 ---
 
@@ -2265,7 +2323,8 @@ flowchart LR
     K --> L["v1.8.1\nSecurity & Benchmarks"]
     L --> M["v1.8.2\nO(1) Map Dispatching"]
     M --> N["v1.9.0\nDiagnostic Logging"]
-    N --> O["v1.10.0 (Current)\nSelf-Update & Notifier"]
+    N --> O["v1.10.0\nSelf-Update & Notifier"]
+    O --> P["v1.11.0 (Current)\nPermission-Based Installation"]
 ```
 
 1. ~~**`.minigitignore` Pattern Matching:** Glob matching and directory exclusion during recursive `status` and `add` operations.~~ ✅ **Implemented in v0.2.0**
@@ -2288,4 +2347,5 @@ flowchart LR
 18. ~~**Lookup & Dispatch Optimization (Phase 15 / v1.8.2):** Replaced linear sequential conditional checks and command/subcommand parsing with `std::unordered_map` $O(1)$ hash table lookups across worktree, submodule, bisect, show, dispatcher, and pack storage subsystem handlers.~~ ✅ **Implemented in v1.8.2**
 19. ~~**Diagnostic & Trace Logging Subsystem (Phase 16 / v1.9.0):** Zero-cost internal diagnostic tracing and multi-level logging (`MINIGIT_TRACE`, `--trace`, `--log-level`) with thread-safe output formatting and microsecond timestamps.~~ ✅ **Implemented in v1.9.0**
 20. ~~**Self-Update & Update Notification Subsystem (Phase 17 / v1.10.0):** Automated release discovery via GitHub API, SemVer precedence comparison, cross-platform in-place binary self-replacement (`minigit update`), and cached terminal notification banners.~~ ✅ **Implemented in v1.10.0**
+21. ~~**Permission-Based Installation Subsystem (Phase 18 / v1.11.0):** Porcelain `minigit install` command with System and User scopes, permission pre-flight detection, automated Windows UAC escalation (`runas`), and user/system environment PATH management.~~ ✅ **Implemented in v1.11.0**
 

@@ -39,6 +39,10 @@ Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/d
 # Run directly from PowerShell or Command Prompt
 .\minigit.exe init
 .\minigit.exe status
+
+# Optional: Install to PATH with automatic permission handling
+.\minigit.exe install --user   # Per-user install (no elevation required)
+.\minigit.exe install --system # System-wide install (auto-requests UAC elevation if needed)
 ```
 
 #### Linux
@@ -136,7 +140,7 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Nested Submodules:** Track and coordinate nested repositories using Git-standard mode `160000` gitlink entries, `.minigitmodules` configuration, and full porcelain commands (`minigit submodule` add, status, init, update, deinit, summary, foreach, sync).
 - **Binary Search Debugging:** Pinpoint regression-introducing commits across linear and branching DAG histories using `minigit bisect` (`start`, `bad`/`new`, `good`/`old`, `skip`, `reset`, `terms`, `log`, `replay`, and automated `run`).
 - **Defensive Engineering:** Path traversal protection (`resolve_safe_repo_path`), internal directory protection (`.minigit`/`.git`), automatic Windows CRLF line-ending normalization, and directory tree discovery.
-- **Self-Update & Update Notifications:** Automated version discovery via GitHub Releases API, SemVer precedence comparison, safe executable in-place self-replacement, and non-intrusive CLI terminal update notification banners via `minigit update` and `minigit update --check`.
+- **Permission-Based Installation & Self-Update:** Native installer (`minigit install`) supporting System and User scopes, automatic Windows UAC escalation (`runas`), environment PATH configuration, uninstallation (`--uninstall`), and GitHub Releases self-update with pre-flight permission checks (`minigit update`).
 - **Version Reporting:** Command-line version inspection via `minigit version`, `minigit --version`, or `minigit -v`.
 
 ---

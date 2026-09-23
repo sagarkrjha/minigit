@@ -13,6 +13,7 @@ target_include_directories(minigit_update
 target_link_libraries(minigit_update
     PUBLIC
         minigit_core
+        minigit_install
         minigit_remotes
         minigit_repository
         CURL::libcurl
