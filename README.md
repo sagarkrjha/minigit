@@ -78,6 +78,7 @@ sudo ./minigit-macos install --system # Installs to /usr/local/bin
 - [Download Latest Build](#download-latest-build)
 - [Overview](#overview)
 - [Key Features](#key-features)
+- [Architecture & Deep Dive Documentation](#architecture)
 - [Storage Architecture](#storage-architecture)
 - [Command Reference](#command-reference)
 - [Building and Installation](#building-and-installation)
@@ -152,6 +153,36 @@ Canonical Git is often perceived as complex due to decades of accumulated C code
 - **Defensive Engineering:** Path traversal protection (`resolve_safe_repo_path`), internal directory protection (`.minigit`/`.git`), automatic Windows CRLF line-ending normalization, and directory tree discovery.
 - **Permission-Based Installation & Self-Update:** Native installer (`minigit install`) supporting System and User scopes, automatic Windows UAC escalation (`runas`), environment PATH configuration, uninstallation (`--uninstall`), and GitHub Releases self-update with pre-flight permission checks (`minigit update`).
 - **Version Reporting:** Command-line version inspection via `minigit version`, `minigit --version`, or `minigit -v`.
+
+## Architecture
+
+```mermaid
+graph TD
+    CLI["CLI Dispatcher (minigit)"] --> Porc["Porcelain Commands\n(commit, branch, merge, rebase, status)"]
+    CLI --> Plumb["Plumbing Commands\n(hash-object, cat-file, write-tree, ls-files)"]
+    CLI --> Net["Network & Remotes\n(clone, fetch, push, pull)"]
+
+    Porc --> Staging["Staging Engine (.minigit/index)"]
+    Porc --> Hist["History & Refs (HEAD, refs/heads, refs/tags)"]
+    Porc --> DiffEng["Eugene Myers Diff & 3-Way LCA Merge"]
+    
+    Net --> SmartHTTP["Smart HTTP Transport (pkt-line framing & libcurl)"]
+    SmartHTTP --> PackEngine["Packfile Engine (.pack & .idx)"]
+    
+    Staging --> CAS["Content-Addressable Storage (CAS)"]
+    Hist --> CAS
+    DiffEng --> CAS
+    PackEngine --> CAS
+
+    CAS --> Loose["Loose Objects (.minigit/objects/XX/YY...)"]
+    CAS --> Packed["Packfiles (.pack with 256 fan-out .idx)"]
+```
+
+> 📚 **Deep Dive Documentation:**
+> - [System Architecture Specification](docs/ARCHITECTURE.md)
+> - [Algorithmic Foundations & Complexity Analysis](docs/ALGORITHMS.md)
+> - [Empirical Performance & Memory Benchmarks](docs/BENCHMARKS.md)
+> - [Security Model & Safety Boundaries](docs/SECURITY.md)
 
 ---
 
@@ -237,6 +268,9 @@ Working Directory        Staging Area (Index)       Object Database (Commits)
 | `minigit cat-file (-t\|-s\|-p) <sha>` | Plumbing | Inspects a stored object: prints its type (`-t`), size (`-s`), or pretty-prints its content (`-p`). |
 | `minigit ls-files [-s\|-c\|-d\|-m\|-o] [<path>...]` | Plumbing | Inspects staged files, cached status, modifications, deletions, and untracked entries. |
 | `minigit ls-tree [-d] [-r] [-t] [--name-only\|--object-only] <tree-ish> [<path>...]` | Plumbing | Traverses and inspects hierarchical tree CAS objects. |
+| `minigit help` \| `--help` \| `-h` | System & Tools | Displays categorized CLI command reference and usage help. |
+| `minigit install [--user\|--system\|--uninstall]` | System & Tools | Installs binary to User or System PATH with optional UAC elevation. |
+| `minigit update [--check\|--force]` | System & Tools | In-place self-updater checking GitHub Releases for newer verified builds. |
 
 ---
 
