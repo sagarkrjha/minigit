@@ -119,18 +119,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if ("${{ steps.vcpkg-cache.outputs.cache-hit }}" -ne "true") {
-            vcpkg install --triplet x64-windows-static
-          }
-          $installedDir = "${{ github.workspace }}/vcpkg_installed/x64-windows-static"
-          if (-not (Test-Path "$installedDir/include/openssl/evp.h") -or -not (Test-Path "$installedDir/include/zlib.h")) {
-            Write-Host "Vcpkg packages missing or corrupted from cache; performing fresh install..."
-            vcpkg install --triplet x64-windows-static
-          }
-          if (-not (Test-Path "$installedDir/include/openssl/evp.h")) {
-            Write-Error "ERROR: Required vcpkg package OpenSSL is missing after installation!"
+          vcpkg install --triplet x64-windows-static
+          $candidates = @(
+            "${{ github.workspace }}/vcpkg_installed/x64-windows-static",
+            "C:\vcpkg\installed\x64-windows-static",
+            "$env:VCPKG_ROOT\installed\x64-windows-static",
+            "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static"
+          )
+          $found = $candidates | Where-Object { Test-Path "$_/include/openssl/evp.h" } | Select-Object -First 1
+          if (-not $found) {
+            Write-Error "ERROR: Required vcpkg package OpenSSL was not found in any standard installed path!"
             exit 1
           }
+          Write-Host "Vcpkg packages verified at: $found"
 
       # --- Configure CMake ---
       - name: Configure CMake (Linux)
