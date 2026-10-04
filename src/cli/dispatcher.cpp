@@ -532,6 +532,59 @@ int cmd_update(int argc, char const *argv[])
     return minigit::update::update_command(argc, argv);
 }
 
+int cmd_help(int /*argc*/, char const * /*argv*/[])
+{
+    std::cout << "usage: minigit [--version] [--help] [-C <path>] [-c <name>=<value>]\n"
+              << "               [--trace] [--trace=<file>] [--log-level=<level>]\n"
+              << "               <command> [<args>]\n\n"
+              << "These are common MiniGit commands used in various situations:\n\n"
+              << "start a working area\n"
+              << "   init              Create an empty MiniGit repository or reinitialize an existing one\n"
+              << "   clone             Clone a repository into a new directory\n\n"
+              << "work on the current change\n"
+              << "   add               Add file contents to the staging index\n"
+              << "   status            Show the working tree status\n"
+              << "   diff              Show changes between commits, commit and working tree, etc\n"
+              << "   reset             Reset current HEAD to the specified state\n"
+              << "   clean             Remove untracked files from the working tree\n"
+              << "   stash             Stash the changes in a dirty working directory away\n\n"
+              << "examine the history and state\n"
+              << "   log               Show commit logs\n"
+              << "   show              Show various types of objects (commits, tags, trees, blobs)\n\n"
+              << "grow, mark and tweak your common history\n"
+              << "   branch            List, create, or delete branches\n"
+              << "   checkout          Switch branches or restore working tree files\n"
+              << "   switch            Switch branches\n"
+              << "   commit            Record changes to the repository\n"
+              << "   merge             Join two or more development histories together\n"
+              << "   rebase            Reapply commits on top of another base tip\n"
+              << "   tag               Create, list, delete or verify a tag object\n"
+              << "   cherry-pick       Apply the changes introduced by some existing commits\n"
+              << "   revert            Revert some existing commits\n"
+              << "   bisect            Use binary search to find the commit that introduced a bug\n\n"
+              << "collaborate and manage remotes\n"
+              << "   remote            Manage set of tracked repositories\n"
+              << "   fetch             Download objects and refs from another repository\n"
+              << "   pull              Fetch from and integrate with another repository or branch\n"
+              << "   push              Update remote refs along with associated objects\n\n"
+              << "multiple worktrees & nested repositories\n"
+              << "   worktree          Manage multiple working trees attached to the same repository\n"
+              << "   submodule         Initialize, update or inspect submodules\n\n"
+              << "low-level plumbing & storage\n"
+              << "   hash-object       Compute object ID and optionally creates a blob from a file\n"
+              << "   cat-file          Provide content or type/size information for repository objects\n"
+              << "   write-tree        Create a tree object from the current index\n"
+              << "   ls-files          Show information about files in the index and working tree\n"
+              << "   ls-tree           List the contents of a tree object\n"
+              << "   repack            Pack unpacked objects in a repository\n"
+              << "   verify-pack       Validate packed MiniGit archive files\n\n"
+              << "system & tools\n"
+              << "   version           Display MiniGit version information\n"
+              << "   install           Install MiniGit binary to user or system PATH\n"
+              << "   update            Check for and apply self-updates\n";
+    return 0;
+}
+
 } // namespace
 
 namespace minigit::cli {
@@ -573,11 +626,13 @@ int run(int argc, char const *argv[])
 
     if (arg_idx >= argc)
     {
-        std::cout << "Usage: minigit <command>\n";
-        return 1;
+        return cmd_help(argc, argv);
     }
 
     static const std::unordered_map<std::string, CommandHandler> commands = {
+        {"help", cmd_help},
+        {"--help", cmd_help},
+        {"-h", cmd_help},
         {"version", cmd_version},
         {"--version", cmd_version},
         {"-v", cmd_version},
