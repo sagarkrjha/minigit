@@ -99,6 +99,12 @@ jobs:
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
 
+      - name: Compute cryptographic SHA-256 checksums
+        run: |
+          cd release_assets
+          sha256sum minigit.exe minigit-linux minigit-macos > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Generate release notes
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
@@ -115,13 +121,18 @@ jobs:
           - **Build Date:** \`${DATE_UTC}\`
           - **Platforms:** Windows (x86_64), Linux (x86_64), macOS (Apple Silicon arm64)
 
-          ### Direct Downloads
+          ### Direct Downloads & Checksums
 
           | Platform | Architecture | Binary | Direct Download Link |
           | :--- | :--- | :--- | :--- |
           | **Windows** | x86_64 | \`minigit.exe\` | [Download \`minigit.exe\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit.exe) |
           | **Linux** | x86_64 | \`minigit-linux\` | [Download \`minigit-linux\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-linux) |
           | **macOS** | Apple Silicon (arm64) | \`minigit-macos\` | [Download \`minigit-macos\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-macos) |
+          | **Checksums** | Any | \`SHA256SUMS.txt\` | [Download \`SHA256SUMS.txt\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/SHA256SUMS.txt) |
+
+          \`\`\`text
+          $(cat release_assets/SHA256SUMS.txt)
+          \`\`\`
 
           ---
           *Cross-platform binaries compiled and verified by automated CI.*
@@ -145,6 +156,7 @@ jobs:
             release_assets/minigit.exe \
             release_assets/minigit-linux \
             release_assets/minigit-macos \
+            release_assets/SHA256SUMS.txt \
             --repo "${{ github.repository }}" \
             --title "$TITLE" \
             --notes-file release_notes.md \

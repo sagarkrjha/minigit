@@ -1,0 +1,52 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/benchmark_metrics.cpp'
+      - 'CMakeLists.txt'
+
+concurrency:
+  group: benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-benchmarks:
+    name: Empirical Benchmark Run (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev \
+            zlib1g-dev \
+            libcurl4-openssl-dev \
+            ninja-build
+
+      - name: Configure CMake (Release)
+        run: |
+          cmake -B build-bench -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON
+
+      - name: Build benchmark binary
+        run: |
+          cmake --build build-bench --target minigit_benchmarks
+
+      - name: Execute benchmark suite
+        run: |
+          mkdir -p benchmark-results
+          ./build-bench/minigit_benchmarks | tee benchmark-results/benchmark_report.txt
+
+      - name: Upload benchmark report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report-linux
+          path: benchmark-results/benchmark_report.txt
+          retention-days: 14
