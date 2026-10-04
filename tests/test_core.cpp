@@ -70,6 +70,11 @@ TEST_CASE(Core, PathSafetyTraversalRejected)
     ASSERT_FALSE(minigit::core::is_safe_repo_relpath(".git/HEAD"));
     ASSERT_FALSE(minigit::core::is_safe_repo_relpath(".minigit"));
     ASSERT_FALSE(minigit::core::is_safe_repo_relpath(".git"));
+
+    // Embedded null bytes & backslash absolute patterns
+    ASSERT_FALSE(minigit::core::is_safe_repo_relpath(std::string("safe_name\0.sh", 12)));
+    ASSERT_FALSE(minigit::core::is_safe_repo_relpath("\\Windows\\System32"));
+    ASSERT_FALSE(minigit::core::is_safe_repo_relpath("..\\escaped.txt"));
 }
 
 TEST_CASE(Core, PathSafetyResolution)
