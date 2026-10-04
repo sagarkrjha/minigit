@@ -198,7 +198,7 @@ jobs:
           $output = & .\bin\minigit.exe 2>&1
           Write-Host $output
 
-          if ($output -notmatch "Usage: minigit") {
+          if ($output -notmatch "(?i)usage:\s+minigit") {
             Write-Error "minigit.exe failed execution check!"
             exit 1
           }
@@ -232,7 +232,7 @@ jobs:
           OUT=$("./bin/${{ matrix.release_asset }}" 2>&1 || true)
           echo "$OUT"
 
-          if ! echo "$OUT" | grep -q "Usage: minigit"; then
+          if ! echo "$OUT" | grep -qi "usage:[[:space:]]*minigit"; then
             echo "Binary failed execution check!" >&2
             exit 1
           fi
