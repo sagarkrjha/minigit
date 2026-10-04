@@ -76,7 +76,13 @@ jobs:
             libssl-dev \
             zlib1g-dev \
             libcurl4-openssl-dev \
-            ninja-build
+            ninja-build \
+            pkg-config
+          echo "Verifying Linux required packages via pkg-config..."
+          pkg-config --print-errors --exists openssl zlib libcurl || {
+            echo "ERROR: Required system packages (OpenSSL, zlib, libcurl) are missing or broken!" >&2
+            exit 1
+          }
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -86,6 +92,13 @@ jobs:
 
           brew list openssl@3 &>/dev/null || brew install openssl@3
           brew list ninja &>/dev/null || brew install ninja
+          brew list curl &>/dev/null || true
+
+          OPENSSL_PREFIX="$(brew --prefix openssl@3 2>/dev/null || echo '/opt/homebrew/opt/openssl@3')"
+          if [ ! -d "$OPENSSL_PREFIX" ]; then
+            echo "ERROR: OpenSSL@3 installation prefix $OPENSSL_PREFIX not found!" >&2
+            exit 1
+          fi
 
       - name: Configure vcpkg binary cache
         if: runner.os == 'Windows'
@@ -108,9 +121,21 @@ jobs:
             ${{ runner.os }}-vcpkg-installed-
 
       - name: Install dependencies via vcpkg
-        if: runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          vcpkg install --triplet x64-windows-static
+          if ("${{ steps.vcpkg-cache.outputs.cache-hit }}" -ne "true") {
+            vcpkg install --triplet x64-windows-static
+          }
+          $installedDir = "${{ github.workspace }}/vcpkg_installed/x64-windows-static"
+          if (-not (Test-Path "$installedDir/include/openssl/evp.h") -or -not (Test-Path "$installedDir/include/zlib.h")) {
+            Write-Host "Vcpkg packages missing or corrupted from cache; performing fresh install..."
+            vcpkg install --triplet x64-windows-static
+          }
+          if (-not (Test-Path "$installedDir/include/openssl/evp.h")) {
+            Write-Error "ERROR: Required vcpkg package OpenSSL is missing after installation!"
+            exit 1
+          }
 
       - name: Configure CMake (Linux)
         if: runner.os == 'Linux'

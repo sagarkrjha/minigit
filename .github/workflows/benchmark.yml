@@ -27,7 +27,13 @@ jobs:
             libssl-dev \
             zlib1g-dev \
             libcurl4-openssl-dev \
-            ninja-build
+            ninja-build \
+            pkg-config
+          echo "Verifying benchmark required packages via pkg-config..."
+          pkg-config --print-errors --exists openssl zlib libcurl || {
+            echo "ERROR: Required benchmark packages (OpenSSL, zlib, libcurl) are missing or broken!" >&2
+            exit 1
+          }
 
       - name: Configure CMake (Release)
         run: |
