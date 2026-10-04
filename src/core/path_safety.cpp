@@ -16,6 +16,11 @@ bool is_safe_repo_relpath(const std::string &rel_path)
     if (rel_path.front() == '/' || rel_path.front() == '\\' || rel_path.find('\0') != std::string::npos)
         return false;
 
+    // Explicitly reject backslash traversal sequences across all platforms
+    if (rel_path.find("..\\") != std::string::npos || rel_path.find("\\..") != std::string::npos ||
+        rel_path.find("\\") != std::string::npos)
+        return false;
+
     // Reject Windows drive letters (e.g. "C:...")
     if (rel_path.size() >= 2 && rel_path[1] == ':')
         return false;
