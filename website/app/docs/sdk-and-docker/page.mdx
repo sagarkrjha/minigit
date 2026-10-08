@@ -1,0 +1,173 @@
+# MiniGit SDK & Docker Distribution Guide
+
+The **MiniGit SDK** (`minigit-sdk`) provides programmatic C++ and C API access to MiniGit repository internals, allowing developers to embed Git operations directly into their applications and microservices.
+
+MiniGit is also packaged as an official **Docker container distribution**, providing a reproducible, zero-configuration environment for running the CLI and consuming the SDK across any operating system.
+
+---
+
+## 1. MiniGit C++ SDK Overview
+
+The SDK is exposed via `minigit/minigit_sdk.h` and links with `libminigit_sdk`.
+
+### Features
+- **Repository Lifecycle:** `init()`, `open()`, path queries.
+- **Staging & Commits:** `add()`, `add_all()`, atomic `commit()`, detailed `status()`.
+- **Branch Management:** `list_branches()`, `create_branch()`, `switch_branch()`, `current_branch()`.
+- **History & Inspection:** `log()`, `get_commit()`, `get_object_content()`.
+- **Cloud & Backup Sync:** `sync_to_cloud()`, `restore_from_cloud()` (supports Amazon S3 / local emulation directories).
+
+### C++ Code Example
+
+```cpp
+#include <minigit/minigit_sdk.h>
+#include <iostream>
+
+int main() {
+    // 1. Initialize or open repository
+    auto client = minigit::sdk::MiniGitClient::init("./my_repo");
+
+    // 2. Stage files
+    client.add({"file.txt"});
+
+    // 3. Create commit
+    std::string commit_id = client.commit("Initial commit via SDK", "Dev <dev@example.com>");
+    std::cout << "Created commit: " << commit_id << "\n";
+
+    // 4. Branching
+    client.create_branch("feature");
+    client.switch_branch("feature");
+
+    // 5. Query status and history
+    auto status = client.status();
+    std::cout << "Branch: " << status.current_branch << "\n";
+
+    auto logs = client.log(10);
+    for (const auto& c : logs) {
+        std::cout << c.commit_id << " - " << c.message << "\n";
+    }
+
+    // 6. Cloud sync / backup
+    client.sync_to_cloud("/data/backup_store", "my_repo");
+
+    return 0;
+}
+```
+
+---
+
+## 2. Multi-Language SDK Bindings
+
+MiniGit provides dedicated SDK packages across major programming languages:
+
+| Language | Directory / Package | Integration Model |
+| :--- | :--- | :--- |
+| **C++20** | `src/sdk/` (`libminigit_sdk`) | Native static & shared library |
+| **C (C99)** | `src/sdk/minigit_sdk.h` | C FFI bindings |
+| **Python** | `sdks/python/minigit_sdk` | Native Python module (`MiniGitClient`) |
+| **JavaScript / TypeScript** | `sdks/js/` | Node.js CommonJS & TypeScript declarations (`.d.ts`) |
+| **Go** | `sdks/go/minigit` | Idiomatic Go package (`minigit.NewClient`) |
+| **Java** | `sdks/java/` | Java SDK client (`io.minigit.sdk.MiniGitClient`) |
+| **Rust** | `sdks/rust/` | Cargo crate `minigit-sdk` (`minigit_sdk::MiniGitClient`) |
+
+### Rust Example
+```rust
+use minigit_sdk::MiniGitClient;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = MiniGitClient::init("./my_repo")?;
+    client.add_all()?;
+    let commit_id = client.commit("Initial commit via Rust SDK", Some("Rustacean <rust@minigit.internal>"))?;
+    println!("Committed: {}", commit_id);
+    Ok(())
+}
+```
+
+### Python Example
+```python
+from minigit_sdk import MiniGitClient
+
+client = MiniGitClient.init("./my_repo")
+client.add_all()
+commit_id = client.commit("Initial commit via Python SDK")
+print(f"Committed: {commit_id}")
+```
+
+### TypeScript / JavaScript Example
+```ts
+import { MiniGitClient } from './sdks/js';
+
+const client = MiniGitClient.init('./my_repo');
+client.addAll();
+const commitId = client.commit('Initial commit via JS SDK');
+console.log(`Committed: ${commitId}`);
+```
+
+### Go Example
+```go
+package main
+
+import (
+    "fmt"
+    "sdks/go/minigit"
+)
+
+func main() {
+    client, _ := minigit.Init("./my_repo")
+    client.AddAll()
+    cid, _ := client.Commit("Initial commit via Go SDK")
+    fmt.Println("Committed:", cid)
+}
+```
+
+### Java Example
+```java
+import io.minigit.sdk.MiniGitClient;
+import java.nio.file.Path;
+
+public class App {
+    public static void main(String[] args) throws Exception {
+        MiniGitClient client = MiniGitClient.init(Path.of("./my_repo"));
+        client.addAll();
+        String cid = client.commit("Initial commit via Java SDK", "Dev <dev@minigit.internal>");
+        System.out.println("Committed: " + cid);
+    }
+}
+```
+
+---
+
+## 3. Docker Distribution
+
+### Using the Official MiniGit Container
+
+MiniGit provides a lightweight, multi-stage runtime Docker image:
+
+```bash
+# Build the Docker image locally
+docker build -t minigit:latest .
+
+# Run MiniGit CLI inside Docker
+docker run --rm -v $(pwd):/data minigit:latest status
+docker run --rm -v $(pwd):/data minigit:latest log
+```
+
+### Docker Compose
+
+Run the CLI and SDK demonstration service via Docker Compose:
+
+```bash
+# Start the containers
+docker compose up --build
+```
+
+### Building Your Own Applications with MiniGit SDK in Docker
+
+The runtime image places headers and static libraries at standard system locations:
+- Headers: `/usr/local/include/minigit/minigit_sdk.h`
+- Libraries: `/usr/local/lib/libminigit_sdk.a`
+
+You can build applications against the SDK inside Docker:
+```bash
+g++ -std=c++20 main.cpp -lminigit_sdk -lssl -lcrypto -lz -lcurl -o app
+```
