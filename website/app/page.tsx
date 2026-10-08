@@ -18,7 +18,7 @@ export default function HomePage() {
             <div className="lg:col-span-7 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Latest Release: v1.11.3 • MIT Open Source
+                Latest Release: v1.12.0 • MIT Open Source
               </div>
 
               <div className="space-y-3">

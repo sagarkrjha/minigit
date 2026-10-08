@@ -41,7 +41,7 @@ export function DocsNavbar() {
             </span>
             <span className="text-base font-bold tracking-tight">MiniGit</span>
             <span className="hidden sm:inline-block text-xs px-2 py-0.5 rounded-full bg-muted font-mono font-medium text-muted-foreground border border-border">
-              v1.11.3
+              v1.12.0
             </span>
           </Link>
 
