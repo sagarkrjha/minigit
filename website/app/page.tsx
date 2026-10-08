@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { DocsNavbar } from "@/components/app-components";
+import { DocsNavbar, PlatformDetectorCard } from "@/components/app-components";
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui";
+import { FiBookOpen, FiDownload, FiCpu } from "react-icons/fi";
+import { FaGithub } from "react-icons/fa6";
 
 export default function HomePage() {
   return (
@@ -30,35 +32,21 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Git-scm style Platform Download Callout */}
+              {/* Git-scm style Platform Download Callout with auto-sensing */}
               <div className="p-5 rounded-xl border border-border bg-card/80 backdrop-blur-sm space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-base text-foreground">
-                      Download for Windows, Linux & macOS
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Standalone executables & container distribution. No source compilation required.
-                    </p>
-                  </div>
-                  <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0 shadow-sm">
-                    <Link href="/docs/installation">
-                      Download v1.11.3
-                    </Link>
-                  </Button>
-                </div>
+                <PlatformDetectorCard />
 
                 <div className="pt-2 border-t border-border/60 flex flex-wrap gap-4 text-xs font-mono text-muted-foreground">
-                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe" className="hover:text-primary transition-colors">
-                    ↓ minigit.exe (Windows)
+                  <a href="/assets/minigit.exe" className="hover:text-primary transition-colors flex items-center gap-1">
+                    <FiDownload className="h-3 w-3" /> minigit.exe (Windows)
                   </a>
                   <span className="text-border">•</span>
-                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux" className="hover:text-primary transition-colors">
-                    ↓ minigit-linux (Linux x86_64)
+                  <a href="/assets/minigit-linux" className="hover:text-primary transition-colors flex items-center gap-1">
+                    <FiDownload className="h-3 w-3" /> minigit-linux (Linux x86_64)
                   </a>
                   <span className="text-border">•</span>
-                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos" className="hover:text-primary transition-colors">
-                    ↓ minigit-macos (Apple Silicon)
+                  <a href="/assets/minigit-macos" className="hover:text-primary transition-colors flex items-center gap-1">
+                    <FiDownload className="h-3 w-3" /> minigit-macos (Apple Silicon)
                   </a>
                 </div>
               </div>
@@ -118,8 +106,8 @@ export default function HomePage() {
             {/* Card 1: Reference Manual */}
             <Card className="flex flex-col justify-between border-border bg-card/60">
               <CardHeader className="space-y-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
-                  #_
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                  <FiBookOpen className="h-5 w-5" />
                 </div>
                 <CardTitle className="text-xl">Reference Manual</CardTitle>
                 <CardDescription className="text-sm leading-relaxed">
@@ -128,7 +116,7 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href="/docs/cli-usage">Browse CLI Commands →</Link>
+                  <Link href="/docs/reference">Browse CLI Commands →</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -136,17 +124,17 @@ export default function HomePage() {
             {/* Card 2: Downloads & Containers */}
             <Card className="flex flex-col justify-between border-border bg-card/60">
               <CardHeader className="space-y-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
-                  📦
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                  <FiDownload className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-xl">Downloads & Containers</CardTitle>
+                <CardTitle className="text-xl">Install & Setup</CardTitle>
                 <CardDescription className="text-sm leading-relaxed">
                   Native pre-compiled executables for Windows, Linux, and macOS, alongside verified multi-stage Docker container images.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href="/docs/installation">Download Center →</Link>
+                  <Link href="/docs/install">Download Center →</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -154,17 +142,17 @@ export default function HomePage() {
             {/* Card 3: Polyglot SDK */}
             <Card className="flex flex-col justify-between border-border bg-card/60">
               <CardHeader className="space-y-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
-                  ⚡
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
+                  <FiCpu className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-xl">SDK & Cloud Sync</CardTitle>
+                <CardTitle className="text-xl">Learn & Concepts</CardTitle>
                 <CardDescription className="text-sm leading-relaxed">
-                  Embed version control programmatically across C++, C, Python, JavaScript / TypeScript, Go, Java, and Rust applications.
+                  Understand core snapshotting principles, commit DAG mechanics, and 5-minute practical quickstart guide.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href="/docs/sdk-and-docker">SDK Documentation →</Link>
+                  <Link href="/docs/learn">Getting Started →</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -188,40 +176,40 @@ export default function HomePage() {
             <div className="space-y-2">
               <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Setup & Init</h4>
               <ul className="space-y-1.5 text-muted-foreground">
-                <li><Link href="/docs/installation" className="hover:text-primary">minigit install</Link></li>
-                <li><Link href="/docs/cli-usage#initialize-a-repository-minigit-init" className="hover:text-primary">minigit init</Link></li>
-                <li><Link href="/docs/cli-usage#clone-a-repository-minigit-clone" className="hover:text-primary">minigit clone</Link></li>
-                <li><Link href="/docs/cli-usage#12-ignoring-files-minigitignore" className="hover:text-primary">.minigitignore</Link></li>
+                <li><Link href="/docs/install" className="hover:text-primary">minigit install</Link></li>
+                <li><Link href="/docs/reference#initialize-a-repository-minigit-init" className="hover:text-primary">minigit init</Link></li>
+                <li><Link href="/docs/reference#clone-a-repository-minigit-clone" className="hover:text-primary">minigit clone</Link></li>
+                <li><Link href="/docs/reference#12-ignoring-files-minigitignore" className="hover:text-primary">.minigitignore</Link></li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Basic Snapshotting</h4>
               <ul className="space-y-1.5 text-muted-foreground">
-                <li><Link href="/docs/cli-usage#check-repository-status-minigit-status" className="hover:text-primary">minigit status</Link></li>
-                <li><Link href="/docs/cli-usage#stage-changes-minigit-add" className="hover:text-primary">minigit add</Link></li>
-                <li><Link href="/docs/cli-usage#commit-staged-changes-minigit-commit" className="hover:text-primary">minigit commit</Link></li>
-                <li><Link href="/docs/cli-usage#inspect-differences-minigit-diff" className="hover:text-primary">minigit diff</Link></li>
+                <li><Link href="/docs/reference#check-repository-status-minigit-status" className="hover:text-primary">minigit status</Link></li>
+                <li><Link href="/docs/reference#stage-changes-minigit-add" className="hover:text-primary">minigit add</Link></li>
+                <li><Link href="/docs/reference#commit-staged-changes-minigit-commit" className="hover:text-primary">minigit commit</Link></li>
+                <li><Link href="/docs/reference#inspect-differences-minigit-diff" className="hover:text-primary">minigit diff</Link></li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Branch & Merge</h4>
               <ul className="space-y-1.5 text-muted-foreground">
-                <li><Link href="/docs/cli-usage#list-branches-minigit-branch" className="hover:text-primary">minigit branch</Link></li>
-                <li><Link href="/docs/cli-usage#switch-branches-minigit-switch" className="hover:text-primary">minigit switch</Link></li>
-                <li><Link href="/docs/cli-usage#5-merging--conflict-resolution-minigit-merge" className="hover:text-primary">minigit merge</Link></li>
-                <li><Link href="/docs/cli-usage#replay-linear-history-with-rebase-minigit-rebase" className="hover:text-primary">minigit rebase</Link></li>
+                <li><Link href="/docs/reference#list-branches-minigit-branch" className="hover:text-primary">minigit branch</Link></li>
+                <li><Link href="/docs/reference#switch-branches-minigit-switch" className="hover:text-primary">minigit switch</Link></li>
+                <li><Link href="/docs/reference#5-merging--conflict-resolution-minigit-merge" className="hover:text-primary">minigit merge</Link></li>
+                <li><Link href="/docs/reference#replay-linear-history-with-rebase-minigit-rebase" className="hover:text-primary">minigit rebase</Link></li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">History & Inspect</h4>
               <ul className="space-y-1.5 text-muted-foreground">
-                <li><Link href="/docs/cli-usage#view-commit-history-minigit-log" className="hover:text-primary">minigit log</Link></li>
-                <li><Link href="/docs/cli-usage#inspect-objects--commits-minigit-show" className="hover:text-primary">minigit show</Link></li>
-                <li><Link href="/docs/cli-usage#7-shelving-work-with-stash-minigit-stash" className="hover:text-primary">minigit stash</Link></li>
-                <li><Link href="/docs/cli-usage#undo-changes-with-reset-minigit-reset" className="hover:text-primary">minigit reset</Link></li>
+                <li><Link href="/docs/reference#view-commit-history-minigit-log" className="hover:text-primary">minigit log</Link></li>
+                <li><Link href="/docs/reference#inspect-objects--commits-minigit-show" className="hover:text-primary">minigit show</Link></li>
+                <li><Link href="/docs/reference#7-shelving-work-with-stash-minigit-stash" className="hover:text-primary">minigit stash</Link></li>
+                <li><Link href="/docs/reference#undo-changes-with-reset-minigit-reset" className="hover:text-primary">minigit reset</Link></li>
               </ul>
             </div>
           </div>
@@ -231,7 +219,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-border py-8 text-center text-xs text-muted-foreground bg-card/40">
         <p>
-          MiniGit is distributed under the permissive <Link href="/docs/license" className="underline hover:text-foreground">MIT Open Source License</Link>.
+          MiniGit is distributed under the permissive <Link href="/docs/about" className="underline hover:text-foreground">MIT Open Source License</Link>.
         </p>
       </footer>
     </div>

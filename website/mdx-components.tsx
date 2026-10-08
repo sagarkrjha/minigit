@@ -1,42 +1,112 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentPropsWithoutRef } from "react";
 import { highlightCode } from "@/lib/prism";
+import {
+  CodeBlock,
+  CodeTabs,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Separator,
+  Alert,
+  AlertDescription,
+} from "@/components/ui";
+import { SdkExampleTabs } from "@/components/app-components/sdk-example-tabs";
+import { DockerSdkTabs } from "@/components/app-components/docker-sdk-tabs";
+import { AutoDownloadButton, PlatformDetectorCard } from "@/components/app-components/auto-download";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function slugify(children: React.ReactNode): string {
+  if (typeof children === "string") {
+    return children.toLowerCase().replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
+  }
+  return "";
+}
 
 export function useMDXComponents(components?: MDXComponents): MDXComponents {
   return {
-    h1: ({ className = "", ...props }: ComponentPropsWithoutRef<"h1">) => (
-      <h1
-        className={`scroll-m-20 text-3xl font-bold tracking-tight first:mt-0 ${className}`}
-        {...props}
-      />
-    ),
-    h2: ({ className = "", ...props }: ComponentPropsWithoutRef<"h2">) => (
-      <h2
-        className={`scroll-m-20 border-b border-border pb-2 text-2xl font-semibold tracking-tight first:mt-0 ${className}`}
-        {...props}
-      />
-    ),
-    h3: ({ className = "", ...props }: ComponentPropsWithoutRef<"h3">) => (
-      <h3 className={`scroll-m-20 text-xl font-semibold tracking-tight ${className}`} {...props} />
-    ),
-    h4: ({ className = "", ...props }: ComponentPropsWithoutRef<"h4">) => (
-      <h4 className={`scroll-m-20 text-lg font-semibold tracking-tight ${className}`} {...props} />
-    ),
+    h1: ({ className = "", id, children, ...props }: ComponentPropsWithoutRef<"h1">) => {
+      const headingId = id || slugify(children);
+      return (
+        <h1
+          id={headingId}
+          className={`scroll-m-20 text-3xl font-bold tracking-tight text-foreground first:mt-0 ${className}`}
+          {...props}
+        >
+          {children}
+        </h1>
+      );
+    },
+    h2: ({ className = "", id, children, ...props }: ComponentPropsWithoutRef<"h2">) => {
+      const headingId = id || slugify(children);
+      return (
+        <h2
+          id={headingId}
+          className={`scroll-m-20 border-b border-border/80 pb-2 text-2xl font-semibold tracking-tight text-foreground first:mt-0 ${className}`}
+          {...props}
+        >
+          {children}
+        </h2>
+      );
+    },
+    h3: ({ className = "", id, children, ...props }: ComponentPropsWithoutRef<"h3">) => {
+      const headingId = id || slugify(children);
+      return (
+        <h3
+          id={headingId}
+          className={`scroll-m-20 text-xl font-semibold tracking-tight text-foreground ${className}`}
+          {...props}
+        >
+          {children}
+        </h3>
+      );
+    },
+    h4: ({ className = "", id, children, ...props }: ComponentPropsWithoutRef<"h4">) => {
+      const headingId = id || slugify(children);
+      return (
+        <h4
+          id={headingId}
+          className={`scroll-m-20 text-lg font-semibold tracking-tight text-foreground ${className}`}
+          {...props}
+        >
+          {children}
+        </h4>
+      );
+    },
     p: ({ className = "", ...props }: ComponentPropsWithoutRef<"p">) => (
-      <p className={`leading-7 not-first:mt-4 ${className}`} {...props} />
+      <p className={`leading-7 text-zinc-300 not-first:mt-4 ${className}`} {...props} />
     ),
     ul: ({ className = "", ...props }: ComponentPropsWithoutRef<"ul">) => (
-      <ul className={`my-4 ml-6 list-disc [&>li]:mt-2 ${className}`} {...props} />
+      <ul className={`my-4 ml-6 list-disc text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
     ),
     ol: ({ className = "", ...props }: ComponentPropsWithoutRef<"ol">) => (
-      <ol className={`my-4 ml-6 list-decimal [&>li]:mt-2 ${className}`} {...props} />
+      <ol className={`my-4 ml-6 list-decimal text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
     ),
     li: ({ className = "", ...props }: ComponentPropsWithoutRef<"li">) => (
       <li className={className} {...props} />
     ),
-    blockquote: ({ className = "", ...props }: ComponentPropsWithoutRef<"blockquote">) => (
-      <blockquote
-        className={`mt-4 border-l-2 border-border pl-4 italic text-muted-foreground ${className}`}
+    blockquote: ({ className = "", children }: ComponentPropsWithoutRef<"blockquote">) => (
+      <Alert variant="note" className={`my-4 ${className}`}>
+        <AlertDescription className="text-zinc-300 italic">{children}</AlertDescription>
+      </Alert>
+    ),
+    hr: ({ className = "" }: ComponentPropsWithoutRef<"hr">) => (
+      <Separator className={className} />
+    ),
+    a: ({ className = "", ...props }: ComponentPropsWithoutRef<"a">) => (
+      <a
+        className={`font-medium text-primary underline underline-offset-4 hover:text-primary/80 transition-colors ${className}`}
         {...props}
       />
     ),
@@ -61,48 +131,73 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
 
       return (
         <code
-          className={`relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm ${className}`}
+          className={`relative rounded-md bg-muted/80 border border-border/60 px-[0.35rem] py-[0.15rem] font-mono text-[13px] text-primary-foreground/90 font-medium ${className}`}
           {...props}
         >
           {children}
         </code>
       );
     },
-    pre: ({ className = "", ...props }: ComponentPropsWithoutRef<"pre">) => (
-      <pre
-        className={`mb-4 mt-4 overflow-x-auto rounded-lg border border-border bg-muted/60 p-4 font-mono text-sm leading-relaxed text-foreground [&>code]:bg-transparent [&>code]:p-0 [&>code]:rounded-none ${className}`}
-        {...props}
-      />
-    ),
-    hr: ({ className = "", ...props }: ComponentPropsWithoutRef<"hr">) => (
-      <hr className={`my-6 border-border ${className}`} {...props} />
-    ),
-    a: ({ className = "", ...props }: ComponentPropsWithoutRef<"a">) => (
-      <a
-        className={`font-medium text-primary underline underline-offset-4 hover:opacity-80 ${className}`}
-        {...props}
-      />
-    ),
+    pre: ({ children }: ComponentPropsWithoutRef<"pre">) => {
+      // In @next/mdx, <pre> wraps a <code> element with className="language-xyz" and text children
+      if (
+        children &&
+        typeof children === "object" &&
+        "props" in children &&
+        children.props
+      ) {
+        const codeProps = children.props as ComponentPropsWithoutRef<"code">;
+        const className = codeProps.className || "";
+        const match = /language-([a-zA-Z0-9_-]+)/.exec(className);
+        const rawLang = match ? match[1] : "";
+        const rawCode =
+          typeof codeProps.children === "string"
+            ? codeProps.children
+            : Array.isArray(codeProps.children)
+            ? codeProps.children.join("")
+            : "";
+
+        if (rawCode) {
+          const { highlightedHtml, language } = highlightCode(rawCode, rawLang);
+          return (
+            <CodeBlock
+              language={language || rawLang}
+              html={highlightedHtml || escapeHtml(rawCode)}
+              rawCode={rawCode}
+            />
+          );
+        }
+      }
+
+      return (
+        <pre className="my-5 overflow-x-auto rounded-xl border border-border/80 bg-[#07070a] p-4 font-mono text-[13px] text-zinc-200">
+          {children}
+        </pre>
+      );
+    },
     table: ({ className = "", ...props }: ComponentPropsWithoutRef<"table">) => (
-      <div className="my-6 w-full overflow-x-auto rounded-lg border border-border shadow-xs">
-        <table className={`w-full border-collapse text-left text-sm ${className}`} {...props} />
-      </div>
+      <Table className={className} {...props} />
     ),
     thead: ({ className = "", ...props }: ComponentPropsWithoutRef<"thead">) => (
-      <thead className={`border-b border-border bg-muted/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${className}`} {...props} />
+      <TableHeader className={className} {...props} />
     ),
     tbody: ({ className = "", ...props }: ComponentPropsWithoutRef<"tbody">) => (
-      <tbody className={`divide-y divide-border ${className}`} {...props} />
+      <TableBody className={className} {...props} />
     ),
     tr: ({ className = "", ...props }: ComponentPropsWithoutRef<"tr">) => (
-      <tr className={`transition-colors hover:bg-muted/30 even:bg-muted/15 ${className}`} {...props} />
+      <TableRow className={className} {...props} />
     ),
     th: ({ className = "", ...props }: ComponentPropsWithoutRef<"th">) => (
-      <th className={`px-4 py-3 font-semibold text-foreground border-r border-border/50 last:border-r-0 ${className}`} {...props} />
+      <TableHead className={className} {...props} />
     ),
     td: ({ className = "", ...props }: ComponentPropsWithoutRef<"td">) => (
-      <td className={`px-4 py-3 text-muted-foreground border-r border-border/50 last:border-r-0 align-top ${className}`} {...props} />
+      <TableCell className={className} {...props} />
     ),
+    CodeTabs,
+    SdkExampleTabs,
+    DockerSdkTabs,
+    AutoDownloadButton,
+    PlatformDetectorCard,
     ...components,
   };
 }

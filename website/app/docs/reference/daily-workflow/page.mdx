@@ -1,0 +1,115 @@
+# Daily Development Workflow
+
+These core commands form the everyday cycle of tracking, inspecting, and snapshotting changes in MiniGit.
+
+---
+
+## 1. Initialize a Repository (`minigit init`)
+
+Initializes a new MiniGit repository in the current working directory, setting up the internal `.minigit` object database, references, and stage.
+
+```bash
+minigit init
+```
+
+*Output:*
+```text
+Initialized empty mini_git repository in C:/dev/my-project/.minigit/
+```
+
+---
+
+## 2. Check Repository Status (`minigit status`)
+
+Compares your active working directory, the staging index, and the HEAD commit to report:
+- Staged changes ready to be committed
+- Unstaged modifications and deletions
+- Untracked files (ignoring rules from `.minigitignore`)
+
+```bash
+minigit status
+```
+
+---
+
+## 3. Stage Changes (`minigit add`)
+
+Adds file contents to the staging area and prepares them for snapshotting:
+
+```bash
+# Stage all new, modified, and deleted files
+minigit add .
+
+# Stage specific files
+minigit add src/main.cpp include/header.h
+
+# Stage an entire subdirectory recursively
+minigit add src/
+```
+
+---
+
+## 4. Record Snapshots (`minigit commit`)
+
+Serializes the index into a new permanent commit object:
+
+```bash
+# Standard commit
+minigit commit -m "Implement core parsing engine"
+
+# Commit with explicit author metadata
+minigit commit -m "Add unit tests" --author "Jane Doe <jane@example.com>"
+```
+
+---
+
+## 5. View History (`minigit log`)
+
+Walks backward through commit history from `HEAD`:
+
+```bash
+minigit log
+```
+
+---
+
+## 6. Inspect Differences (`minigit diff`)
+
+Computes unified diffs across working trees and snapshots:
+
+```bash
+# Unstaged modifications
+minigit diff
+
+# Staged changes prepared for commit
+minigit diff --cached
+```
+
+---
+
+## 7. Inspect Objects (`minigit show`)
+
+Examines commits, tags, trees, or blobs:
+
+```bash
+# Show HEAD commit details and patch
+minigit show
+
+# Show specific commit or tag
+minigit show 7e9a12c
+minigit show v1.0.0
+```
+
+---
+
+## 8. Clean Untracked Files (`minigit clean`)
+
+Removes untracked files safely from the workspace:
+
+```bash
+# Preview what would be deleted (dry run)
+minigit clean -n
+
+# Force deletion of untracked files and directories
+minigit clean -fd
+```

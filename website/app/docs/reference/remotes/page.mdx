@@ -1,0 +1,70 @@
+# Remotes, Network & Ignore Rules
+
+Synchronize repositories with remote servers and manage ignored files.
+
+---
+
+## 1. Clone a Repository (`minigit clone`)
+
+Downloads a complete repository and checks out the default branch:
+
+```bash
+minigit clone https://github.com/example/project.git
+```
+
+---
+
+## 2. Remote Management (`minigit remote`)
+
+Inspect and configure upstream remote repository URLs:
+
+```bash
+# List configured remotes
+minigit remote -v
+
+# Add a new remote
+minigit remote add origin https://github.com/example/repo.git
+
+# Remove a remote
+minigit remote remove origin
+```
+
+---
+
+## 3. Synchronize Changes (`minigit fetch`, `push`, `pull`)
+
+Transmit and receive commits:
+
+```bash
+# Fetch latest references from remote without merging
+minigit fetch origin
+
+# Fetch and merge into the current branch in one step
+minigit pull origin main
+
+# Publish local branch commits to the remote
+minigit push origin main
+```
+
+---
+
+## 4. Ignoring Files (`.minigitignore`)
+
+Create a `.minigitignore` file in your repository root to ignore build artifacts, logs, and sensitive data:
+
+```text
+# Ignore build artifacts
+build/
+bin/
+*.exe
+*.o
+
+# Ignore environment files
+.env
+*.local
+
+# Ignore logs
+*.log
+```
+
+Patterns match standard wildcards (`*`, `?`, `[a-z]`) and directory slashes (`/`).

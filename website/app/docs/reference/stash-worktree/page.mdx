@@ -1,0 +1,71 @@
+# Stash, Worktrees & Bisect
+
+Shelve incomplete work, manage multiple parallel working checkouts, or isolate regression bugs.
+
+---
+
+## 1. Shelving Work with Stash (`minigit stash`)
+
+Saves your dirty working directory and index modifications to a stack, restoring a clean `HEAD`:
+
+```bash
+# Save uncommitted changes
+minigit stash
+
+# List stashes in the stack
+minigit stash list
+
+# Inspect what changed in a stash
+minigit stash show stash@{0}
+
+# Restore the most recent stash and remove it from stack
+minigit stash pop
+
+# Discard a stash entry
+minigit stash drop stash@{0}
+```
+
+---
+
+## 2. Parallel Worktrees (`minigit worktree`)
+
+Check out multiple branches at once in separate directories without cloning a second repository:
+
+```bash
+# Add a new linked working tree
+minigit worktree add ../hotfix-checkout hotfix/urgent
+
+# List all active working trees
+minigit worktree list
+
+# Remove a working tree
+minigit worktree remove ../hotfix-checkout
+
+# Prune stale tree references
+minigit worktree prune
+```
+
+---
+
+## 3. Binary Search Debugging (`minigit bisect`)
+
+Find the exact commit that introduced a bug using binary search:
+
+```bash
+# 1. Start bisecting
+minigit bisect start
+
+# 2. Mark current broken state
+minigit bisect bad
+
+# 3. Mark last known good commit
+minigit bisect good v1.0.0
+
+# 4. MiniGit checks out intermediate commits for testing; mark them:
+minigit bisect good
+# or
+minigit bisect bad
+
+# 5. Finish and return to starting branch
+minigit bisect reset
+```

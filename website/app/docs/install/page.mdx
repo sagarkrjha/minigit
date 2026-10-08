@@ -6,15 +6,19 @@ MiniGit provides pre-compiled standalone executables for Windows, Linux, and mac
 
 ## Direct Downloads
 
-Select the native pre-compiled binary for your operating system:
+<div className="p-5 my-6 rounded-xl border border-border bg-card shadow-xs">
+  <PlatformDetectorCard />
+</div>
+
+All native pre-compiled binaries:
 
 | Platform / Operating System | Architecture | Binary File | Direct Download |
 | :--- | :--- | :--- | :--- |
-| **Windows** | x86_64 (64-bit) | `minigit.exe` | [Download Windows Binary](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe) |
-| **Linux** | x86_64 (glibc 2.31+) | `minigit-linux` | [Download Linux Binary](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux) |
-| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download macOS Binary](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos) |
-| **Docs Website Bundle** | Standalone Tarball | `minigit-docs-website.tar.gz` | [Download Website Bundle](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-docs-website.tar.gz) |
-| **Checksums** | SHA-256 Hashes | `SHA256SUMS.txt` | [Download SHA256SUMS.txt](https://github.com/sagarkrjha/minigit/releases/latest/download/SHA256SUMS.txt) |
+| **Windows** | x86_64 (64-bit) | `minigit.exe` | [Download Windows Binary](/assets/minigit.exe) |
+| **Linux** | x86_64 (glibc 2.31+) | `minigit-linux` | [Download Linux Binary](/assets/minigit-linux) |
+| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download macOS Binary](/assets/minigit-macos) |
+| **Docs Website Bundle** | Standalone Tarball | `minigit-docs-website.tar.gz` | [Download Website Bundle](/assets/minigit-docs-website.tar.gz) |
+| **Checksums** | SHA-256 Hashes | `SHA256SUMS.txt` | [Download SHA256SUMS.txt](/assets/SHA256SUMS.txt) |
 
 ---
 
@@ -23,7 +27,7 @@ Select the native pre-compiled binary for your operating system:
 MiniGit binaries contain a built-in porcelain installer to manage your system PATH and shell configuration automatically.
 
 ### Windows
-1. Download [`minigit.exe`](https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe).
+1. Download [`minigit.exe`](/assets/minigit.exe).
 2. Open PowerShell and run the user installer:
 ```powershell
 .\minigit.exe install --user
@@ -36,7 +40,7 @@ minigit --version
 ### Linux
 1. Download the standalone Linux executable:
 ```bash
-curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux
+curl -LO /assets/minigit-linux
 chmod +x minigit-linux
 ```
 2. Install for the current user:
@@ -48,7 +52,7 @@ minigit --version
 ### macOS
 1. Download the macOS Apple Silicon binary:
 ```bash
-curl -LO https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos
+curl -LO /assets/minigit-macos
 chmod +x minigit-macos
 ```
 2. Install for the current user:

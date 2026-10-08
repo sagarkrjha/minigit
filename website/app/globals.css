@@ -86,38 +86,38 @@
 }
 
 .dark {
-  /* True AMOLED Pure Black (#000000) & Crimson Red (#ef4444 / #e11d48) */
-  --background: #000000;
-  --foreground: #f4f4f5;
-  --card: #0a0a0c;
-  --card-foreground: #fafafa;
-  --popover: #0a0a0c;
-  --popover-foreground: #fafafa;
-  --primary: #e11d48; /* Crimson / Rose Red */
+  /* Ultra-Modern Dark Developer Documentation Theme */
+  --background: #08080a; /* Deep obsidian */
+  --foreground: #f4f4f7;
+  --card: #0d0d12;
+  --card-foreground: #f4f4f7;
+  --popover: #0d0d12;
+  --popover-foreground: #f4f4f7;
+  --primary: #f43f5e; /* Rose 500 */
   --primary-foreground: #ffffff;
-  --secondary: #121216;
-  --secondary-foreground: #f4f4f5;
-  --muted: #141418;
-  --muted-foreground: #a1a1aa;
-  --accent: #250910; /* Dark Crimson Tint */
+  --secondary: #14141c;
+  --secondary-foreground: #f4f4f7;
+  --muted: #161620;
+  --muted-foreground: #9494a8;
+  --accent: #270e17; /* Deep ruby glow */
   --accent-foreground: #fb7185;
   --destructive: #f43f5e;
-  --border: #222228;
-  --input: #222228;
-  --ring: #e11d48;
-  --chart-1: #e11d48;
-  --chart-2: #f43f5e;
-  --chart-3: #fb7185;
-  --chart-4: #fda4af;
-  --chart-5: #ffe4e6;
-  --sidebar: #050507;
-  --sidebar-foreground: #f4f4f5;
-  --sidebar-primary: #e11d48;
+  --border: #1c1c28; /* Modern subtle border */
+  --input: #1c1c28;
+  --ring: #f43f5e;
+  --chart-1: #f43f5e;
+  --chart-2: #fb7185;
+  --chart-3: #fda4af;
+  --chart-4: #e11d48;
+  --chart-5: #be123c;
+  --sidebar: #0a0a0e;
+  --sidebar-foreground: #f4f4f7;
+  --sidebar-primary: #f43f5e;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #121216;
+  --sidebar-accent: #14141c;
   --sidebar-accent-foreground: #fb7185;
-  --sidebar-border: #1f1f26;
-  --sidebar-ring: #e11d48;
+  --sidebar-border: #1a1a24;
+  --sidebar-ring: #f43f5e;
 }
 
 @layer base {
@@ -125,9 +125,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground selection:bg-primary/25 selection:text-white;
   }
   html {
     @apply font-sans;
   }
 }
+

@@ -79,14 +79,19 @@ jobs:
         with:
           version: 12.6.0
 
-      - name: Build documentation website
+      - name: Build documentation website with bundled release assets
         run: |
+          mkdir -p website/public/assets
+          cp release_assets/minigit.exe website/public/assets/
+          cp release_assets/minigit-linux website/public/assets/
+          cp release_assets/minigit-macos website/public/assets/
           cd website
           pnpm install --frozen-lockfile
           pnpm build
           tar -czf ../release_assets/minigit-docs-website.tar.gz -C .next/standalone . 2>/dev/null || tar -czf ../release_assets/minigit-docs-website.tar.gz .
           cd ..
           ls -lh release_assets/minigit-docs-website.tar.gz
+          ls -lh website/public/assets/
 
       - name: Determine release tag and title
         id: meta

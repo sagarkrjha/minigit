@@ -1,7 +1,6 @@
 "use client";
 
-import { Moon02Icon, Sun02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FaMoon, FaSun } from "react-icons/fa6";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
@@ -19,7 +18,7 @@ function ThemeToggleButton() {
     return (
       <button
         type="button"
-        className="h-8 w-8 rounded-full border-2 border-foreground/20 bg-background"
+        className="h-8 w-8 rounded-full border border-border bg-background"
         aria-label="Toggle theme"
       />
     );
@@ -35,16 +34,15 @@ function ThemeToggleButton() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-foreground/20 bg-background text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted/60 text-foreground transition-colors hover:bg-muted hover:text-primary"
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <HugeiconsIcon
-        icon={isDark ? Sun02Icon : Moon02Icon}
-        size={20}
-        strokeWidth={2}
-        className="text-yellow-500"
-      />
+      {isDark ? (
+        <FaSun className="h-4 w-4 text-amber-400 transition-transform duration-200 hover:rotate-45" />
+      ) : (
+        <FaMoon className="h-4 w-4 text-zinc-700 transition-transform duration-200 hover:-rotate-12" />
+      )}
     </button>
   );
 }

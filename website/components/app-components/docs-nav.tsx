@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggleButton } from "@/components/app-components";
 import { Button } from "@/components/ui";
+import { FaGithub } from "react-icons/fa6";
+import { FiDownload, FiExternalLink } from "react-icons/fi";
 
 export function DocsNavbar() {
   const pathname = usePathname();
@@ -24,42 +26,42 @@ export function DocsNavbar() {
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <Link
-              href="/docs"
-              className={pathname === "/docs" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/learn"
+              className={pathname === "/docs/learn" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Documentation
+              Learn
             </Link>
             <Link
-              href="/docs/cli-usage"
-              className={pathname === "/docs/cli-usage" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/install"
+              className={pathname === "/docs/install" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Reference Manual
+              Install
             </Link>
             <Link
-              href="/docs/installation"
-              className={pathname === "/docs/installation" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/reference"
+              className={pathname === "/docs/reference" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Downloads
+              Reference
             </Link>
             <Link
-              href="/docs/sdk-and-docker"
-              className={pathname === "/docs/sdk-and-docker" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/about"
+              className={pathname === "/docs/about" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              SDK & Docker
+              About
             </Link>
             <Link
-              href="/docs/license"
-              className={pathname === "/docs/license" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/community"
+              className={pathname === "/docs/community" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              MIT License
+              Community
             </Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
           <Button variant="default" size="sm" asChild className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
-            <Link href="/docs/installation">
-              Download v1.11.3
+            <Link href="/docs/install">
+              <FiDownload className="mr-1.5 h-3.5 w-3.5" /> Download
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className="hidden sm:inline-flex text-xs">
@@ -67,8 +69,10 @@ export function DocsNavbar() {
               href="https://github.com/sagarkrjha/minigit"
               target="_blank"
               rel="noreferrer"
+              className="flex items-center gap-1.5"
             >
-              GitHub ↗
+              <FaGithub className="h-3.5 w-3.5" />
+              <span>GitHub</span>
             </a>
           </Button>
           <ThemeToggleButton />
@@ -86,60 +90,66 @@ export function DocsSidebar() {
       <div className="space-y-6">
         <div>
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2 px-3">
-            Reference & Guides
+            Documentation
           </h4>
           <div className="space-y-1">
             <SidebarLink href="/docs" current={pathname}>
-              Overview & Topics
+              Overview
             </SidebarLink>
-            <SidebarLink href="/docs/cli-usage" current={pathname}>
-              CLI Reference Manual
+            <SidebarLink href="/docs/learn" current={pathname}>
+              Learn (Concepts & Tutorial)
             </SidebarLink>
-            <SidebarLink href="/docs/installation" current={pathname}>
-              Downloads & Install
+            <SidebarLink href="/docs/install" current={pathname}>
+              Install (Binaries & Docker)
+            </SidebarLink>
+            <SidebarLink href="/docs/about" current={pathname}>
+              About & License
+            </SidebarLink>
+            <SidebarLink href="/docs/community" current={pathname}>
+              Community & Contributing
             </SidebarLink>
           </div>
         </div>
 
         <div>
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2 px-3">
-            Core CLI Topics
+            Reference
           </h4>
           <div className="space-y-1">
-            <SidebarAnchor href="/docs/cli-usage#2-daily-development-workflow">
-              Workflows (init, add, commit)
-            </SidebarAnchor>
-            <SidebarAnchor href="/docs/cli-usage#3-branching--switching">
-              Branching & Switching
-            </SidebarAnchor>
-            <SidebarAnchor href="/docs/cli-usage#5-merging--conflict-resolution-minigit-merge">
-              Merging & Conflicts
-            </SidebarAnchor>
-            <SidebarAnchor href="/docs/cli-usage#6-undoing--history-rewriting">
-              Rebase, Reset & Revert
-            </SidebarAnchor>
-            <SidebarAnchor href="/docs/cli-usage#7-shelving-work-with-stash-minigit-stash">
-              Stash & Shelving
-            </SidebarAnchor>
-            <SidebarAnchor href="/docs/cli-usage#11-remote-repositories--synchronization">
+            <SidebarLink href="/docs/reference" current={pathname}>
+              Index
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/daily-workflow" current={pathname}>
+              Daily Workflow
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/branching" current={pathname}>
+              Branching & Tags
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/merging-rebase" current={pathname}>
+              Merge & Rebase
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/stash-worktree" current={pathname}>
+              Stash & Worktree
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/remotes" current={pathname}>
               Remotes & Network
-            </SidebarAnchor>
+            </SidebarLink>
+            <SidebarLink href="/docs/reference/plumbing" current={pathname}>
+              Plumbing Commands
+            </SidebarLink>
           </div>
         </div>
 
         <div>
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2 px-3">
-            Ecosystem & Cloud
+            Ecosystem
           </h4>
           <div className="space-y-1">
             <SidebarLink href="/docs/sdk-and-docker" current={pathname}>
-              Polyglot SDK & Docker
-            </SidebarLink>
-            <SidebarLink href="/docs/license" current={pathname}>
-              MIT License
+              Polyglot SDK & Containers
             </SidebarLink>
             <SidebarLink href="https://github.com/sagarkrjha/minigit/releases" current={pathname}>
-              Release Assets & Hashes ↗
+              Releases & Checksums ↗
             </SidebarLink>
           </div>
         </div>

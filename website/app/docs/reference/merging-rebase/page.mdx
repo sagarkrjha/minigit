@@ -1,0 +1,82 @@
+# Merging, Rebasing & Undoing
+
+Combine branches, resolve conflicting edits, replay commits, or roll back history.
+
+---
+
+## 1. Branch Merging (`minigit merge`)
+
+Merges another branch into your current checked-out branch:
+
+```bash
+minigit merge feature/payments
+```
+
+- **Fast-Forward:** If your current branch is a direct ancestor of the target, MiniGit moves the pointer directly.
+- **Three-Way Merge:** If history diverged, MiniGit computes the Lowest Common Ancestor (LCA) and creates an automated merge commit.
+
+### Resolving Merge Conflicts
+When conflicting lines collide:
+```text
+CONFLICT (content): Merge conflict in src/payment.cpp
+Automatic merge failed; fix conflicts and then commit the result.
+```
+1. Edit the conflicted files and remove markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+2. Stage the resolution: `minigit add src/payment.cpp`.
+3. Commit the merge: `minigit commit -m "Merge feature/payments with conflict resolution"`.
+
+---
+
+## 2. Replay Linear History (`minigit rebase`)
+
+Replays commits from the current branch onto an upstream branch:
+
+```bash
+# Rebase current branch on top of main
+minigit rebase main
+
+# After resolving conflicts during rebase
+minigit add <resolved-files>
+minigit rebase --continue
+
+# Skip current commit or abort entirely
+minigit rebase --skip
+minigit rebase --abort
+```
+
+---
+
+## 3. Cherry-Pick Commits (`minigit cherry-pick`)
+
+Applies the changes from an existing commit directly onto the current branch:
+
+```bash
+minigit cherry-pick 7b1c402
+```
+
+---
+
+## 4. Invert Changes with Revert (`minigit revert`)
+
+Applies an inverse diff of a commit and records a new reversal commit (safe for public branches):
+
+```bash
+minigit revert 7e9a12c
+```
+
+---
+
+## 5. Reset History (`minigit reset`)
+
+Moves `HEAD` back to an earlier commit with varying levels of intensity:
+
+```bash
+# Soft: Moves HEAD pointer only (staged & working tree untouched)
+minigit reset --soft <commit-sha>
+
+# Mixed (default): Moves HEAD and unstages changes (working files untouched)
+minigit reset <commit-sha>
+
+# Hard: Moves HEAD, clears index, AND discards all uncommitted working files
+minigit reset --hard <commit-sha>
+```

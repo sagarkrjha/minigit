@@ -1,0 +1,76 @@
+# Getting Started & Core Concepts
+
+Welcome to **MiniGit** — a high-performance, Git-compatible distributed version control system designed for developers who value speed, simplicity, and zero-dependency reliability.
+
+---
+
+## 1. What is MiniGit?
+
+MiniGit implements the foundational Git object model and porcelain command-line interface. It operates natively against standard Git-compatible storage and allows developers to manage snapshots, branch topologies, and collaboration workflows without third-party bloat.
+
+### Key Pillars
+- **Zero Configuration:** Ready out of the box with built-in porcelain commands.
+- **Git Compatibility:** Compatible with standard Git commit structures, trees, tags, and blobs.
+- **Polyglot Ecosystem:** Native SDK libraries for C++, C, Python, JavaScript/TypeScript, Go, Java, and Rust.
+- **Isolated Deployment:** Official standalone native executables and multi-stage Docker containers.
+
+---
+
+## 2. The Core Snapshotting Model
+
+MiniGit organizes history through immutable directed acyclic graph (DAG) snapshots:
+
+| Component | Responsibility | Command Association |
+| :--- | :--- | :--- |
+| **Working Directory** | Your active files on disk | Edited directly in your editor |
+| **Staging Area (Index)** | Curated preparation zone for the next commit snapshot | `minigit add <file>` |
+| **Commit History (HEAD)** | Cryptographically verified permanent snapshot records | `minigit commit -m "..."` |
+| **Branch Pointers** | Movable references to specific commits | `minigit branch`, `minigit switch` |
+
+---
+
+## 3. Five-Minute Quickstart
+
+### Step 1: Initialize a Repository
+Create a new version-controlled directory:
+```bash
+mkdir my-project
+cd my-project
+minigit init
+```
+
+### Step 2: Track and Snapshot Files
+Create your initial code file and record your first commit:
+```bash
+echo "# Hello MiniGit" > README.md
+minigit status
+minigit add README.md
+minigit commit -m "Initial repository commit"
+```
+
+### Step 3: Inspect Your History
+Verify the record of your commit:
+```bash
+minigit log
+minigit show
+```
+
+### Step 4: Branching and Isolation
+Safely isolate experimental features:
+```bash
+minigit switch -c feature/auth
+echo "class Auth {}" > auth.py
+minigit add auth.py
+minigit commit -m "Add authentication module"
+minigit switch main
+minigit merge feature/auth
+```
+
+---
+
+## 4. Next Learning Steps
+
+- **[Installation Guide](/docs/install)** — Download native standalone binaries or use the official container.
+- **[Command Reference Manual](/docs/reference)** — Browse the full dictionary of everyday and advanced commands.
+- **[About MiniGit](/docs/about)** — Discover license standards and project vision.
+- **[Community & Support](/docs/community)** — Get involved, report issues, and contribute.

@@ -1,0 +1,72 @@
+# Low-Level Plumbing Commands
+
+These internal commands operate directly on repository blobs, trees, objects, and packfile storage.
+
+---
+
+## 1. Compute Object Hashes (`minigit hash-object`)
+
+Computes the cryptographic SHA-256 object hash of a file:
+
+```bash
+# Calculate hash only
+minigit hash-object file.txt
+
+# Calculate hash AND write blob into .minigit/objects/ (-w)
+minigit hash-object -w file.txt
+```
+
+---
+
+## 2. Inspect Stored Objects (`minigit cat-file`)
+
+Examines low-level objects in the database:
+
+```bash
+# Print object type (-t)
+minigit cat-file -t <sha>
+
+# Print object size in bytes (-s)
+minigit cat-file -s <sha>
+
+# Pretty-print raw object contents (-p)
+minigit cat-file -p <sha>
+```
+
+---
+
+## 3. List Staged Files (`minigit ls-files`)
+
+Lists all files tracked in the index:
+
+```bash
+# Show staged paths
+minigit ls-files
+
+# Include staged details with file modes and hashes (-s)
+minigit ls-files -s
+```
+
+---
+
+## 4. Inspect Tree Objects (`minigit ls-tree`)
+
+Lists entries within a tree snapshot object:
+
+```bash
+minigit ls-tree <tree-sha>
+```
+
+---
+
+## 5. Packfile Maintenance (`minigit repack` & `verify-pack`)
+
+Compacts objects into compressed packfiles for storage efficiency:
+
+```bash
+# Pack unbundled loose objects
+minigit repack -d
+
+# Verify checksum and integrity of packfile
+minigit verify-pack .minigit/objects/pack/*.pack
+```

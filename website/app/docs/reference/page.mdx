@@ -1,0 +1,37 @@
+# CLI Command Reference Directory
+
+Welcome to the **MiniGit CLI Reference Manual**. Commands are organized by functional categories below for quick lookup.
+
+---
+
+## Command Categories
+
+| Category | Description | Direct Guide |
+| :--- | :--- | :--- |
+| **[Daily Workflow](/docs/reference/daily-workflow)** | Essential everyday commands: `init`, `status`, `add`, `commit`, `log`, `diff`, `show`, `clean` | [View Workflow →](/docs/reference/daily-workflow) |
+| **[Branching & Milestones](/docs/reference/branching)** | Isolated lines of development: `branch`, `switch`, `checkout`, `tag` | [View Branching →](/docs/reference/branching) |
+| **[Merging & Rebasing](/docs/reference/merging-rebase)** | History unification & conflict resolution: `merge`, `rebase`, `cherry-pick`, `revert`, `reset` | [View Merging →](/docs/reference/merging-rebase) |
+| **[Stash, Worktrees & Bisect](/docs/reference/stash-worktree)** | Context switching and debugging: `stash`, `worktree`, `bisect` | [View Advanced →](/docs/reference/stash-worktree) |
+| **[Remotes & Network](/docs/reference/remotes)** | Network synchronization and patterns: `clone`, `remote`, `fetch`, `push`, `pull`, `.minigitignore` | [View Remotes →](/docs/reference/remotes) |
+| **[Plumbing & Storage](/docs/reference/plumbing)** | Low-level storage internals: `hash-object`, `cat-file`, `ls-files`, `ls-tree`, `repack`, `verify-pack` | [View Plumbing →](/docs/reference/plumbing) |
+
+---
+
+## Quick Command Syntax Table
+
+| Command | Syntax | Primary Purpose |
+| :--- | :--- | :--- |
+| `init` | `minigit init` | Initialize new repository in working directory |
+| `status` | `minigit status` | Display staged, unstaged, and untracked file status |
+| `add` | `minigit add <paths...>` | Stage files or directories for the next commit |
+| `commit` | `minigit commit -m "<msg>"` | Record permanent snapshot of staged changes |
+| `log` | `minigit log` | View backward commit history from current HEAD |
+| `diff` | `minigit diff [--cached]` | Compare working directory vs. index vs. HEAD commit |
+| `branch` | `minigit branch [<name>]` | List, create, or delete branches |
+| `switch` | `minigit switch [-c] <name>` | Switch branches or create and switch simultaneously |
+| `merge` | `minigit merge <branch>` | Fast-forward or 3-way merge target branch into HEAD |
+| `rebase` | `minigit rebase <upstream>` | Replay branch commits linearly on top of upstream |
+| `stash` | `minigit stash [push\|pop\|list]` | Shelve uncommitted modifications temporarily |
+| `clone` | `minigit clone <url>` | Clone remote repository into new directory |
+| `push` | `minigit push <remote> <ref>` | Publish local commits to remote server |
+| `pull` | `minigit pull <remote> <ref>` | Fetch and merge remote commits into current branch |
