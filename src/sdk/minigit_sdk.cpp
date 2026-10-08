@@ -16,6 +16,7 @@
 #include <sstream>
 #include <cstring>
 #include <cstdlib>
+#include <set>
 
 namespace fs = std::filesystem;
 
@@ -134,7 +135,7 @@ bool MiniGitClient::add(const std::vector<std::string>& filepaths) {
         fs::path full_path = impl_->repo_.root() / rel_path;
         if (!fs::exists(full_path)) {
             // Check if deleted
-            if (index.has_entry(rel_path)) {
+            if (index.entries().find(rel_path) != index.entries().end()) {
                 index.remove(rel_path);
             }
             continue;
