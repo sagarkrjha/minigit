@@ -33,7 +33,7 @@ export function DocsNavbar() {
               href="/docs/installation"
               className={pathname === "/docs/installation" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Installation
+              Downloads
             </Link>
             <Link
               href="/docs/cli-usage"
@@ -48,15 +48,20 @@ export function DocsNavbar() {
               SDK & Docker
             </Link>
             <Link
-              href="/docs/features"
-              className={pathname === "/docs/features" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/license"
+              className={pathname === "/docs/license" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Features
+              MIT License
             </Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="default" size="sm" asChild className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90">
+            <Link href="/docs/installation">
+              Download v1.11.3
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" asChild className="hidden sm:inline-flex">
             <a
               href="https://github.com/sagarkrjha/minigit"
@@ -88,10 +93,10 @@ export function DocsSidebar() {
               Overview
             </SidebarLink>
             <SidebarLink href="/docs/installation" current={pathname}>
-              Installation & Binaries
+              Downloads & Setup
             </SidebarLink>
             <SidebarLink href="/docs/cli-usage" current={pathname}>
-              CLI Usage Guide
+              CLI User Guide
             </SidebarLink>
           </div>
         </div>
@@ -104,22 +109,22 @@ export function DocsSidebar() {
             <SidebarLink href="/docs/sdk-and-docker" current={pathname}>
               Polyglot SDK & Docker
             </SidebarLink>
-            <SidebarLink href="/docs/features" current={pathname}>
-              Feature Specifications
-            </SidebarLink>
           </div>
         </div>
 
         <div>
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3 px-3">
-            System & Performance
+            Open Source
           </h4>
           <div className="space-y-1">
-            <SidebarLink href="/docs/benchmarks" current={pathname}>
-              Empirical Benchmarks
+            <SidebarLink href="/docs/license" current={pathname}>
+              MIT License
             </SidebarLink>
-            <SidebarLink href="/docs/security" current={pathname}>
-              Security & Path Safety
+            <SidebarLink href="https://github.com/sagarkrjha/minigit/issues" current={pathname}>
+              Issue Tracker ↗
+            </SidebarLink>
+            <SidebarLink href="https://github.com/sagarkrjha/minigit/releases" current={pathname}>
+              Releases & Checksums ↗
             </SidebarLink>
           </div>
         </div>
@@ -137,7 +142,22 @@ function SidebarLink({
   current: string;
   children: React.ReactNode;
 }) {
+  const isExternal = href.startsWith("http");
   const isActive = current === href;
+
+  if (isExternal) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="block px-3 py-1.5 text-sm rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+      >
+        {children}
+      </a>
+    );
+  }
+
   return (
     <Link
       href={href}

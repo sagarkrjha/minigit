@@ -12,46 +12,40 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            MiniGit v1.11.3 • C++20 Core • Polyglot SDK • Docker Distribution
+            MiniGit v1.11.3 • Open Source • MIT License • Multi-Platform
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground max-w-3xl mx-auto leading-tight">
-            Distributed Version Control Re-Engineered from Scratch
+            Fast, Lightweight Git-Compatible Version Control
           </h1>
 
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            A clean-room, Git-compatible version control system built in modern <strong>C++20</strong>. Complete with content-addressable storage, Eugene Myers' $O(ND)$ diffing, Smart HTTP v1 transfer protocol, polyglot SDKs, and native zero-dependency distribution.
+            A standalone, zero-dependency version control tool and cross-language SDK built under the open source MIT License. Compatible with standard Git workflows and remotes.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-            <Button size="lg" asChild>
-              <Link href="/docs">Get Started →</Link>
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Link href="/docs/installation">Download Free v1.11.3</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/docs/sdk-and-docker">Explore Polyglot SDK</Link>
+              <Link href="/docs/cli-usage">CLI Documentation</Link>
             </Button>
             <Button size="lg" variant="ghost" asChild>
-              <a
-                href="https://github.com/sagarkrjha/minigit"
-                target="_blank"
-                rel="noreferrer"
-              >
-                View on GitHub
-              </a>
+              <Link href="/docs/sdk-and-docker">Polyglot SDK</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Key Feature Cards */}
+      {/* Feature Highlights */}
       <section className="py-16 md:py-24 bg-muted/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Core Architecture & Highlights
+              Built for Modern Developer Workflows
             </h2>
             <p className="text-sm text-muted-foreground mt-2">
-              Explore the engineering pillars behind MiniGit's speed, simplicity, and cryptographic safety.
+              Everything you need for version control, branch management, and programmatic automation.
             </p>
           </div>
 
@@ -59,16 +53,16 @@ export default function HomePage() {
             <Card>
               <CardHeader>
                 <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  CAS
+                  CLI
                 </div>
-                <CardTitle>Content-Addressable Storage</CardTitle>
+                <CardTitle>Standard Git Workflows</CardTitle>
                 <CardDescription>
-                  Immutable blobs, trees, commits, and tags addressed by OpenSSL SHA-256 with Packfile v2 delta compression.
+                  Full daily workflow support: initialize repositories, stage changes, record commits, inspect logs, and manage branches.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/features" className="text-primary font-medium hover:underline">
-                  Learn about CAS & Storage Internals →
+                <Link href="/docs/cli-usage" className="text-primary font-medium hover:underline">
+                  View CLI User Guide →
                 </Link>
               </CardContent>
             </Card>
@@ -78,14 +72,14 @@ export default function HomePage() {
                 <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
                   SDK
                 </div>
-                <CardTitle>Polyglot SDK Bindings</CardTitle>
+                <CardTitle>Cross-Language SDK</CardTitle>
                 <CardDescription>
-                  Embed MiniGit anywhere with native C++20, C FFI, Python, JavaScript / TypeScript, Go, Java, and Rust SDKs.
+                  Programmatic bindings for C++, C, Python, JavaScript / TypeScript, Go, Java, and Rust for seamless application embedding.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
                 <Link href="/docs/sdk-and-docker" className="text-primary font-medium hover:underline">
-                  Browse SDK APIs & Examples →
+                  Browse SDK Bindings & Examples →
                 </Link>
               </CardContent>
             </Card>
@@ -93,69 +87,62 @@ export default function HomePage() {
             <Card>
               <CardHeader>
                 <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  OCI
+                  MIT
                 </div>
-                <CardTitle>Docker Distribution</CardTitle>
+                <CardTitle>MIT Open Source</CardTitle>
                 <CardDescription>
-                  Multi-stage minimal container packaging CLI, SDK headers, static archive, and runtime dependencies.
+                  100% free and open-source software. Unrestricted use for personal, academic, and commercial environments without lock-in.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/sdk-and-docker" className="text-primary font-medium hover:underline">
-                  View Docker & Compose Setup →
+                <Link href="/docs/license" className="text-primary font-medium hover:underline">
+                  Read MIT License Details →
                 </Link>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
 
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  BENCH
-                </div>
-                <CardTitle>Empirical Benchmarks</CardTitle>
-                <CardDescription>
-                  High-throughput SHA-256 EVP digest rate, zlib compression ratios, and memory profiling.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/benchmarks" className="text-primary font-medium hover:underline">
-                  View Performance Benchmarks →
-                </Link>
-              </CardContent>
+      {/* Direct Download Box */}
+      <section className="py-16 border-t border-border bg-card">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 text-center space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Download MiniGit for Your Platform
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+            Standalone zero-dependency executables verified with cryptographic SHA-256 checksums.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
+              <span className="font-semibold text-sm">Windows</span>
+              <span className="text-xs text-muted-foreground font-mono">minigit.exe (x86_64)</span>
+              <Button size="sm" asChild className="w-full">
+                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe">
+                  Download .exe
+                </a>
+              </Button>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  NET
-                </div>
-                <CardTitle>Git Smart HTTP Transport</CardTitle>
-                <CardDescription>
-                  Synchronize with GitHub, GitLab, and custom git daemons via 4-hex-length pkt-line protocol over libcurl.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/features" className="text-primary font-medium hover:underline">
-                  Explore Network Remotes Spec →
-                </Link>
-              </CardContent>
+            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
+              <span className="font-semibold text-sm">Linux</span>
+              <span className="text-xs text-muted-foreground font-mono">minigit-linux (x86_64)</span>
+              <Button size="sm" asChild className="w-full">
+                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux">
+                  Download Linux
+                </a>
+              </Button>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  CLI
-                </div>
-                <CardTitle>Full Porcelain & Plumbing</CardTitle>
-                <CardDescription>
-                  Interactive branch switching, rebasing, stash shelving, worktrees, submodules, and DAG binary search bisection.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/cli-usage" className="text-primary font-medium hover:underline">
-                  Check CLI Command Reference →
-                </Link>
-              </CardContent>
+            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
+              <span className="font-semibold text-sm">macOS</span>
+              <span className="text-xs text-muted-foreground font-mono">minigit-macos (Apple Silicon)</span>
+              <Button size="sm" asChild className="w-full">
+                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos">
+                  Download macOS
+                </a>
+              </Button>
             </Card>
           </div>
         </div>
@@ -164,7 +151,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-border py-8 text-center text-xs text-muted-foreground">
         <p>
-          MiniGit is licensed under the MIT License. Created by Sagar Kumar Jha.
+          MiniGit is free software licensed under the <Link href="/docs/license" className="underline hover:text-foreground">MIT License</Link>.
         </p>
       </footer>
     </div>
