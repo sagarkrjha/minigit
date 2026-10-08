@@ -18,6 +18,7 @@ add_executable(minigit_tests
     test_smart_http.cpp
     test_update.cpp
     test_install.cpp
+    test_sdk.cpp
 )
 
 target_include_directories(minigit_tests
@@ -41,6 +42,7 @@ target_link_libraries(minigit_tests
         minigit_remotes
         minigit_install
         minigit_update
+        minigit_sdk
         CURL::libcurl
 )
 
