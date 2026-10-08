@@ -1,0 +1,9 @@
+[package]
+name = "minigit-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Official Rust SDK client for MiniGit version control system"
+license = "MIT"
+
+[dependencies]
+thiserror = "1.0"
