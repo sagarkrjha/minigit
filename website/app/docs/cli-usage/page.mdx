@@ -2,8 +2,6 @@
 
 This guide provides end-to-end usage instructions, practical workflow recipes, and a comprehensive command reference for **MiniGit** — a C++20 Git-compatible version control system.
 
-> 📖 For architectural and technical specifications, see [FEATURES.md](FEATURES.md). For project overview and build instructions, see [README.md](README.md).
-
 ---
 
 ## Table of Contents
@@ -11,7 +9,6 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
 - [1. Quick Start & Installation](#1-quick-start--installation)
   - [Download Pre-Built Binaries](#download-pre-built-binaries)
   - [Permission-Based Installation (`minigit install`)](#permission-based-installation-minigit-install)
-  - [Build from Source](#build-from-source)
 - [2. Daily Development Workflow](#2-daily-development-workflow)
   - [Initialize a Repository (`minigit init`)](#initialize-a-repository-minigit-init)
   - [Check Repository Status (`minigit status`)](#check-repository-status-minigit-status)
@@ -179,24 +176,6 @@ To cleanly remove MiniGit, delete its `cmd/` entry from `PATH`, and unregister W
 minigit install --uninstall
 ```
 *(You can also uninstall directly from Windows Settings > Installed Apps / Add or Remove Programs).*
-
----
-
-### Build from Source
-
-Prerequisites: CMake 3.20+, C++20 compiler (GCC 11+, Clang 13+, MSVC 2019+), OpenSSL, zlib, libcurl.
-
-```bash
-# Clone the repository
-git clone https://github.com/sagarkrjha/minigit.git
-cd minigit
-
-# Configure and compile (Release mode)
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-
-# Executable is built in ./build/minigit (or ./build/minigit.exe on Windows)
-```
 
 ---
 

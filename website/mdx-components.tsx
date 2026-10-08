@@ -84,24 +84,24 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
       />
     ),
     table: ({ className = "", ...props }: ComponentPropsWithoutRef<"table">) => (
-      <div className="my-6 w-full overflow-y-auto rounded-lg border border-border">
-        <table className={`w-full text-left text-sm border-collapse ${className}`} {...props} />
+      <div className="my-6 w-full overflow-x-auto rounded-lg border border-border shadow-xs">
+        <table className={`w-full border-collapse text-left text-sm ${className}`} {...props} />
       </div>
     ),
     thead: ({ className = "", ...props }: ComponentPropsWithoutRef<"thead">) => (
-      <thead className={`border-b border-border bg-muted/70 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${className}`} {...props} />
+      <thead className={`border-b border-border bg-muted/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${className}`} {...props} />
     ),
     tbody: ({ className = "", ...props }: ComponentPropsWithoutRef<"tbody">) => (
       <tbody className={`divide-y divide-border ${className}`} {...props} />
     ),
     tr: ({ className = "", ...props }: ComponentPropsWithoutRef<"tr">) => (
-      <tr className={`transition-colors hover:bg-muted/30 even:bg-muted/10 ${className}`} {...props} />
+      <tr className={`transition-colors hover:bg-muted/30 even:bg-muted/15 ${className}`} {...props} />
     ),
     th: ({ className = "", ...props }: ComponentPropsWithoutRef<"th">) => (
-      <th className={`px-4 py-3 font-semibold text-foreground border-r border-border last:border-r-0 ${className}`} {...props} />
+      <th className={`px-4 py-3 font-semibold text-foreground border-r border-border/50 last:border-r-0 ${className}`} {...props} />
     ),
     td: ({ className = "", ...props }: ComponentPropsWithoutRef<"td">) => (
-      <td className={`px-4 py-3 leading-relaxed text-muted-foreground border-r border-border last:border-r-0 ${className}`} {...props} />
+      <td className={`px-4 py-3 text-muted-foreground border-r border-border/50 last:border-r-0 align-top ${className}`} {...props} />
     ),
     ...components,
   };

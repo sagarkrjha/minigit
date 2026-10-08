@@ -4,156 +4,237 @@ import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } fro
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/30">
       <DocsNavbar />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32 border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            MiniGit v1.11.3 • Open Source • MIT License • Multi-Platform
-          </div>
+      {/* Main Git-SCM Style Hero Section */}
+      <section className="relative overflow-hidden border-b border-border py-12 md:py-20 bg-linear-to-b from-card/60 to-background">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Left Column: Title & Downloads (Git-scm style) */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-muted/60 text-xs font-mono text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Latest Release: v1.11.3 • MIT Open Source
+              </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground max-w-3xl mx-auto leading-tight">
-            Fast, Lightweight Git-Compatible Version Control
-          </h1>
+              <div className="space-y-3">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground">
+                  --local --fast
+                </h1>
+                <p className="text-lg sm:text-xl text-primary font-semibold">
+                  Fast, lightweight Git-compatible version control.
+                </p>
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
+                  MiniGit is a zero-dependency, open-source version control system and polyglot SDK built for modern developers. Everything you love about standard Git daily workflows, branching, merging, and automation.
+                </p>
+              </div>
 
-          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            A standalone, zero-dependency version control tool and cross-language SDK built under the open source MIT License. Compatible with standard Git workflows and remotes.
-          </p>
+              {/* Git-scm style Platform Download Callout */}
+              <div className="p-5 rounded-xl border border-border bg-card/80 backdrop-blur-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-base text-foreground">
+                      Download for Windows, Linux & macOS
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Standalone executables & container distribution. No source compilation required.
+                    </p>
+                  </div>
+                  <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0 shadow-sm">
+                    <Link href="/docs/installation">
+                      Download v1.11.3
+                    </Link>
+                  </Button>
+                </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Link href="/docs/installation">Download Free v1.11.3</Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link href="/docs/cli-usage">CLI Documentation</Link>
-            </Button>
-            <Button size="lg" variant="ghost" asChild>
-              <Link href="/docs/sdk-and-docker">Polyglot SDK</Link>
-            </Button>
+                <div className="pt-2 border-t border-border/60 flex flex-wrap gap-4 text-xs font-mono text-muted-foreground">
+                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe" className="hover:text-primary transition-colors">
+                    ↓ minigit.exe (Windows)
+                  </a>
+                  <span className="text-border">•</span>
+                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux" className="hover:text-primary transition-colors">
+                    ↓ minigit-linux (Linux x86_64)
+                  </a>
+                  <span className="text-border">•</span>
+                  <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos" className="hover:text-primary transition-colors">
+                    ↓ minigit-macos (Apple Silicon)
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Terminal Demonstration / Git Cheatsheet (Git-scm monitor style) */}
+            <div className="lg:col-span-5">
+              <div className="rounded-xl border border-border bg-[#050507] shadow-2xl overflow-hidden font-mono text-xs">
+                <div className="px-4 py-3 bg-[#0a0a0e] border-b border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
+                  </div>
+                  <span className="text-muted-foreground text-[11px]">minigit-terminal</span>
+                </div>
+                <div className="p-5 space-y-3 text-zinc-300 leading-relaxed overflow-x-auto">
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">minigit init</span>
+                    <div className="text-emerald-400">Initialized empty mini_git repository</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">minigit add .</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">minigit commit -m &quot;Initial release&quot;</span>
+                    <div className="text-zinc-400">[7e9a12c] Initial release</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">minigit branch feature/payments</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">minigit switch feature/payments</span>
+                    <div className="text-primary">Switched to branch &apos;feature/payments&apos;</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">$ </span>
+                    <span className="text-foreground font-semibold">docker run --rm -v $(pwd):/data minigit:latest status</span>
+                    <div className="text-zinc-400">On branch feature/payments (working tree clean)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Feature Highlights */}
-      <section className="py-16 md:py-24 bg-muted/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Built for Modern Developer Workflows
+      {/* Git-SCM 3-Card Resource Pillars */}
+      <section className="py-16 md:py-20 border-b border-border bg-card/20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Card 1: Reference Manual */}
+            <Card className="flex flex-col justify-between border-border bg-card/60">
+              <CardHeader className="space-y-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
+                  #_
+                </div>
+                <CardTitle className="text-xl">Reference Manual</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  Comprehensive command-by-command guide covering everyday workflows, branching, merging, conflict resolution, rebase, and bisect.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/docs/cli-usage">Browse CLI Commands →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Downloads & Containers */}
+            <Card className="flex flex-col justify-between border-border bg-card/60">
+              <CardHeader className="space-y-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
+                  📦
+                </div>
+                <CardTitle className="text-xl">Downloads & Containers</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  Native pre-compiled executables for Windows, Linux, and macOS, alongside verified multi-stage Docker container images.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/docs/installation">Download Center →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Polyglot SDK */}
+            <Card className="flex flex-col justify-between border-border bg-card/60">
+              <CardHeader className="space-y-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-lg font-mono">
+                  ⚡
+                </div>
+                <CardTitle className="text-xl">SDK & Cloud Sync</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  Embed version control programmatically across C++, C, Python, JavaScript / TypeScript, Go, Java, and Rust applications.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href="/docs/sdk-and-docker">SDK Documentation →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Official Git-scm Style Topic Grid */}
+      <section className="py-16 md:py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 space-y-10">
+          <div className="border-b border-border pb-4">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              Essential Command Topics
             </h2>
-            <p className="text-sm text-muted-foreground mt-2">
-              Everything you need for version control, branch management, and programmatic automation.
+            <p className="text-sm text-muted-foreground mt-1">
+              Quick access to core operations modeled after standard Git conventions.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  CLI
-                </div>
-                <CardTitle>Standard Git Workflows</CardTitle>
-                <CardDescription>
-                  Full daily workflow support: initialize repositories, stage changes, record commits, inspect logs, and manage branches.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/cli-usage" className="text-primary font-medium hover:underline">
-                  View CLI User Guide →
-                </Link>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Setup & Init</h4>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><Link href="/docs/installation" className="hover:text-primary">minigit install</Link></li>
+                <li><Link href="/docs/cli-usage#initialize-a-repository-minigit-init" className="hover:text-primary">minigit init</Link></li>
+                <li><Link href="/docs/cli-usage#clone-a-repository-minigit-clone" className="hover:text-primary">minigit clone</Link></li>
+                <li><Link href="/docs/cli-usage#12-ignoring-files-minigitignore" className="hover:text-primary">.minigitignore</Link></li>
+              </ul>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  SDK
-                </div>
-                <CardTitle>Cross-Language SDK</CardTitle>
-                <CardDescription>
-                  Programmatic bindings for C++, C, Python, JavaScript / TypeScript, Go, Java, and Rust for seamless application embedding.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/sdk-and-docker" className="text-primary font-medium hover:underline">
-                  Browse SDK Bindings & Examples →
-                </Link>
-              </CardContent>
-            </Card>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Basic Snapshotting</h4>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><Link href="/docs/cli-usage#check-repository-status-minigit-status" className="hover:text-primary">minigit status</Link></li>
+                <li><Link href="/docs/cli-usage#stage-changes-minigit-add" className="hover:text-primary">minigit add</Link></li>
+                <li><Link href="/docs/cli-usage#commit-staged-changes-minigit-commit" className="hover:text-primary">minigit commit</Link></li>
+                <li><Link href="/docs/cli-usage#inspect-differences-minigit-diff" className="hover:text-primary">minigit diff</Link></li>
+              </ul>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  MIT
-                </div>
-                <CardTitle>MIT Open Source</CardTitle>
-                <CardDescription>
-                  100% free and open-source software. Unrestricted use for personal, academic, and commercial environments without lock-in.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/license" className="text-primary font-medium hover:underline">
-                  Read MIT License Details →
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">Branch & Merge</h4>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><Link href="/docs/cli-usage#list-branches-minigit-branch" className="hover:text-primary">minigit branch</Link></li>
+                <li><Link href="/docs/cli-usage#switch-branches-minigit-switch" className="hover:text-primary">minigit switch</Link></li>
+                <li><Link href="/docs/cli-usage#5-merging--conflict-resolution-minigit-merge" className="hover:text-primary">minigit merge</Link></li>
+                <li><Link href="/docs/cli-usage#replay-linear-history-with-rebase-minigit-rebase" className="hover:text-primary">minigit rebase</Link></li>
+              </ul>
+            </div>
 
-      {/* Direct Download Box */}
-      <section className="py-16 border-t border-border bg-card">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 text-center space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Download MiniGit for Your Platform
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-            Standalone zero-dependency executables verified with cryptographic SHA-256 checksums.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
-              <span className="font-semibold text-sm">Windows</span>
-              <span className="text-xs text-muted-foreground font-mono">minigit.exe (x86_64)</span>
-              <Button size="sm" asChild className="w-full">
-                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit.exe">
-                  Download .exe
-                </a>
-              </Button>
-            </Card>
-
-            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
-              <span className="font-semibold text-sm">Linux</span>
-              <span className="text-xs text-muted-foreground font-mono">minigit-linux (x86_64)</span>
-              <Button size="sm" asChild className="w-full">
-                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-linux">
-                  Download Linux
-                </a>
-              </Button>
-            </Card>
-
-            <Card className="p-4 flex flex-col items-center justify-center text-center space-y-3">
-              <span className="font-semibold text-sm">macOS</span>
-              <span className="text-xs text-muted-foreground font-mono">minigit-macos (Apple Silicon)</span>
-              <Button size="sm" asChild className="w-full">
-                <a href="https://github.com/sagarkrjha/minigit/releases/latest/download/minigit-macos">
-                  Download macOS
-                </a>
-              </Button>
-            </Card>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground border-b border-border/60 pb-1">History & Inspect</h4>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li><Link href="/docs/cli-usage#view-commit-history-minigit-log" className="hover:text-primary">minigit log</Link></li>
+                <li><Link href="/docs/cli-usage#inspect-objects--commits-minigit-show" className="hover:text-primary">minigit show</Link></li>
+                <li><Link href="/docs/cli-usage#7-shelving-work-with-stash-minigit-stash" className="hover:text-primary">minigit stash</Link></li>
+                <li><Link href="/docs/cli-usage#undo-changes-with-reset-minigit-reset" className="hover:text-primary">minigit reset</Link></li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-border py-8 text-center text-xs text-muted-foreground">
+      <footer className="mt-auto border-t border-border py-8 text-center text-xs text-muted-foreground bg-card/40">
         <p>
-          MiniGit is free software licensed under the <Link href="/docs/license" className="underline hover:text-foreground">MIT License</Link>.
+          MiniGit is distributed under the permissive <Link href="/docs/license" className="underline hover:text-foreground">MIT Open Source License</Link>.
         </p>
       </footer>
     </div>
   );
 }
+
