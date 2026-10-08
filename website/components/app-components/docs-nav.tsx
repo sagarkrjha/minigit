@@ -2,82 +2,117 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { ThemeToggleButton } from "@/components/app-components";
 import { Button } from "@/components/ui";
 import { FaGithub } from "react-icons/fa6";
-import { FiDownload, FiExternalLink } from "react-icons/fi";
+import { FiDownload, FiMenu, FiX } from "react-icons/fi";
 
 export function DocsNavbar() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { href: "/docs/learn", label: "Learn" },
+    { href: "/docs/install", label: "Install" },
+    { href: "/docs/reference", label: "Reference" },
+    { href: "/docs/about", label: "About" },
+    { href: "/docs/community", label: "Community" },
+    { href: "/docs/sdk-and-docker", label: "SDK & Docker" },
+  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-4 sm:px-8">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight text-foreground">
+        <div className="flex items-center gap-4 sm:gap-6">
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
+          </button>
+
+          <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-foreground">
             <span className="flex h-7 w-7 items-center justify-center rounded bg-primary text-primary-foreground font-mono text-sm font-semibold shadow-xs">
               μ
             </span>
             <span className="text-base font-bold tracking-tight">MiniGit</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted font-mono font-medium text-muted-foreground border border-border">
+            <span className="hidden sm:inline-block text-xs px-2 py-0.5 rounded-full bg-muted font-mono font-medium text-muted-foreground border border-border">
               v1.11.3
             </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link
-              href="/docs/learn"
-              className={pathname === "/docs/learn" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
-            >
-              Learn
-            </Link>
-            <Link
-              href="/docs/install"
-              className={pathname === "/docs/install" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
-            >
-              Install
-            </Link>
-            <Link
-              href="/docs/reference"
-              className={pathname === "/docs/reference" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
-            >
-              Reference
-            </Link>
-            <Link
-              href="/docs/about"
-              className={pathname === "/docs/about" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
-            >
-              About
-            </Link>
-            <Link
-              href="/docs/community"
-              className={pathname === "/docs/community" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
-            >
-              Community
-            </Link>
+            {navLinks.slice(0, 5).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={
+                  pathname === item.href
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground transition-colors"
+                }
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="default" size="sm" asChild className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
             <Link href="/docs/install">
               <FiDownload className="mr-1.5 h-3.5 w-3.5" /> Download
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild className="hidden sm:inline-flex text-xs">
+          <Button variant="outline" size="sm" asChild className="p-2 sm:px-2.5 sm:py-1 text-xs">
             <a
               href="https://github.com/sagarkrjha/minigit"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5"
+              title="GitHub repository"
+              aria-label="GitHub repository"
             >
               <FaGithub className="h-3.5 w-3.5" />
-              <span>GitHub</span>
+              <span className="hidden sm:inline">GitHub</span>
             </a>
           </Button>
           <ThemeToggleButton />
         </div>
       </div>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-b border-border bg-background px-4 py-4 space-y-3">
+          <nav className="flex flex-col space-y-2 text-sm font-medium">
+            {navLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-3 py-2 rounded-md transition-colors ${
+                  pathname === item.href
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="pt-2 border-t border-border flex items-center justify-between">
+            <Button variant="default" size="sm" asChild className="w-full bg-primary text-primary-foreground">
+              <Link href="/docs/install" onClick={() => setMobileMenuOpen(false)}>
+                <FiDownload className="mr-1.5 h-3.5 w-3.5" /> Download Binaries
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

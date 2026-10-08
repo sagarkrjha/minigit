@@ -91,7 +91,7 @@ export function AutoDownloadButton({
       <a href={platform.downloadUrl} download={platform.fileName}>
         {renderIcon()}
         <span>
-          Download for {platform.osName} ({platform.fileName})
+          Download ({platform.fileName})
         </span>
       </a>
     </Button>
@@ -143,10 +143,10 @@ export function PlatformDetectorCard() {
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-base text-foreground">
+          <h2 className="font-semibold text-base text-foreground">
             Download for {platform.osName}
-          </h3>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          </h2>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
             Detected: {platform.arch}
           </span>
         </div>

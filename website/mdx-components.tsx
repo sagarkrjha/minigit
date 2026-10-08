@@ -85,20 +85,20 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
       );
     },
     p: ({ className = "", ...props }: ComponentPropsWithoutRef<"p">) => (
-      <p className={`leading-7 text-zinc-300 not-first:mt-4 ${className}`} {...props} />
+      <p className={`leading-7 text-zinc-700 dark:text-zinc-300 not-first:mt-4 ${className}`} {...props} />
     ),
     ul: ({ className = "", ...props }: ComponentPropsWithoutRef<"ul">) => (
-      <ul className={`my-4 ml-6 list-disc text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
+      <ul className={`my-4 ml-6 list-disc text-zinc-700 dark:text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
     ),
     ol: ({ className = "", ...props }: ComponentPropsWithoutRef<"ol">) => (
-      <ol className={`my-4 ml-6 list-decimal text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
+      <ol className={`my-4 ml-6 list-decimal text-zinc-700 dark:text-zinc-300 [&>li]:mt-2 ${className}`} {...props} />
     ),
     li: ({ className = "", ...props }: ComponentPropsWithoutRef<"li">) => (
       <li className={className} {...props} />
     ),
     blockquote: ({ className = "", children }: ComponentPropsWithoutRef<"blockquote">) => (
       <Alert variant="note" className={`my-4 ${className}`}>
-        <AlertDescription className="text-zinc-300 italic">{children}</AlertDescription>
+        <AlertDescription className="text-zinc-700 dark:text-zinc-300 italic">{children}</AlertDescription>
       </Alert>
     ),
     hr: ({ className = "" }: ComponentPropsWithoutRef<"hr">) => (
@@ -131,7 +131,7 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
 
       return (
         <code
-          className={`relative rounded-md bg-muted/80 border border-border/60 px-[0.35rem] py-[0.15rem] font-mono text-[13px] text-primary-foreground/90 font-medium ${className}`}
+          className={`relative rounded-md bg-zinc-100 dark:bg-muted/80 border border-border px-[0.35rem] py-[0.15rem] font-mono text-[13px] text-zinc-900 dark:text-zinc-200 font-medium ${className}`}
           {...props}
         >
           {children}

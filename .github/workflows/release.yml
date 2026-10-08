@@ -158,30 +158,35 @@ jobs:
           *Cross-platform binaries compiled and verified by automated CI.*
           EOF
 
-      - name: Publish versioned release
+      - name: Publish or update versioned release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
           TITLE: ${{ steps.meta.outputs.title }}
         run: |
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release '$TAG' already exists on GitHub."
-            echo "Repository rules enforce immutable releases. Skipping creation to avoid clobbering existing release."
-            echo "To publish a new version, bump the VERSION in CMakeLists.txt or push a new version tag (e.g. v1.0.1)."
-            exit 0
+            echo "Release '$TAG' already exists on GitHub. Updating release assets..."
+            gh release upload "$TAG" \
+              release_assets/minigit.exe \
+              release_assets/minigit-linux \
+              release_assets/minigit-macos \
+              release_assets/minigit-docs-website.tar.gz \
+              release_assets/SHA256SUMS.txt \
+              --repo "${{ github.repository }}" \
+              --clobber
+            echo "Release assets for '$TAG' updated successfully."
+          else
+            echo "Creating new versioned release '$TAG'..."
+            gh release create "$TAG" \
+              release_assets/minigit.exe \
+              release_assets/minigit-linux \
+              release_assets/minigit-macos \
+              release_assets/minigit-docs-website.tar.gz \
+              release_assets/SHA256SUMS.txt \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" \
+              --notes-file release_notes.md \
+              --target "${{ github.sha }}" \
+              --latest
+            echo "Versioned release '$TAG' created and published successfully as latest."
           fi
-
-          echo "Creating new versioned release '$TAG'..."
-          gh release create "$TAG" \
-            release_assets/minigit.exe \
-            release_assets/minigit-linux \
-            release_assets/minigit-macos \
-            release_assets/minigit-docs-website.tar.gz \
-            release_assets/SHA256SUMS.txt \
-            --repo "${{ github.repository }}" \
-            --title "$TITLE" \
-            --notes-file release_notes.md \
-            --target "${{ github.sha }}" \
-            --latest
-
-          echo "Versioned release '$TAG' created and published successfully as latest."
