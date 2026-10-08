@@ -25,6 +25,7 @@ RUN g++ -std=c++20 \
     -Isrc \
     -Isrc/sdk \
     examples/sdk_demo.cpp \
+    -Wl,--start-group \
     build/src/sdk/libminigit_sdk.a \
     build/src/core/libminigit_core.a \
     build/src/repository/libminigit_repository.a \
@@ -32,6 +33,7 @@ RUN g++ -std=c++20 \
     build/src/staging/libminigit_staging.a \
     build/src/history/libminigit_history.a \
     build/src/branching/libminigit_branching.a \
+    -Wl,--end-group \
     -lssl -lcrypto -lz -lcurl \
     -o /workspace/sdk_demo
 
