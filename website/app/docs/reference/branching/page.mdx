@@ -1,0 +1,82 @@
+# Branching, Switching & Milestones
+
+Manage diverging lines of development and tag milestones in MiniGit.
+
+---
+
+## 1. List Branches (`minigit branch`)
+
+Lists all branches, marking the currently checked-out branch with an asterisk (`*`):
+
+```bash
+minigit branch
+```
+
+---
+
+## 2. Create a Branch (`minigit branch <name>`)
+
+Creates a new branch reference pointing to the current `HEAD`:
+
+```bash
+minigit branch feature/payments
+```
+
+---
+
+## 3. Switch Branches (`minigit switch`)
+
+Safely updates the working directory and index to the target branch:
+
+```bash
+# Switch to existing branch
+minigit switch feature/payments
+
+# Create and switch in a single step (-c)
+minigit switch -c hotfix/patch-1
+```
+
+---
+
+## 4. Delete a Branch (`minigit branch -d`)
+
+Safely deletes a branch reference:
+
+```bash
+minigit branch -d feature/payments
+```
+
+---
+
+## 5. Historic Checkout & Detached HEAD (`minigit checkout`)
+
+Navigates to a specific historical commit:
+
+```bash
+minigit checkout 1a0b3c58342dc2145b20756e4c7ba987e9e6a0d0d4638708c3525287f3942007
+```
+
+To exit detached HEAD, switch back to a named branch:
+```bash
+minigit switch main
+```
+
+---
+
+## 6. Milestones & Releases (`minigit tag`)
+
+Create lightweight or annotated tags to mark releases:
+
+```bash
+# List tags
+minigit tag
+
+# Lightweight tag
+minigit tag v1.0.0
+
+# Annotated tag with message and tagger identity
+minigit tag -a v1.1.0 -m "Release v1.1.0"
+
+# Delete tag
+minigit tag -d v1.0.0
+```

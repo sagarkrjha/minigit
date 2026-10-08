@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="#08080a" />
+  <rect x="0.5" y="0.5" width="31" height="31" rx="6.5" stroke="#f43f5e" stroke-opacity="0.35" stroke-width="1" />
+  <defs>
+    <linearGradient id="rose-grad" x1="6" y1="8" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fb7185" />
+      <stop offset="100%" stop-color="#e11d48" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#f43f5e" flood-opacity="0.5" />
+    </filter>
+  </defs>
+  <text
+    x="16"
+    y="22.5"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="20"
+    font-weight="800"
+    fill="url(#rose-grad)"
+    filter="url(#glow)"
+  >μ</text>
+</svg>

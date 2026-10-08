@@ -1,0 +1,49 @@
+# MiniGit SDK via Docker Distribution
+
+The **MiniGit SDK** is distributed exclusively through the official **Docker Container Images**. This guarantees a reproducible environment with all compiled native static libraries (`libminigit_sdk.a`), C/C++ headers (`minigit_sdk.h`), and multi-language runtime bindings without needing to install external system compilers, OpenSSL, or Git dependencies on the host.
+
+---
+
+## 1. Official Container Images
+
+| Image | Contents | Recommended Use |
+| :--- | :--- | :--- |
+| `minigit:latest` | Pre-installed CLI binary, C/C++ SDK headers & static library | CLI executions & C++ containerized builds |
+| `minigit-sdk-demo:latest` | Compiled SDK multi-language demonstration runner | Testing & reference implementations |
+
+---
+
+## 2. Consuming the SDK in Your Dockerfile (Multi-Stage Builds)
+
+The cleanest and most reliable way to consume the MiniGit SDK is by copying the compiled artifacts or modules directly inside your application's `Dockerfile`. Select your target language below:
+
+<DockerSdkTabs />
+
+---
+
+## 3. Interactive Multi-Language Code Examples
+
+Explore how each language interacts with the SDK once mounted inside the container environment:
+
+<SdkExampleTabs />
+
+---
+
+## 4. Running the Demonstration Container
+
+MiniGit includes a ready-to-run demonstration container showcasing the SDK in action:
+
+```bash
+# Build the SDK demo container
+docker build -f Dockerfile.sdk-demo -t minigit-sdk-demo .
+
+# Run the containerized SDK demo mounted to your current workspace
+docker run --rm -v $(pwd):/data minigit-sdk-demo
+```
+
+### Docker Compose
+Alternatively, launch both the MiniGit CLI and the SDK demo with Docker Compose:
+
+```bash
+docker compose up --build
+```

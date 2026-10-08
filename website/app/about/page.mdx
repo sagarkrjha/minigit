@@ -1,0 +1,42 @@
+import Link from "next/link";
+import { Button } from "@/components/ui";
+
+# About This Template
+
+Welcome to the **MDX-powered** page of this starter template! 
+
+This page is written directly in standard Markdown and MDX syntax (`app/about/page.mdx`).
+
+---
+
+### What is MDX?
+
+[MDX](https://mdxjs.com/) lets you seamlessly combine **Markdown** writing with interactive **React components**.
+
+- **Markdown formatting**: Lists, bold, italics, links, blockquotes, and code snippets work out of the box.
+- **Embedded components**: You can import and render any React component directly inside markdown.
+- **Server Components**: Rendered natively on the server with Next.js App Router for optimal performance.
+
+### Example Code Block
+
+```typescript
+import createMDX from "@next/mdx";
+
+const withMDX = createMDX();
+export default withMDX(nextConfig);
+```
+
+### Interactive UI Inside Markdown
+
+Here is an example of embedding a shadcn UI `Button` right inside the MDX document:
+
+<div className="flex items-center gap-3 pt-4">
+  <Button asChild variant="outline">
+    <Link href="/">← Back to Home</Link>
+  </Button>
+  <Button asChild>
+    <a href="https://nextjs.org/docs/app/building-your-application/configuring/mdx" target="_blank" rel="noreferrer">
+      Next.js MDX Docs
+    </a>
+  </Button>
+</div>

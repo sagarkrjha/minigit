@@ -1,0 +1,92 @@
+# Installation & Downloads
+
+MiniGit provides pre-compiled standalone executables for Windows, Linux, and macOS, as well as an official container distribution. No source compilation or git cloning is required.
+
+---
+
+## Direct Downloads
+
+<div className="p-5 my-6 rounded-xl border border-border bg-card shadow-xs">
+  <PlatformDetectorCard />
+</div>
+
+All native pre-compiled binaries:
+
+| Platform / Operating System | Architecture | Binary File | Direct Download |
+| :--- | :--- | :--- | :--- |
+| **Windows** | x86_64 (64-bit) | `minigit.exe` | [Download Windows Binary](/assets/minigit.exe) |
+| **Linux** | x86_64 (glibc 2.31+) | `minigit-linux` | [Download Linux Binary](/assets/minigit-linux) |
+| **macOS** | Apple Silicon (arm64) | `minigit-macos` | [Download macOS Binary](/assets/minigit-macos) |
+| **Docs Website Bundle** | Standalone Tarball | `minigit-docs-website.tar.gz` | [Download Website Bundle](/assets/minigit-docs-website.tar.gz) |
+| **Checksums** | SHA-256 Hashes | `SHA256SUMS.txt` | [Download SHA256SUMS.txt](/assets/SHA256SUMS.txt) |
+
+---
+
+## 1. Application-Based Installation
+
+MiniGit binaries contain a built-in porcelain installer to manage your system PATH and shell configuration automatically.
+
+### Windows
+1. Download [`minigit.exe`](/assets/minigit.exe).
+2. Open PowerShell and run the user installer:
+```powershell
+.\minigit.exe install --user
+```
+3. Restart your terminal and verify:
+```powershell
+minigit --version
+```
+
+### Linux
+1. Download the standalone Linux executable:
+```bash
+curl -LO /assets/minigit-linux
+chmod +x minigit-linux
+```
+2. Install for the current user:
+```bash
+./minigit-linux install --user
+minigit --version
+```
+
+### macOS
+1. Download the macOS Apple Silicon binary:
+```bash
+curl -LO /assets/minigit-macos
+chmod +x minigit-macos
+```
+2. Install for the current user:
+```bash
+./minigit-macos install --user
+minigit --version
+```
+
+---
+
+## 2. Docker Container Installation
+
+For containerized environments, CI/CD pipelines, or isolated testing, use the official MiniGit Docker container:
+
+```bash
+# Pull and run the MiniGit container directly mounted to current working directory
+docker run --rm -v $(pwd):/data minigit:latest status
+```
+
+Or run interactive commands within the container workspace:
+```bash
+docker run --rm -it -v $(pwd):/data minigit:latest
+```
+
+---
+
+## 3. Cryptographic Verification
+
+All release assets are signed and verified via SHA-256 hashes published with each release:
+
+```bash
+# Verify checksums on Linux / macOS
+sha256sum -c SHA256SUMS.txt
+
+# Verify checksum on Windows PowerShell
+Get-FileHash .\minigit.exe -Algorithm SHA256
+```
