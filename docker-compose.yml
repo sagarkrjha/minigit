@@ -1,0 +1,24 @@
+services:
+  minigit-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: minigit:latest
+    container_name: minigit-cli
+    volumes:
+      - minigit-data:/data
+    command: ["status"]
+
+  minigit-sdk-demo:
+    build:
+      context: .
+      dockerfile: Dockerfile.sdk-demo
+    image: minigit-sdk-demo:latest
+    container_name: minigit-sdk-demo
+    volumes:
+      - minigit-data:/data
+    depends_on:
+      - minigit-cli
+
+volumes:
+  minigit-data:

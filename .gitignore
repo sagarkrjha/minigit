@@ -39,3 +39,25 @@ context.md
 # vcpkg
 vcpkg_installed/
 .vcpkg-cache/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Node / JS / TS artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Rust artifacts
+sdks/rust/target/
+sdks/rust/Cargo.lock
+
+# Java artifacts
+*.class
+target/
+.gradle/

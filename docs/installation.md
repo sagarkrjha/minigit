@@ -22,6 +22,7 @@ This document contains complete instructions for building MiniGit from source an
   - [Advanced Installer Options](#advanced-installer-options)
   - [Uninstallation](#uninstallation)
 - [5. Automated Self-Update (`minigit update`)](#5-automated-self-update-minigit-update)
+- [6. Docker Container Distribution](#6-docker-container-distribution)
 
 ---
 
@@ -203,3 +204,27 @@ minigit update
 # Force reinstall or update to latest release
 minigit update --force
 ```
+
+---
+
+## 6. Docker Container Distribution
+
+For containerized environments, cloud microservices, and CI/CD pipelines, MiniGit provides an official multi-stage Docker build:
+
+```bash
+# Build the production runtime image
+docker build -t minigit:latest .
+
+# Run MiniGit commands mounting your host directory
+docker run --rm -v $(pwd):/data minigit:latest status
+
+# Run the complete environment via Docker Compose
+docker compose up --build
+```
+
+The runtime image contains:
+- Standalone CLI executable at `/usr/local/bin/minigit`
+- C++ SDK public headers at `/usr/local/include/minigit/minigit_sdk.h`
+- C++ SDK static library at `/usr/local/lib/libminigit_sdk.a`
+
+For full details on using the SDK across multiple programming languages, see [SDK_AND_DOCKER.md](SDK_AND_DOCKER.md).

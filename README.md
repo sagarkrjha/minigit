@@ -68,6 +68,7 @@ MiniGit was created to:
 | **Storage & Packing** | Packfile v2, idx v2, delta compression (`repack`, `verify-pack`) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#4-packfile-and-compression-subsystem) |
 | **Plumbing Utilities** | `hash-object`, `write-tree`, `cat-file`, `ls-files`, `ls-tree` | [USAGE.md](USAGE.md#13-low-level-plumbing-commands) |
 | **Installer & Self-Update** | Permission-based installer (`install`), self-updater (`update`) | [USAGE.md](USAGE.md#1-quick-start--installation) |
+| **MiniGit SDK & Docker** | Programmatic C++/C SDK (`minigit_sdk`), cloud/local sync, Docker distribution | [docs/SDK_AND_DOCKER.md](docs/SDK_AND_DOCKER.md) |
 
 For comprehensive feature specifications, refer to [FEATURES.md](FEATURES.md).
 
@@ -168,19 +169,30 @@ MiniGit organizes deep technical specifications into dedicated documents to main
 | **Installation** | [docs/installation.md](docs/installation.md) | Source build requirements, CMake / vcpkg setup on Windows, Linux, and macOS, and installer CLI flags. |
 | **CLI Usage** | [USAGE.md](USAGE.md) | Complete CLI walkthrough, workflow recipes, branch management, rebase, remotes, and command reference. |
 | **Feature Spec** | [FEATURES.md](FEATURES.md) | In-depth behavioral semantics and comparative specifications across all commands. |
+| **SDK & Docker** | [docs/SDK_AND_DOCKER.md](docs/SDK_AND_DOCKER.md) | Polyglot SDK bindings (C++, C, Python, JS/TS, Go, Java, Rust) and Docker distribution. |
 
 ---
 
 ## Source Code Organization
 
-The repository source is located under `src/` and cleanly partitioned into modular C++ libraries:
+The repository source is located under `src/` and `sdks/`:
 
 ```text
 minigit/
 ├── CMakeLists.txt              # Root CMake build configuration
-├── docs/                       # Detailed technical, architectural, and benchmark docs
+├── Dockerfile                  # Multi-stage Docker distribution
+├── docker-compose.yml          # Containerized orchestration
+├── docs/                       # Technical, architectural, and benchmark docs
+│   └── SDK_AND_DOCKER.md       # Multi-language SDK and Docker specification
+├── sdks/                       # Polyglot SDK implementations
+│   ├── python/                 # Python SDK (minigit_sdk package)
+│   ├── js/                     # JavaScript / TypeScript SDK (Node.js)
+│   ├── go/                     # Go SDK (minigit package)
+│   ├── java/                   # Java SDK (io.minigit.sdk)
+│   └── rust/                   # Rust SDK (minigit-sdk crate)
 ├── src/
 │   ├── cli/                    # Command routing and dispatcher
+│   ├── sdk/                    # C++20 SDK (MiniGitClient) and C API bindings
 │   ├── core/                   # SHA-256, zlib, path safety, file I/O, logging, version
 │   ├── repository/             # Repository discovery, initialization, and worktree resolution
 │   ├── storage/                # CAS object database, blobs, trees, commits, packfiles (.pack/.idx)

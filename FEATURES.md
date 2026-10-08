@@ -51,6 +51,7 @@ This document provides a comprehensive, production-grade technical specification
   - [2.36 `minigit version`](#236-minigit-version)
   - [2.37 `minigit install` (Permission-Based Installation)](#237-minigit-install-permission-based-installation)
   - [2.38 `minigit update`](#238-minigit-update)
+  - [2.39 MiniGit SDK & Polyglot Runtime Layer (`minigit-sdk`)](#239-minigit-sdk--polyglot-runtime-layer-minigit-sdk)
 - [3. Storage & Object Internals](#3-storage--object-internals)
   - [3.1 Object Envelope Format](#31-object-envelope-format)
   - [3.2 Blob Objects](#32-blob-objects)
@@ -2077,6 +2078,27 @@ Enables in-place self-updating of the active `minigit` binary directly from GitH
    - If installed in a protected directory (such as `C:\Program Files\minigit\bin\minigit.exe`), attempting an update from a non-elevated terminal automatically requests Administrator elevation via Windows UAC (`runas`), executing the update with administrative privileges and returning the result.
 3. **Safe In-Place Replacement:**
    - On Windows, renames the running binary to `.old`, writes the new executable, and cleans up the `.old` binary on success.
+
+---
+
+### 2.39 MiniGit SDK & Polyglot Runtime Layer (`minigit-sdk`)
+
+#### Purpose
+`minigit-sdk` provides programmatic embedding and multi-language access to MiniGit repository operations, content-addressable storage, commit graphs, and cloud sync/backup capabilities.
+
+#### Supported Languages & Bindings
+- **C++20**: Native `minigit::sdk::MiniGitClient` in `src/sdk/` linking with `libminigit_sdk`.
+- **C (C99)**: Zero-overhead C FFI functions (`minigit_sdk_init`, `minigit_sdk_commit`, etc.) in `src/sdk/minigit_sdk.h`.
+- **Python**: High-level OOP bindings in `sdks/python/minigit_sdk/` (`MiniGitClient`).
+- **JavaScript / TypeScript**: Node.js CommonJS module and `.d.ts` typings in `sdks/js/`.
+- **Go**: Idiomatic Go package `sdks/go/minigit` (`minigit.NewClient`, `minigit.Init`).
+- **Java**: Java 17+ client `io.minigit.sdk.MiniGitClient` in `sdks/java/`.
+- **Rust**: High-level Cargo crate `minigit-sdk` in `sdks/rust/`.
+
+#### Docker Distribution
+- **OCI Container**: Multi-stage `Dockerfile` producing minimal production runtime images.
+- **SDK Demo Orchestration**: `docker-compose.yml` and `Dockerfile.sdk-demo` illustrating containerized workflows.
+- For technical details and recipes, see [docs/SDK_AND_DOCKER.md](docs/SDK_AND_DOCKER.md).
 
 ---
 

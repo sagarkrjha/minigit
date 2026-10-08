@@ -13,6 +13,7 @@ add_subdirectory(submodule)
 add_subdirectory(bisect)
 add_subdirectory(install)
 add_subdirectory(update)
+add_subdirectory(sdk)
 add_subdirectory(cli)
 
 add_executable(minigit
@@ -22,4 +23,5 @@ add_executable(minigit
 target_link_libraries(minigit
     PRIVATE
         minigit_cli
+        minigit_sdk
 )
