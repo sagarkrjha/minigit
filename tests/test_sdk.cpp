@@ -4,10 +4,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
-TEST_CASE(sdk_init_and_open)
+TEST_CASE(SDK, InitAndOpen)
 {
     fs::path test_dir = fs::temp_directory_path() / "minigit_sdk_test_repo";
     if (fs::exists(test_dir)) {
@@ -25,7 +26,7 @@ TEST_CASE(sdk_init_and_open)
     fs::remove_all(test_dir);
 }
 
-TEST_CASE(sdk_stage_and_commit)
+TEST_CASE(SDK, StageAndCommit)
 {
     fs::path test_dir = fs::temp_directory_path() / "minigit_sdk_test_commit";
     if (fs::exists(test_dir)) {
@@ -68,7 +69,7 @@ TEST_CASE(sdk_stage_and_commit)
     fs::remove_all(test_dir);
 }
 
-TEST_CASE(sdk_branching)
+TEST_CASE(SDK, Branching)
 {
     fs::path test_dir = fs::temp_directory_path() / "minigit_sdk_test_branch";
     if (fs::exists(test_dir)) {
@@ -97,7 +98,7 @@ TEST_CASE(sdk_branching)
     fs::remove_all(test_dir);
 }
 
-TEST_CASE(sdk_cloud_sync_and_restore)
+TEST_CASE(SDK, CloudSyncAndRestore)
 {
     fs::path repo_dir = fs::temp_directory_path() / "minigit_sdk_source_repo";
     fs::path backup_dir = fs::temp_directory_path() / "minigit_sdk_cloud_store";
@@ -136,7 +137,7 @@ TEST_CASE(sdk_cloud_sync_and_restore)
     fs::remove_all(restored_repo_dir);
 }
 
-TEST_CASE(sdk_c_bindings)
+TEST_CASE(SDK, CBindings)
 {
     fs::path test_dir = fs::temp_directory_path() / "minigit_c_sdk_test";
     if (fs::exists(test_dir)) {
