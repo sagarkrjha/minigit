@@ -67,7 +67,7 @@ export default function HomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/architecture" className="text-primary font-medium hover:underline">
+                <Link href="/docs/features" className="text-primary font-medium hover:underline">
                   Learn about CAS & Storage Internals →
                 </Link>
               </CardContent>
@@ -110,16 +110,16 @@ export default function HomePage() {
             <Card>
               <CardHeader>
                 <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center font-mono font-bold text-sm mb-2">
-                  ALG
+                  BENCH
                 </div>
-                <CardTitle>Myers Diff & LCA Merge</CardTitle>
+                <CardTitle>Empirical Benchmarks</CardTitle>
                 <CardDescription>
-                  Eugene Myers' $O(ND)$ greedy difference algorithm and BFS-based Lowest Common Ancestor commit graph traversal.
+                  High-throughput SHA-256 EVP digest rate, zlib compression ratios, and memory profiling.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                <Link href="/docs/algorithms" className="text-primary font-medium hover:underline">
-                  Read Algorithmic Proofs →
+                <Link href="/docs/benchmarks" className="text-primary font-medium hover:underline">
+                  View Performance Benchmarks →
                 </Link>
               </CardContent>
             </Card>

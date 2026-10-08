@@ -5,17 +5,6 @@ import { usePathname } from "next/navigation";
 import { ThemeToggleButton } from "@/components/app-components";
 import { Button } from "@/components/ui";
 
-const navItems = [
-  { href: "/docs", label: "Documentation" },
-  { href: "/docs/installation", label: "Installation" },
-  { href: "/docs/cli-usage", label: "CLI Usage" },
-  { href: "/docs/sdk-and-docker", label: "SDK & Docker" },
-  { href: "/docs/architecture", label: "Architecture" },
-  { href: "/docs/algorithms", label: "Algorithms" },
-  { href: "/docs/benchmarks", label: "Benchmarks" },
-  { href: "/docs/security", label: "Security" },
-];
-
 export function DocsNavbar() {
   const pathname = usePathname();
 
@@ -41,6 +30,12 @@ export function DocsNavbar() {
               Docs
             </Link>
             <Link
+              href="/docs/installation"
+              className={pathname === "/docs/installation" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+            >
+              Installation
+            </Link>
+            <Link
               href="/docs/cli-usage"
               className={pathname === "/docs/cli-usage" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
@@ -53,10 +48,10 @@ export function DocsNavbar() {
               SDK & Docker
             </Link>
             <Link
-              href="/docs/architecture"
-              className={pathname === "/docs/architecture" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
+              href="/docs/features"
+              className={pathname === "/docs/features" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground transition-colors"}
             >
-              Architecture
+              Features
             </Link>
           </nav>
         </div>
@@ -117,15 +112,9 @@ export function DocsSidebar() {
 
         <div>
           <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3 px-3">
-            Core Mechanics
+            System & Performance
           </h4>
           <div className="space-y-1">
-            <SidebarLink href="/docs/architecture" current={pathname}>
-              Architecture
-            </SidebarLink>
-            <SidebarLink href="/docs/algorithms" current={pathname}>
-              Myers Diff & DAG LCA
-            </SidebarLink>
             <SidebarLink href="/docs/benchmarks" current={pathname}>
               Empirical Benchmarks
             </SidebarLink>
