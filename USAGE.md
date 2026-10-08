@@ -89,7 +89,11 @@ This guide provides end-to-end usage instructions, practical workflow recipes, a
   - [Check for Available Updates (`minigit update --check`)](#141-check-for-available-updates)
   - [Download and Apply Self-Update (`minigit update`)](#142-download-and-apply-self-update)
   - [Terminal Update Notification Banner](#143-terminal-update-notification-banner)
-- [15. Command Summary & Cheat Sheet](#15-command-summary--cheat-sheet)
+- [15. MiniGit SDK & Docker Distribution](#15-minigit-sdk--docker-distribution)
+  - [C++ and C SDK Integration](#151-c-and-c-sdk-integration)
+  - [Multi-Language SDKs (Python, JS/TS, Go, Java, Rust)](#152-multi-language-sdks-python-jsts-go-java-rust)
+  - [Docker Container Runtime](#153-docker-container-runtime)
+- [16. Command Summary & Cheat Sheet](#16-command-summary--cheat-sheet)
 
 ---
 
@@ -1493,7 +1497,54 @@ When using MiniGit interactively, a lightweight non-intrusive update notificatio
 
 ---
 
-## 15. Command Summary & Cheat Sheet
+## 15. MiniGit SDK & Docker Distribution
+
+MiniGit can be embedded into third-party applications via the **MiniGit SDK** (`minigit-sdk`) or deployed instantly in containerized environments using the **Docker distribution**.
+
+### 15.1 C++ and C SDK Integration
+
+Include the public header `#include <minigit/minigit_sdk.h>` and link against `libminigit_sdk`:
+
+```cpp
+#include <minigit/minigit_sdk.h>
+#include <iostream>
+
+int main() {
+    auto client = minigit::sdk::MiniGitClient::init("./repo");
+    client.add({"main.cpp"});
+    std::string cid = client.commit("Initial commit via C++ SDK");
+    std::cout << "Committed: " << cid << std::endl;
+    return 0;
+}
+```
+
+### 15.2 Multi-Language SDKs (Python, JS/TS, Go, Java, Rust)
+
+Dedicated SDK packages are available under `sdks/`:
+- **Python**: `from minigit_sdk import MiniGitClient`
+- **JavaScript / TypeScript**: `const { MiniGitClient } = require('./sdks/js')`
+- **Go**: `import "sdks/go/minigit"`
+- **Java**: `import io.minigit.sdk.MiniGitClient;`
+- **Rust**: `use minigit_sdk::MiniGitClient;`
+
+For full API documentation, see [docs/SDK_AND_DOCKER.md](docs/SDK_AND_DOCKER.md).
+
+### 15.3 Docker Container Runtime
+
+```bash
+# Build the official multi-stage image
+docker build -t minigit:latest .
+
+# Run MiniGit CLI in an isolated container
+docker run --rm -v $(pwd):/data minigit:latest status
+
+# Start CLI & SDK Demo via Docker Compose
+docker compose up --build
+```
+
+---
+
+## 16. Command Summary & Cheat Sheet
 
 | Command | Synopsis | Description |
 | :--- | :--- | :--- |

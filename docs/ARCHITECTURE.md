@@ -80,6 +80,12 @@ All entities in MiniGit are immutable objects identified by their 256-bit SHA-25
 - **`pkt-line.cpp`**: Streams length-delimited packets prefixed with 4-byte hexadecimal length headers and `0000` flush delimiters.
 - **Transfer Negotiation**: Computes common commits between local and remote ref advertisements, producing or consuming raw packfile byte streams.
 
+### 2.8 MiniGit SDK & Polyglot Runtime Layer (`src/sdk/`, `sdks/`)
+- **Native C++20 SDK (`libminigit_sdk`)**: Object-oriented programmatic API (`MiniGitClient`) exposing repository initialization, staging, commits, branches, DAG history traversal, and cloud/local backup synchronization.
+- **C-Compatible FFI Interface (`extern "C"`)**: Standard C entry points (`minigit_sdk_init`, `minigit_sdk_commit`, etc.) enabling universal interop without C++ name mangling.
+- **Polyglot SDK Bindings**: Dedicated SDK packages providing native idioms across **Python**, **JavaScript / TypeScript**, **Go**, **Java**, and **Rust**.
+- **Docker Distribution**: Multi-stage OCI container image distributing the standalone CLI binary, SDK headers, static archive, and runtime dependencies.
+
 ---
 
 ## 3. Platform Abstraction & Memory Safety
