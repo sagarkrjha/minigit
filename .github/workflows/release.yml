@@ -74,6 +74,20 @@ jobs:
           chmod +x minigit-linux minigit-macos
           ls -lh
 
+      - name: Setup Node.js & pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Build documentation website
+        run: |
+          cd website
+          pnpm install --frozen-lockfile
+          pnpm build
+          tar -czf ../release_assets/minigit-docs-website.tar.gz -C .next/standalone . 2>/dev/null || tar -czf ../release_assets/minigit-docs-website.tar.gz .
+          cd ..
+          ls -lh release_assets/minigit-docs-website.tar.gz
+
       - name: Determine release tag and title
         id: meta
         run: |
@@ -102,7 +116,7 @@ jobs:
       - name: Compute cryptographic SHA-256 checksums
         run: |
           cd release_assets
-          sha256sum minigit.exe minigit-linux minigit-macos > SHA256SUMS.txt
+          sha256sum minigit.exe minigit-linux minigit-macos minigit-docs-website.tar.gz > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Generate release notes
@@ -114,7 +128,7 @@ jobs:
           cat <<EOF > release_notes.md
           ## ${TITLE}
 
-          Automated release containing verified cross-platform builds of **MiniGit ${TAG}**.
+          Automated release containing verified cross-platform builds of **MiniGit ${TAG}** and the official documentation website bundle.
 
           - **Version:** \`${TAG}\`
           - **Commit:** [\`${SHORT_SHA}\`](https://github.com/${{ github.repository }}/commit/${GITHUB_SHA})
@@ -123,11 +137,12 @@ jobs:
 
           ### Direct Downloads & Checksums
 
-          | Platform | Architecture | Binary | Direct Download Link |
+          | Platform / Asset | Architecture | Binary / Bundle | Direct Download Link |
           | :--- | :--- | :--- | :--- |
           | **Windows** | x86_64 | \`minigit.exe\` | [Download \`minigit.exe\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit.exe) |
           | **Linux** | x86_64 | \`minigit-linux\` | [Download \`minigit-linux\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-linux) |
           | **macOS** | Apple Silicon (arm64) | \`minigit-macos\` | [Download \`minigit-macos\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-macos) |
+          | **Docs Website** | Static / Standalone | \`minigit-docs-website.tar.gz\` | [Download \`minigit-docs-website.tar.gz\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/minigit-docs-website.tar.gz) |
           | **Checksums** | Any | \`SHA256SUMS.txt\` | [Download \`SHA256SUMS.txt\`](https://github.com/${{ github.repository }}/releases/download/${TAG}/SHA256SUMS.txt) |
 
           \`\`\`text
@@ -156,6 +171,7 @@ jobs:
             release_assets/minigit.exe \
             release_assets/minigit-linux \
             release_assets/minigit-macos \
+            release_assets/minigit-docs-website.tar.gz \
             release_assets/SHA256SUMS.txt \
             --repo "${{ github.repository }}" \
             --title "$TITLE" \
